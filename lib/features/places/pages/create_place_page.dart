@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 class CreatePlacePage extends CompositionWidget {
   static const String path = '/places/create';
@@ -65,10 +66,8 @@ class CreatePlacePage extends CompositionWidget {
       }
     }
 
-    return (context) => Scaffold(
-      appBar: AppBar(
-        title: const Text('Skapa lokal'),
-      ),
+    return (context) => GradientScaffold(
+      title: 'Skapa lokal',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

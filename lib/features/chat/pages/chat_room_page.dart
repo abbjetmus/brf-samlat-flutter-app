@@ -5,6 +5,7 @@ import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/file_utils.dart';
 import '../../../core/models/pocketbase_models.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 /// Renders a single conversation with flutter_chat_ui. Raw PocketBase messages
 /// from [ChatStore] are mapped into flutter_chat_core [Message]s and pushed into
@@ -45,8 +46,8 @@ class ChatRoomPage extends CompositionWidget {
     return (context) {
       final currentUserId = authStore.currentUser.value?.id ?? '';
 
-      return Scaffold(
-        appBar: AppBar(title: Text(title)),
+      return GradientScaffold(
+        title: title,
         body: Chat(
           chatController: controller,
           currentUserId: currentUserId,

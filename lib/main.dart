@@ -25,6 +25,7 @@ import 'features/users/users_store.dart';
 import 'features/invoices/invoices_store.dart';
 import 'features/forms/forms_store.dart';
 import 'features/chat/chat_store.dart';
+import 'shared/widgets/app_update_banner.dart';
 
 // Top-level background handler so FCM can wake the isolate. The OS displays the
 // notification from the tray; nothing extra is needed here.
@@ -123,6 +124,9 @@ class MyApp extends CompositionWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: themeStore.themeMode.value,
       routerConfig: router,
+      builder: (context, child) => AppUpdateBanner(
+        child: child ?? const SizedBox(),
+      ),
     );
   }
 }

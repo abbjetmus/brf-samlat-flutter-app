@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/search_field.dart';
 import 'parking_lot_detail_page.dart';
 import 'create_parking_lot_page.dart';
 
@@ -15,6 +17,7 @@ class ParkingLotsListPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final parkingStore = inject(parkingStoreKey);
     final authStore = inject(authStoreKey);
+    final searchQuery = ref('');
 
     onMounted(() {
       parkingStore.getAllParkingLots();
@@ -23,12 +26,24 @@ class ParkingLotsListPage extends CompositionWidget {
     return (context) {
       final lots = parkingStore.parkingLotsList.value;
       final loading = parkingStore.loading.value;
-      final canCreate = authStore.hasPermission('parking_lots', CrudOperation.create);
+      final canCreate = authStore.hasPermission(
+        'parking_lots',
+        CrudOperation.create,
+      );
 
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Parkeringar'),
-        ),
+      final query = searchQuery.value.trim().toLowerCase();
+      final filteredLots = query.isEmpty
+          ? lots
+          : lots
+                .where(
+                  (l) =>
+                      l.name.toLowerCase().contains(query) ||
+                      l.parkingType.toLowerCase().contains(query),
+                )
+                .toList();
+
+      return GradientScaffold(
+        title: 'Parkeringar',
         floatingActionButton: canCreate
             ? FloatingActionButton(
                 onPressed: () => context.push(CreateParkingLotPage.path),
@@ -38,35 +53,58 @@ class ParkingLotsListPage extends CompositionWidget {
         body: loading && lots.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : lots.isEmpty
-                ? const Center(child: Text('Inga parkeringar ännu.'))
-                : RefreshIndicator(
-                    onRefresh: () => parkingStore.getAllParkingLots(),
-                    child: ListView.separated(
-                      padding: const EdgeInsets.all(8),
-                      itemCount: lots.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 4),
-                      itemBuilder: (context, index) {
-                        final lot = lots[index];
-                        return Card(
-                          clipBehavior: Clip.antiAlias,
-                          child: ListTile(
-                            leading: const Icon(Icons.local_parking_outlined),
-                            title: Text(
-                              lot.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: Text(
-                              lot.parkingType,
-                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                            ),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => context.push('${ParkingLotDetailPage.path}/${lot.id}'),
-                          ),
-                        );
-                      },
+            ? const Center(child: Text('Inga parkeringar ännu.'))
+            : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: SearchField(
+                      hintText: 'Sök parkering...',
+                      onChanged: (v) => searchQuery.value = v,
                     ),
                   ),
+                  Expanded(
+                    child: filteredLots.isEmpty
+                        ? const Center(child: Text('Inga träffar.'))
+                        : RefreshIndicator(
+                            onRefresh: () => parkingStore.getAllParkingLots(),
+                            child: ListView.separated(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              itemCount: filteredLots.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 4),
+                              itemBuilder: (context, index) {
+                                final lot = filteredLots[index];
+                                return Card(
+                                  clipBehavior: Clip.antiAlias,
+                                  child: ListTile(
+                                    leading: const Icon(
+                                      Icons.local_parking_outlined,
+                                    ),
+                                    title: Text(
+                                      lot.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    subtitle: Text(
+                                      lot.parkingType,
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    trailing: const Icon(Icons.chevron_right),
+                                    onTap: () => context.push(
+                                      '${ParkingLotDetailPage.path}/${lot.id}',
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                  ),
+                ],
+              ),
       );
     };
   }

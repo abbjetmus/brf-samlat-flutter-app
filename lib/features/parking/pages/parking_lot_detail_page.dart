@@ -3,6 +3,8 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/rich_description.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 class ParkingLotDetailPage extends CompositionWidget {
   static const String path = '/parking/detail';
@@ -93,59 +95,60 @@ class ParkingLotDetailPage extends CompositionWidget {
       final canDeleteSpace = authStore.hasPermission('parking_spaces', CrudOperation.delete);
 
       if (loading && lot == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Parkering')),
-          body: const Center(child: CircularProgressIndicator()),
+        return const GradientScaffold(
+          title: 'Parkering',
+          body: Center(child: CircularProgressIndicator()),
         );
       }
 
       if (lot == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Parkering')),
-          body: const Center(child: Text('Parkering hittades inte.')),
+        return const GradientScaffold(
+          title: 'Parkering',
+          body: Center(child: Text('Parkering hittades inte.')),
         );
       }
 
       return DefaultTabController(
         length: 2,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(lot.name),
-            actions: [
-              if (canDelete)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () async {
-                    final confirmed = await showConfirmDialog(
-                      context,
-                      title: 'Radera parkering',
-                      message: 'Är du säker på att du vill radera denna parkering?',
-                      okLabel: 'Radera',
-                      okColor: Colors.red,
-                    );
-                    if (confirmed) {
-                      await parkingStore.deleteParkingLot(lot.id);
-                      final ctx = contextRef.value;
-                      if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
-                    }
-                  },
-                ),
-            ],
-            bottom: const TabBar(
-              tabs: [
-                Tab(text: 'Information'),
-                Tab(text: 'Platser'),
-              ],
-            ),
-          ),
+        child: GradientScaffold(
+          title: lot.name,
+          actions: [
+            if (canDelete)
+              HeaderIconButton(
+                icon: Icons.delete_outline,
+                onPressed: () async {
+                  final confirmed = await showConfirmDialog(
+                    context,
+                    title: 'Radera parkering',
+                    message: 'Är du säker på att du vill radera denna parkering?',
+                    okLabel: 'Radera',
+                    okColor: Colors.red,
+                  );
+                  if (confirmed) {
+                    await parkingStore.deleteParkingLot(lot.id);
+                    final ctx = contextRef.value;
+                    if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
+                  }
+                },
+              ),
+          ],
           floatingActionButton: canCreate
               ? FloatingActionButton(
                   onPressed: showAddSpaceDialog,
                   child: const Icon(Icons.add),
                 )
               : null,
-          body: TabBarView(
+          body: Column(
             children: [
+              const TabBar(
+                tabs: [
+                  Tab(text: 'Information'),
+                  Tab(text: 'Platser'),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: [
               // Info tab
               SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -158,7 +161,7 @@ class ParkingLotDetailPage extends CompositionWidget {
                     ),
                     if (lot.description != null && lot.description!.isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      Text(lot.description!, style: const TextStyle(fontSize: 16)),
+                      RichDescription(html: lot.description!),
                     ],
                     const SizedBox(height: 16),
                     const Divider(),
@@ -178,7 +181,7 @@ class ParkingLotDetailPage extends CompositionWidget {
                   : RefreshIndicator(
                       onRefresh: () => parkingStore.getParkingSpaces(parkingLotId),
                       child: ListView.separated(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
                         itemCount: spaces.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 4),
                         itemBuilder: (context, index) {
@@ -236,6 +239,9 @@ class ParkingLotDetailPage extends CompositionWidget {
                         },
                       ),
                     ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

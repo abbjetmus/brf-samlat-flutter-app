@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 class CreatePostPage extends CompositionWidget {
   static const String path = '/posts/create';
@@ -54,10 +55,8 @@ class CreatePostPage extends CompositionWidget {
       }
     }
 
-    return (context) => Scaffold(
-      appBar: AppBar(
-        title: const Text('Skapa nyhet'),
-      ),
+    return (context) => GradientScaffold(
+      title: 'Skapa nyhet',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

@@ -5,6 +5,8 @@ import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../core/models/pocketbase_models.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/rich_description.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 import '../places_store.dart';
 
 class PlaceDetailPage extends CompositionWidget {
@@ -145,59 +147,60 @@ class PlaceDetailPage extends CompositionWidget {
       final canDelete = authStore.hasPermission('places', CrudOperation.delete);
 
       if (loading && place == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Lokal')),
-          body: const Center(child: CircularProgressIndicator()),
+        return const GradientScaffold(
+          title: 'Lokal',
+          body: Center(child: CircularProgressIndicator()),
         );
       }
 
       if (place == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Lokal')),
-          body: const Center(child: Text('Lokal hittades inte.')),
+        return const GradientScaffold(
+          title: 'Lokal',
+          body: Center(child: Text('Lokal hittades inte.')),
         );
       }
 
       return DefaultTabController(
         length: 2,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(place.name),
-            actions: [
-              if (canDelete)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () async {
-                    final confirmed = await showConfirmDialog(
-                      context,
-                      title: 'Radera lokal',
-                      message: 'Är du säker på att du vill radera denna lokal?',
-                      okLabel: 'Radera',
-                      okColor: Colors.red,
-                    );
-                    if (confirmed) {
-                      await placesStore.deletePlace(place.id);
-                      final ctx = contextRef.value;
-                      if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
-                    }
-                  },
-                ),
-            ],
-            bottom: const TabBar(
-              tabs: [
-                Tab(text: 'Information'),
-                Tab(text: 'Bokningar'),
-              ],
-            ),
-          ),
+        child: GradientScaffold(
+          title: place.name,
+          actions: [
+            if (canDelete)
+              HeaderIconButton(
+                icon: Icons.delete_outline,
+                onPressed: () async {
+                  final confirmed = await showConfirmDialog(
+                    context,
+                    title: 'Radera lokal',
+                    message: 'Är du säker på att du vill radera denna lokal?',
+                    okLabel: 'Radera',
+                    okColor: Colors.red,
+                  );
+                  if (confirmed) {
+                    await placesStore.deletePlace(place.id);
+                    final ctx = contextRef.value;
+                    if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
+                  }
+                },
+              ),
+          ],
           floatingActionButton: canCreate
               ? FloatingActionButton(
                   onPressed: showAddBookingDialog,
                   child: const Icon(Icons.add),
                 )
               : null,
-          body: TabBarView(
+          body: Column(
             children: [
+              const TabBar(
+                tabs: [
+                  Tab(text: 'Information'),
+                  Tab(text: 'Bokningar'),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: [
               // Info tab
               SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -210,7 +213,7 @@ class PlaceDetailPage extends CompositionWidget {
                     ),
                     if (place.description != null && place.description!.isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      Text(place.description!, style: const TextStyle(fontSize: 16)),
+                      RichDescription(html: place.description!),
                     ],
                     const SizedBox(height: 16),
                     const Divider(),
@@ -269,6 +272,9 @@ class PlaceDetailPage extends CompositionWidget {
                     ),
                   ),
                 ],
+              ),
+            ],
+                ),
               ),
             ],
           ),

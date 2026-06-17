@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 import 'form_detail_page.dart';
 
 class FormsListPage extends CompositionWidget {
@@ -21,10 +22,8 @@ class FormsListPage extends CompositionWidget {
       final responses = formsStore.userFormResponses.value;
       final loading = formsStore.loading.value;
 
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Formulär'),
-        ),
+      return GradientScaffold(
+        title: 'Formulär',
         body: loading && responses.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : responses.isEmpty
@@ -32,7 +31,7 @@ class FormsListPage extends CompositionWidget {
                 : RefreshIndicator(
                     onRefresh: () => formsStore.getUserFormResponses(),
                     child: ListView.separated(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       itemCount: responses.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 4),
                       itemBuilder: (context, index) {

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 class RegisterPage extends CompositionWidget {
   static const String path = '/register';
@@ -59,10 +60,8 @@ class RegisterPage extends CompositionWidget {
       }
     }
 
-    return (context) => Scaffold(
-      appBar: AppBar(
-        title: const Text('Registrera'),
-      ),
+    return (context) => GradientScaffold(
+      title: 'Registrera',
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

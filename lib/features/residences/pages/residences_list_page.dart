@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/search_field.dart';
 import 'residence_detail_page.dart';
 import 'create_residence_page.dart';
 
@@ -15,6 +17,7 @@ class ResidencesListPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final residencesStore = inject(residencesStoreKey);
     final authStore = inject(authStoreKey);
+    final searchQuery = ref('');
 
     onMounted(() {
       residencesStore.getAllResidences();
@@ -23,12 +26,26 @@ class ResidencesListPage extends CompositionWidget {
     return (context) {
       final residences = residencesStore.residencesList.value;
       final loading = residencesStore.loading.value;
-      final canCreate = authStore.hasPermission('residences', CrudOperation.create);
+      final canCreate = authStore.hasPermission(
+        'residences',
+        CrudOperation.create,
+      );
 
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Bostäder'),
-        ),
+      final query = searchQuery.value.trim().toLowerCase();
+      final filteredResidences = query.isEmpty
+          ? residences
+          : residences
+                .where(
+                  (r) =>
+                      r.streetAddress.toLowerCase().contains(query) ||
+                      r.locality.toLowerCase().contains(query) ||
+                      r.zipCode.toLowerCase().contains(query) ||
+                      r.residenceType.toLowerCase().contains(query),
+                )
+                .toList();
+
+      return GradientScaffold(
+        title: 'Bostäder',
         floatingActionButton: canCreate
             ? FloatingActionButton(
                 onPressed: () => context.push(CreateResidencePage.path),
@@ -38,35 +55,56 @@ class ResidencesListPage extends CompositionWidget {
         body: loading && residences.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : residences.isEmpty
-                ? const Center(child: Text('Inga bostäder ännu.'))
-                : RefreshIndicator(
-                    onRefresh: () => residencesStore.getAllResidences(),
-                    child: ListView.separated(
-                      padding: const EdgeInsets.all(8),
-                      itemCount: residences.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 4),
-                      itemBuilder: (context, index) {
-                        final residence = residences[index];
-                        return Card(
-                          clipBehavior: Clip.antiAlias,
-                          child: ListTile(
-                            leading: const Icon(Icons.home_outlined),
-                            title: Text(
-                              residence.streetAddress,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: Text(
-                              residence.residenceType,
-                              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                            ),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => context.push('${ResidenceDetailPage.path}/${residence.id}'),
-                          ),
-                        );
-                      },
+            ? const Center(child: Text('Inga bostäder ännu.'))
+            : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    child: SearchField(
+                      hintText: 'Sök bostad...',
+                      onChanged: (v) => searchQuery.value = v,
                     ),
                   ),
+                  Expanded(
+                    child: filteredResidences.isEmpty
+                        ? const Center(child: Text('Inga träffar.'))
+                        : RefreshIndicator(
+                            onRefresh: () => residencesStore.getAllResidences(),
+                            child: ListView.separated(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              itemCount: filteredResidences.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 4),
+                              itemBuilder: (context, index) {
+                                final residence = filteredResidences[index];
+                                return Card(
+                                  clipBehavior: Clip.antiAlias,
+                                  child: ListTile(
+                                    leading: const Icon(Icons.home_outlined),
+                                    title: Text(
+                                      residence.streetAddress,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    subtitle: Text(
+                                      residence.residenceType,
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                    trailing: const Icon(Icons.chevron_right),
+                                    onTap: () => context.push(
+                                      '${ResidenceDetailPage.path}/${residence.id}',
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                  ),
+                ],
+              ),
       );
     };
   }

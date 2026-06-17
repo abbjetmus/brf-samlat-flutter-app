@@ -5,6 +5,7 @@ import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/file_utils.dart';
 import '../../../core/models/pocketbase_models.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 import 'chat_room_page.dart';
 import 'new_chat_page.dart';
 
@@ -32,8 +33,8 @@ class ChatRoomsPage extends CompositionWidget {
       final rooms = chatStore.rooms.value;
       final loading = chatStore.loadingRooms.value;
 
-      return Scaffold(
-        appBar: AppBar(title: const Text('Meddelanden')),
+      return GradientScaffold(
+        title: 'Meddelanden',
         floatingActionButton: FloatingActionButton(
           onPressed: () => context.push(NewChatPage.path),
           child: const Icon(Icons.add_comment_outlined),

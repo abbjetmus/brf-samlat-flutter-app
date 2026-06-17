@@ -5,6 +5,8 @@ import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/comments_list.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/rich_description.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 class IssueDetailPage extends CompositionWidget {
   static const String path = '/issues/detail';
@@ -33,29 +35,25 @@ class IssueDetailPage extends CompositionWidget {
       final canDelete = authStore.hasPermission('issues', CrudOperation.delete);
 
       if (loading && issue == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Felanmälan & ärenden')),
-          body: const Center(child: CircularProgressIndicator()),
+        return const GradientScaffold(
+          title: 'Felanmälan & ärenden',
+          body: Center(child: CircularProgressIndicator()),
         );
       }
 
       if (issue == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Felanmälan & ärenden')),
-          body: const Center(child: Text('Hittades inte.')),
+        return const GradientScaffold(
+          title: 'Felanmälan & ärenden',
+          body: Center(child: Text('Hittades inte.')),
         );
       }
 
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(issue.type ?? 'Felanmälan'),
-          actions: [
+      return GradientScaffold(
+        title: issue.type ?? 'Felanmälan',
+        actions: [
             if (canEdit)
-              IconButton(
-                icon: Icon(
-                  issue.isResolved ? Icons.refresh : Icons.check_circle_outline,
-                  color: issue.isResolved ? Colors.orange : Colors.green,
-                ),
+              HeaderIconButton(
+                icon: issue.isResolved ? Icons.refresh : Icons.check_circle_outline,
                 tooltip: issue.isResolved ? 'Återöppna' : 'Markera som löst',
                 onPressed: () async {
                   if (issue.isResolved) {
@@ -66,8 +64,8 @@ class IssueDetailPage extends CompositionWidget {
                 },
               ),
             if (canDelete)
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
+              HeaderIconButton(
+                icon: Icons.delete_outline,
                 onPressed: () async {
                   final noun = (issue.type ?? 'Felanmälan').toLowerCase();
                   final confirmed = await showConfirmDialog(
@@ -87,7 +85,6 @@ class IssueDetailPage extends CompositionWidget {
                 },
               ),
           ],
-        ),
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,10 +148,7 @@ class IssueDetailPage extends CompositionWidget {
               // Issue body
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text(
-                  issue.description,
-                  style: const TextStyle(fontSize: 16, height: 1.5),
-                ),
+                child: RichDescription(html: issue.description),
               ),
 
               // Resolved info

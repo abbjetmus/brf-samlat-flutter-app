@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/models/pocketbase_models.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 import 'chat_room_page.dart';
 
 /// Pick one or more association members and start a DM (single user) or a named
@@ -66,8 +67,8 @@ class NewChatPage extends CompositionWidget {
           (!group || groupName.value.trim().isNotEmpty) &&
           !creating.value;
 
-      return Scaffold(
-        appBar: AppBar(title: const Text('Ny konversation')),
+      return GradientScaffold(
+        title: 'Ny konversation',
         body: Column(
           children: [
             SwitchListTile(

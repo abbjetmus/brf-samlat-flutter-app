@@ -4,6 +4,7 @@ import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 class FoldersPage extends CompositionWidget {
   static const String path = '/folders';
@@ -90,16 +91,16 @@ class FoldersPage extends CompositionWidget {
       final canCreate = authStore.hasPermission('folders_and_files', CrudOperation.create);
       final canDelete = authStore.hasPermission('folders_and_files', CrudOperation.delete);
 
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(isAtRoot ? 'Dokument & Filer' : (currentFolder?.name ?? 'Dokument & Filer')),
-          leading: !isAtRoot
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: navigateBack,
-                )
-              : null,
-        ),
+      return GradientScaffold(
+        title: isAtRoot ? 'Dokument & Filer' : (currentFolder?.name ?? 'Dokument & Filer'),
+        showBack: isAtRoot ? null : false,
+        actions: [
+          if (!isAtRoot)
+            HeaderIconButton(
+              icon: Icons.arrow_back,
+              onPressed: navigateBack,
+            ),
+        ],
         floatingActionButton: canCreate
             ? FloatingActionButton(
                 onPressed: () => showCreateFolderDialog(context),
@@ -118,7 +119,7 @@ class FoldersPage extends CompositionWidget {
                       }
                     },
                     child: ListView.separated(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       itemCount: children.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 4),
                       itemBuilder: (context, index) {

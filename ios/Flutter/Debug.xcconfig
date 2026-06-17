@@ -1,2 +1,6 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
 #include "Generated.xcconfig"
+
+// Target prod PocketBase when running debug builds from Xcode.
+// Appends PB_URL=https://brf-samlat-pb.cloud.mustini.com to Flutter's DART_DEFINES.
+DART_DEFINES=$(DART_DEFINES),UEJfVVJMPWh0dHBzOi8vYnJmLXNhbWxhdC1wYi5jbG91ZC5tdXN0aW5pLmNvbQ==

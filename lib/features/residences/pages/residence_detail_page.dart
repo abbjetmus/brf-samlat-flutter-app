@@ -3,6 +3,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 class ResidenceDetailPage extends CompositionWidget {
   static const String path = '/residences/detail';
@@ -29,53 +30,54 @@ class ResidenceDetailPage extends CompositionWidget {
       final canDelete = authStore.hasPermission('residences', CrudOperation.delete);
 
       if (loading && residence == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Bostad')),
-          body: const Center(child: CircularProgressIndicator()),
+        return const GradientScaffold(
+          title: 'Bostad',
+          body: Center(child: CircularProgressIndicator()),
         );
       }
 
       if (residence == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Bostad')),
-          body: const Center(child: Text('Bostad hittades inte.')),
+        return const GradientScaffold(
+          title: 'Bostad',
+          body: Center(child: Text('Bostad hittades inte.')),
         );
       }
 
       return DefaultTabController(
         length: 2,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(residence.streetAddress),
-            actions: [
-              if (canDelete)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () async {
-                    final confirmed = await showConfirmDialog(
-                      context,
-                      title: 'Radera bostad',
-                      message: 'Är du säker på att du vill radera denna bostad?',
-                      okLabel: 'Radera',
-                      okColor: Colors.red,
-                    );
-                    if (confirmed) {
-                      await residencesStore.deleteResidence(residence.id);
-                      final ctx = contextRef.value;
-                      if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
-                    }
-                  },
-                ),
-            ],
-            bottom: const TabBar(
-              tabs: [
-                Tab(text: 'Information'),
-                Tab(text: 'Ärenden'),
-              ],
-            ),
-          ),
-          body: TabBarView(
+        child: GradientScaffold(
+          title: residence.streetAddress,
+          actions: [
+            if (canDelete)
+              HeaderIconButton(
+                icon: Icons.delete_outline,
+                onPressed: () async {
+                  final confirmed = await showConfirmDialog(
+                    context,
+                    title: 'Radera bostad',
+                    message: 'Är du säker på att du vill radera denna bostad?',
+                    okLabel: 'Radera',
+                    okColor: Colors.red,
+                  );
+                  if (confirmed) {
+                    await residencesStore.deleteResidence(residence.id);
+                    final ctx = contextRef.value;
+                    if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
+                  }
+                },
+              ),
+          ],
+          body: Column(
             children: [
+              const TabBar(
+                tabs: [
+                  Tab(text: 'Information'),
+                  Tab(text: 'Ärenden'),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: [
               // Info tab
               SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -100,7 +102,7 @@ class ResidenceDetailPage extends CompositionWidget {
               issues.isEmpty
                   ? const Center(child: Text('Inga ärenden för denna bostad.'))
                   : ListView.separated(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       itemCount: issues.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 4),
                       itemBuilder: (context, index) {
@@ -130,6 +132,9 @@ class ResidenceDetailPage extends CompositionWidget {
                         );
                       },
                     ),
+            ],
+                ),
+              ),
             ],
           ),
         ),

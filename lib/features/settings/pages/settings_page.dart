@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../account/pages/account_page.dart';
 import '../../auth/pages/login_page.dart';
 
@@ -40,10 +41,8 @@ class SettingsPage extends CompositionWidget {
       );
     }
 
-    return (context) => Scaffold(
-      appBar: AppBar(
-        title: const Text('Inställningar'),
-      ),
+    return (context) => GradientScaffold(
+      title: 'Inställningar',
       body: ListView(
         children: [
           const Padding(

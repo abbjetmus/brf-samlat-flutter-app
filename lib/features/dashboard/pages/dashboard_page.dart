@@ -12,12 +12,14 @@ class _MenuItem {
   final String label;
   final IconData icon;
   final String path;
+  final Color color;
   final String? permissionName;
 
   const _MenuItem({
     required this.label,
     required this.icon,
     required this.path,
+    required this.color,
     this.permissionName,
   });
 }
@@ -38,21 +40,110 @@ class DashboardPage extends CompositionWidget {
     });
 
     const menuItems = [
-      _MenuItem(label: 'Nyheter', icon: Icons.article_outlined, path: '/posts', permissionName: 'posts'),
-      _MenuItem(label: 'Meddelanden', icon: Icons.chat_outlined, path: '/chat', permissionName: 'chat'),
-      _MenuItem(label: 'Felanmälan & ärenden', icon: Icons.report_problem_outlined, path: '/issues', permissionName: 'issues'),
-      _MenuItem(label: 'Kalender', icon: Icons.calendar_month_outlined, path: '/calendar', permissionName: 'calendar_events'),
-      _MenuItem(label: 'Lokaler', icon: Icons.meeting_room_outlined, path: '/places', permissionName: 'places'),
-      _MenuItem(label: 'Prylar', icon: Icons.handyman_outlined, path: '/gadgets', permissionName: 'gadgets'),
-      _MenuItem(label: 'Bostäder', icon: Icons.home_outlined, path: '/residences', permissionName: 'residences'),
-      _MenuItem(label: 'Parkeringar', icon: Icons.local_parking_outlined, path: '/parking-lots', permissionName: 'parking_lots'),
-      _MenuItem(label: 'Dokument', icon: Icons.folder_outlined, path: '/folders', permissionName: 'folders_and_files'),
-      _MenuItem(label: 'Styrelsen', icon: Icons.groups_outlined, path: '/board', permissionName: 'board_meetings'),
-      _MenuItem(label: 'Användare', icon: Icons.people_outlined, path: '/users', permissionName: 'users'),
-      _MenuItem(label: 'Behörigheter', icon: Icons.admin_panel_settings_outlined, path: '/permissions', permissionName: 'user_role_types'),
-      _MenuItem(label: 'Fakturor', icon: Icons.receipt_long_outlined, path: '/invoices', permissionName: 'invoices'),
-      _MenuItem(label: 'Formulär', icon: Icons.quiz_outlined, path: '/forms', permissionName: 'forms'),
-      _MenuItem(label: 'Hjälp', icon: Icons.help_outline, path: '/help'),
+      _MenuItem(
+        label: 'Nyheter',
+        icon: Icons.article_outlined,
+        path: '/posts',
+        color: Color(0xFF3B82F6),
+        permissionName: 'posts',
+      ),
+      _MenuItem(
+        label: 'Meddelanden',
+        icon: Icons.forum_outlined,
+        path: '/chat',
+        color: Color(0xFF06B6D4),
+        permissionName: 'chat',
+      ),
+      _MenuItem(
+        label: 'Felanmälan',
+        icon: Icons.report_problem_outlined,
+        path: '/issues',
+        color: Color(0xFFF59E0B),
+        permissionName: 'issues',
+      ),
+      _MenuItem(
+        label: 'Kalender',
+        icon: Icons.calendar_month_outlined,
+        path: '/calendar',
+        color: Color(0xFF8B5CF6),
+        permissionName: 'calendar_events',
+      ),
+      _MenuItem(
+        label: 'Lokaler',
+        icon: Icons.meeting_room_outlined,
+        path: '/places',
+        color: Color(0xFF10B981),
+        permissionName: 'places',
+      ),
+      _MenuItem(
+        label: 'Prylar',
+        icon: Icons.handyman_outlined,
+        path: '/gadgets',
+        color: Color(0xFFF97316),
+        permissionName: 'gadgets',
+      ),
+      _MenuItem(
+        label: 'Bostäder',
+        icon: Icons.home_outlined,
+        path: '/residences',
+        color: Color(0xFF14B8A6),
+        permissionName: 'residences',
+      ),
+      _MenuItem(
+        label: 'Parkeringar',
+        icon: Icons.local_parking_outlined,
+        path: '/parking',
+        color: Color(0xFF6366F1),
+        permissionName: 'parking_lots',
+      ),
+      _MenuItem(
+        label: 'Dokument',
+        icon: Icons.folder_outlined,
+        path: '/folders',
+        color: Color(0xFFEAB308),
+        permissionName: 'folders_and_files',
+      ),
+      _MenuItem(
+        label: 'Styrelsen',
+        icon: Icons.groups_outlined,
+        path: '/board',
+        color: Color(0xFF0EA5E9),
+        permissionName: 'board_meetings',
+      ),
+      _MenuItem(
+        label: 'Användare',
+        icon: Icons.people_outlined,
+        path: '/users',
+        color: Color(0xFFEC4899),
+        permissionName: 'users',
+      ),
+      _MenuItem(
+        label: 'Behörigheter',
+        icon: Icons.admin_panel_settings_outlined,
+        path: '/permissions',
+        color: Color(0xFF64748B),
+        permissionName: 'user_role_types',
+      ),
+      _MenuItem(
+        label: 'Fakturor',
+        icon: Icons.receipt_long_outlined,
+        path: '/invoices',
+        color: Color(0xFFEF4444),
+        permissionName: 'invoices',
+      ),
+      _MenuItem(
+        label: 'Formulär',
+        icon: Icons.fact_check_outlined,
+        path: '/forms',
+        color: Color(0xFF7C3AED),
+        permissionName: 'forms',
+      ),
+      _MenuItem(
+        label: 'Hjälp',
+        icon: Icons.help_outline,
+        path: '/help',
+        color: Color(0xFF059669),
+      ),
     ];
 
     return (context) {
@@ -64,152 +155,49 @@ class DashboardPage extends CompositionWidget {
       // Filter menu items based on permissions
       final visibleItems = menuItems.where((item) {
         if (item.permissionName == null) return true;
-        return authStore.hasPermission(item.permissionName!, CrudOperation.read);
+        return authStore.hasPermission(
+          item.permissionName!,
+          CrudOperation.read,
+        );
       }).toList();
 
       return Scaffold(
-        appBar: AppBar(
-          title: Text(association?.name ?? 'BRF Samlat'),
-          actions: [
-            // Notifications
-            Stack(
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.notifications_outlined),
-                  onPressed: () => _showNotificationsDialog(context, dashboardStore),
-                ),
-                if (notSeenCount > 0)
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '$notSeenCount',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            IconButton(
-              icon: const Icon(Icons.settings_outlined),
-              onPressed: () => context.push(SettingsPage.path),
-            ),
-          ],
-        ),
         body: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.zero,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Welcome message
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: AppTheme.primaryColor,
-                        child: Text(
-                          (user?.name ?? '?')[0].toUpperCase(),
-                          style: const TextStyle(color: Colors.white),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Välkommen, ${user?.name ?? ''}!',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            if (association != null)
-                              Text(
-                                association.name,
-                                style: TextStyle(color: Colors.grey[600]),
-                              ),
-                          ],
+              _HeroHeader(
+                userName: user?.name ?? '',
+                associationName: association?.name,
+                notSeenCount: notSeenCount,
+                onNotifications: () =>
+                    _showNotificationsDialog(context, dashboardStore),
+                onSettings: () => context.push(SettingsPage.path),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _MenuGrid(
+                      items: visibleItems,
+                      onTap: (item) => context.push(item.path),
+                    ),
+                    if (generalInfoList.isNotEmpty) ...[
+                      const SizedBox(height: 28),
+                      const _SectionTitle('Allmän information'),
+                      const SizedBox(height: 14),
+                      ...generalInfoList.map(
+                        (post) => _InfoCard(
+                          title: post.title,
+                          subtitle: AppDateUtils.formatDate(post.created),
                         ),
                       ),
                     ],
-                  ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-
-              // Menu grid
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1,
-                ),
-                itemCount: visibleItems.length,
-                itemBuilder: (context, index) {
-                  final item = visibleItems[index];
-                  return Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: InkWell(
-                      onTap: () => context.push(item.path),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            item.icon,
-                            size: 32,
-                            color: AppTheme.primaryColor,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            item.label,
-                            style: const TextStyle(fontSize: 12),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-
-              // General info
-              if (generalInfoList.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                const Text(
-                  'Allmän information',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ...generalInfoList.map((post) => Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.info_outline),
-                    title: Text(post.title),
-                    subtitle: Text(
-                      AppDateUtils.formatDate(post.created),
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ),
-                )),
-              ],
             ],
           ),
         ),
@@ -218,7 +206,333 @@ class DashboardPage extends CompositionWidget {
   }
 }
 
-void _showNotificationsDialog(BuildContext context, DashboardStore dashboardStore) {
+class _HeroHeader extends StatelessWidget {
+  final String userName;
+  final String? associationName;
+  final int notSeenCount;
+  final VoidCallback onNotifications;
+  final VoidCallback onSettings;
+
+  const _HeroHeader({
+    required this.userName,
+    required this.associationName,
+    required this.notSeenCount,
+    required this.onNotifications,
+    required this.onSettings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final topInset = MediaQuery.of(context).padding.top;
+    final initial = (userName.isNotEmpty ? userName[0] : '?').toUpperCase();
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.fromLTRB(20, topInset + 18, 20, 26),
+      decoration: const BoxDecoration(
+        gradient: AppTheme.brandGradient,
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+            ),
+            child: Text(
+              initial,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Välkommen tillbaka',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  userName.isEmpty ? 'BRF Samlat' : userName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                if (associationName != null)
+                  Text(
+                    associationName!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.8),
+                      fontSize: 13,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          _HeaderIconButton(
+            icon: Icons.notifications_outlined,
+            badgeCount: notSeenCount,
+            onPressed: onNotifications,
+          ),
+          const SizedBox(width: 6),
+          _HeaderIconButton(
+            icon: Icons.settings_outlined,
+            onPressed: onSettings,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  final IconData icon;
+  final int badgeCount;
+  final VoidCallback onPressed;
+
+  const _HeaderIconButton({
+    required this.icon,
+    this.badgeCount = 0,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Material(
+          color: Colors.white.withValues(alpha: 0.16),
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onPressed,
+            child: Padding(
+              padding: const EdgeInsets.all(9),
+              child: Icon(icon, color: Colors.white, size: 22),
+            ),
+          ),
+        ),
+        if (badgeCount > 0)
+          Positioned(
+            right: -2,
+            top: -2,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.primaryDarken1, width: 1.5),
+              ),
+              child: Text(
+                badgeCount > 99 ? '99+' : '$badgeCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 17,
+        fontWeight: FontWeight.w700,
+        letterSpacing: -0.2,
+        color: AppTheme.ink,
+      ),
+    );
+  }
+}
+
+class _MenuGrid extends StatelessWidget {
+  final List<_MenuItem> items;
+  final void Function(_MenuItem) onTap;
+
+  const _MenuGrid({required this.items, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: items.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.92,
+      ),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return _MenuCard(item: item, onTap: () => onTap(item));
+      },
+    );
+  }
+}
+
+class _MenuCard extends StatelessWidget {
+  final _MenuItem item;
+  final VoidCallback onTap;
+
+  const _MenuCard({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(color: theme.colorScheme.outline),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: item.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(item.icon, color: item.color, size: 26),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                item.label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  height: 1.15,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _InfoCard({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: theme.colorScheme.outline),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceLight,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.campaign_outlined,
+                color: AppTheme.primaryDarken1,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _showNotificationsDialog(
+  BuildContext context,
+  DashboardStore dashboardStore,
+) {
   dashboardStore.getNotifications();
 
   showModalBottomSheet(
@@ -231,13 +545,22 @@ void _showNotificationsDialog(BuildContext context, DashboardStore dashboardStor
       expand: false,
       builder: (context, scrollController) => Column(
         children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppTheme.inkFaint.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(20, 12, 12, 8),
             child: Row(
               children: [
                 const Text(
                   'Notiser',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                 ),
                 const Spacer(),
                 IconButton(
@@ -253,28 +576,54 @@ void _showNotificationsDialog(BuildContext context, DashboardStore dashboardStor
               builder: (context) {
                 final notifications = dashboardStore.notifications.value;
                 if (notifications.isEmpty) {
-                  return const Center(
-                    child: Text('Inga notiser'),
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.notifications_off_outlined,
+                          size: 48,
+                          color: AppTheme.inkFaint,
+                        ),
+                        const SizedBox(height: 12),
+                        const Text('Inga notiser'),
+                      ],
+                    ),
                   );
                 }
                 return ListView.separated(
                   controller: scrollController,
                   itemCount: notifications.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1),
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final notification = notifications[index];
                     return ListTile(
-                      leading: Icon(
-                        notification.seen
-                            ? Icons.notifications_none
-                            : Icons.notifications_active,
-                        color: notification.seen ? Colors.grey : AppTheme.primaryColor,
+                      leading: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: notification.seen
+                              ? AppTheme.inkFaint.withValues(alpha: 0.12)
+                              : AppTheme.surfaceLight,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          notification.seen
+                              ? Icons.notifications_none
+                              : Icons.notifications_active,
+                          color: notification.seen
+                              ? AppTheme.inkFaint
+                              : AppTheme.primaryDarken1,
+                          size: 20,
+                        ),
                       ),
                       title: Text(
                         notification.title,
                         style: TextStyle(
-                          fontWeight:
-                              notification.seen ? FontWeight.normal : FontWeight.bold,
+                          fontWeight: notification.seen
+                              ? FontWeight.normal
+                              : FontWeight.w600,
                         ),
                       ),
                       subtitle: Text(
@@ -282,7 +631,9 @@ void _showNotificationsDialog(BuildContext context, DashboardStore dashboardStor
                       ),
                       onTap: () {
                         if (!notification.seen) {
-                          dashboardStore.markNotificationAsSeen(notification.id);
+                          dashboardStore.markNotificationAsSeen(
+                            notification.id,
+                          );
                         }
                       },
                     );

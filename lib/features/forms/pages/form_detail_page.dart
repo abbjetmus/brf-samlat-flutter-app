@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 class FormDetailPage extends CompositionWidget {
   static const String path = '/forms/detail';
@@ -32,16 +33,16 @@ class FormDetailPage extends CompositionWidget {
       final response = responses.where((r) => r.id == formResponseId).firstOrNull;
 
       if (loading && response == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Formulär')),
-          body: const Center(child: CircularProgressIndicator()),
+        return const GradientScaffold(
+          title: 'Formulär',
+          body: Center(child: CircularProgressIndicator()),
         );
       }
 
       if (response == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Formulär')),
-          body: const Center(child: Text('Formulär hittades inte.')),
+        return const GradientScaffold(
+          title: 'Formulär',
+          body: Center(child: Text('Formulär hittades inte.')),
         );
       }
 
@@ -58,22 +59,21 @@ class FormDetailPage extends CompositionWidget {
         questions = formData['form_questions'] as List<dynamic>? ?? [];
       }
 
-      return Scaffold(
-        appBar: AppBar(
-          title: Text(formName),
-          actions: [
+      return GradientScaffold(
+        title: formName,
+        actions: [
             if (saving.value)
               const Padding(
                 padding: EdgeInsets.all(16),
                 child: SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                 ),
               )
             else
-              IconButton(
-                icon: const Icon(Icons.save),
+              HeaderIconButton(
+                icon: Icons.save,
                 tooltip: 'Spara',
                 onPressed: () async {
                   saving.value = true;
@@ -93,7 +93,6 @@ class FormDetailPage extends CompositionWidget {
                 },
               ),
           ],
-        ),
         body: questions.isEmpty
             ? const Center(child: Text('Inga frågor.'))
             : ListView.separated(

@@ -4,6 +4,7 @@ import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../core/models/pocketbase_models.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 import '../calendar_store.dart';
 
 class CalendarPage extends CompositionWidget {
@@ -175,10 +176,8 @@ class CalendarPage extends CompositionWidget {
       final canCreate = authStore.hasPermission('calendar_events', CrudOperation.create);
       final canDelete = authStore.hasPermission('calendar_events', CrudOperation.delete);
 
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Kalender'),
-        ),
+      return GradientScaffold(
+        title: 'Kalender',
         floatingActionButton: canCreate
             ? FloatingActionButton(
                 onPressed: showCreateEventDialog,

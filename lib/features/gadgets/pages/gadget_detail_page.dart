@@ -5,6 +5,8 @@ import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../core/models/pocketbase_models.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/rich_description.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 import '../gadgets_store.dart';
 
 class GadgetDetailPage extends CompositionWidget {
@@ -145,28 +147,27 @@ class GadgetDetailPage extends CompositionWidget {
       final canDelete = authStore.hasPermission('gadgets', CrudOperation.delete);
 
       if (loading && gadget == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Pryl')),
-          body: const Center(child: CircularProgressIndicator()),
+        return const GradientScaffold(
+          title: 'Pryl',
+          body: Center(child: CircularProgressIndicator()),
         );
       }
 
       if (gadget == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Pryl')),
-          body: const Center(child: Text('Pryl hittades inte.')),
+        return const GradientScaffold(
+          title: 'Pryl',
+          body: Center(child: Text('Pryl hittades inte.')),
         );
       }
 
       return DefaultTabController(
         length: 2,
-        child: Scaffold(
-          appBar: AppBar(
-            title: Text(gadget.name),
-            actions: [
+        child: GradientScaffold(
+          title: gadget.name,
+          actions: [
               if (canDelete)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                HeaderIconButton(
+                  icon: Icons.delete_outline,
                   onPressed: () async {
                     final confirmed = await showConfirmDialog(
                       context,
@@ -183,20 +184,22 @@ class GadgetDetailPage extends CompositionWidget {
                   },
                 ),
             ],
-            bottom: const TabBar(
-              tabs: [
-                Tab(text: 'Information'),
-                Tab(text: 'Bokningar'),
-              ],
-            ),
-          ),
           floatingActionButton: canCreate
               ? FloatingActionButton(
                   onPressed: showAddBookingDialog,
                   child: const Icon(Icons.add),
                 )
               : null,
-          body: TabBarView(
+          body: Column(
+            children: [
+              const TabBar(
+                tabs: [
+                  Tab(text: 'Information'),
+                  Tab(text: 'Bokningar'),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
             children: [
               // Info tab
               SingleChildScrollView(
@@ -210,7 +213,7 @@ class GadgetDetailPage extends CompositionWidget {
                     ),
                     if (gadget.description != null && gadget.description!.isNotEmpty) ...[
                       const SizedBox(height: 12),
-                      Text(gadget.description!, style: const TextStyle(fontSize: 16)),
+                      RichDescription(html: gadget.description!),
                     ],
                     const SizedBox(height: 16),
                     const Divider(),
@@ -265,6 +268,9 @@ class GadgetDetailPage extends CompositionWidget {
                     ),
                   ),
                 ],
+              ),
+            ],
+                ),
               ),
             ],
           ),

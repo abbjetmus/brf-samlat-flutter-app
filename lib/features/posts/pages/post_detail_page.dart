@@ -6,6 +6,8 @@ import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/comments_list.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/rich_description.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 class PostDetailPage extends CompositionWidget {
   static const String path = '/posts/detail';
@@ -34,26 +36,25 @@ class PostDetailPage extends CompositionWidget {
       final canDelete = authStore.hasPermission('posts', CrudOperation.delete);
 
       if (loading && post == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Nyhet')),
-          body: const Center(child: CircularProgressIndicator()),
+        return const GradientScaffold(
+          title: 'Nyhet',
+          body: Center(child: CircularProgressIndicator()),
         );
       }
 
       if (post == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Nyhet')),
-          body: const Center(child: Text('Nyhet hittades inte.')),
+        return const GradientScaffold(
+          title: 'Nyhet',
+          body: Center(child: Text('Nyhet hittades inte.')),
         );
       }
 
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Nyhet'),
-          actions: [
+      return GradientScaffold(
+        title: 'Nyhet',
+        actions: [
             if (canDelete)
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
+              HeaderIconButton(
+                icon: Icons.delete_outline,
                 onPressed: () async {
                   final confirmed = await showConfirmDialog(
                     context,
@@ -72,7 +73,6 @@ class PostDetailPage extends CompositionWidget {
                 },
               ),
           ],
-        ),
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -113,10 +113,7 @@ class PostDetailPage extends CompositionWidget {
               // Post body
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text(
-                  post.description,
-                  style: const TextStyle(fontSize: 16, height: 1.5),
-                ),
+                child: RichDescription(html: post.description),
               ),
 
               // Calendar info

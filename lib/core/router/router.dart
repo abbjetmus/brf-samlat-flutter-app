@@ -36,6 +36,8 @@ import '../../features/forms/pages/form_detail_page.dart';
 import '../../features/chat/pages/chat_rooms_page.dart';
 import '../../features/chat/pages/chat_room_page.dart';
 import '../../features/chat/pages/new_chat_page.dart';
+import '../../features/help/pages/help_page.dart';
+import '../../features/permissions/pages/permissions_page.dart';
 import 'auth_guard.dart';
 
 final router = GoRouter(
@@ -223,6 +225,16 @@ final router = GoRouter(
       builder: (context, state) => FormDetailPage(
         formResponseId: state.pathParameters['id']!,
       ),
+    ),
+    // Permissions
+    GoRoute(
+      path: PermissionsPage.path,
+      builder: (context, state) => const PermissionsPage(),
+    ),
+    // Help
+    GoRoute(
+      path: HelpPage.path,
+      builder: (context, state) => const HelpPage(),
     ),
   ],
 );

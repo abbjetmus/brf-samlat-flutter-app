@@ -63,6 +63,9 @@ class AuthStore {
     if (_pb.authStore.isValid && _pb.authStore.record != null) {
       _token.value = _pb.authStore.token;
       _currentUser.value = UsersRecord.fromJson(_pb.authStore.record!.toJson());
+      // Cold start with a persisted session: load association, role types and
+      // menu permissions so the dashboard menu isn't gated to nothing.
+      _loadUserData();
     }
   }
 

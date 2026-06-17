@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 import 'invoice_detail_page.dart';
 
 class InvoicesListPage extends CompositionWidget {
@@ -22,10 +23,8 @@ class InvoicesListPage extends CompositionWidget {
       final invoices = invoicesStore.invoices.value;
       final loading = invoicesStore.loading.value;
 
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Fakturor'),
-        ),
+      return GradientScaffold(
+        title: 'Fakturor',
         body: loading && invoices.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : invoices.isEmpty
@@ -33,7 +32,7 @@ class InvoicesListPage extends CompositionWidget {
                 : RefreshIndicator(
                     onRefresh: () => invoicesStore.getAllInvoices(),
                     child: ListView.separated(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       itemCount: invoices.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 4),
                       itemBuilder: (context, index) {

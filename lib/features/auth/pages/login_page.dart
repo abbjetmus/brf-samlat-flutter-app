@@ -86,28 +86,44 @@ class LoginPage extends CompositionWidget {
                 children: [
                   // Logo
                   Container(
-                    width: 100,
-                    height: 100,
+                    width: 96,
+                    height: 96,
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor,
-                      borderRadius: BorderRadius.circular(50),
+                      gradient: AppTheme.brandGradient,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withValues(alpha: 0.35),
+                          blurRadius: 24,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
                     ),
                     child: const Icon(
-                      Icons.apartment,
-                      size: 50,
+                      Icons.apartment_rounded,
+                      size: 48,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   const Text(
                     'BRF Samlat',
                     style: TextStyle(
                       fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryColor,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      color: AppTheme.ink,
                     ),
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Föreningen samlad på ett ställe',
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: AppTheme.inkMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
 
                   // Form
                   Form(

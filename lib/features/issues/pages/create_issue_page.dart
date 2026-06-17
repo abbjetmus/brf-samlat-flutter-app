@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 class CreateIssuePage extends CompositionWidget {
   static const String path = '/issues/create';
@@ -57,10 +58,8 @@ class CreateIssuePage extends CompositionWidget {
 
     return (context) {
       final noun = issueType.value.toLowerCase();
-      return Scaffold(
-        appBar: AppBar(
-          title: Text('Skapa $noun'),
-        ),
+      return GradientScaffold(
+        title: 'Skapa $noun',
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 class AccountPage extends CompositionWidget {
   static const String path = '/account';
@@ -97,12 +98,10 @@ class AccountPage extends CompositionWidget {
       }
     }
 
-    return (context) => Scaffold(
-      appBar: AppBar(
-        title: const Text('Mitt konto'),
-      ),
+    return (context) => GradientScaffold(
+      title: 'Mitt konto',
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 class BoardMeetingDetailPage extends CompositionWidget {
   static const String path = '/board/detail';
@@ -29,16 +30,16 @@ class BoardMeetingDetailPage extends CompositionWidget {
       final canDelete = authStore.hasPermission('board_meetings', CrudOperation.delete);
 
       if (loading && meeting == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Styrelsemöte')),
-          body: const Center(child: CircularProgressIndicator()),
+        return const GradientScaffold(
+          title: 'Styrelsemöte',
+          body: Center(child: CircularProgressIndicator()),
         );
       }
 
       if (meeting == null) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Styrelsemöte')),
-          body: const Center(child: Text('Styrelsemöte hittades inte.')),
+        return const GradientScaffold(
+          title: 'Styrelsemöte',
+          body: Center(child: Text('Styrelsemöte hittades inte.')),
         );
       }
 
@@ -47,13 +48,12 @@ class BoardMeetingDetailPage extends CompositionWidget {
       final endTime = AppDateUtils.formatTime(meeting.endAt);
       final address = '${meeting.streetAddress}, ${meeting.zipCode} ${meeting.locality}';
 
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Styrelsemöte'),
-          actions: [
+      return GradientScaffold(
+        title: 'Styrelsemöte',
+        actions: [
             if (canDelete)
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
+              HeaderIconButton(
+                icon: Icons.delete_outline,
                 onPressed: () async {
                   final confirmed = await showConfirmDialog(
                     context,
@@ -72,7 +72,6 @@ class BoardMeetingDetailPage extends CompositionWidget {
                 },
               ),
           ],
-        ),
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,3 +237,4 @@ class BoardMeetingDetailPage extends CompositionWidget {
     };
   }
 }
+

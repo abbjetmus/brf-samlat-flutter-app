@@ -5,6 +5,7 @@ import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 import 'board_meeting_detail_page.dart';
 import 'create_board_meeting_page.dart';
 
@@ -27,10 +28,8 @@ class BoardMeetingsListPage extends CompositionWidget {
       final loading = boardStore.loading.value;
       final canCreate = authStore.hasPermission('board_meetings', CrudOperation.create);
 
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Styrelsemöten'),
-        ),
+      return GradientScaffold(
+        title: 'Styrelsemöten',
         floatingActionButton: canCreate
             ? FloatingActionButton(
                 onPressed: () => context.push(CreateBoardMeetingPage.path),
@@ -44,7 +43,7 @@ class BoardMeetingsListPage extends CompositionWidget {
                 : RefreshIndicator(
                     onRefresh: () => boardStore.getAllBoardMeetings(),
                     child: ListView.separated(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.symmetric(vertical: 8),
                       itemCount: meetings.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 4),
                       itemBuilder: (context, index) {
