@@ -1,0 +1,221 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_compositions/flutter_compositions.dart';
+import '../../../core/di/injection_keys.dart';
+import '../../../core/theme/app_theme.dart';
+import 'register_page.dart';
+import 'forgot_password_page.dart';
+import '../../dashboard/pages/dashboard_page.dart';
+
+class LoginPage extends CompositionWidget {
+  static const String path = '/login';
+
+  const LoginPage({super.key});
+
+  @override
+  Widget Function(BuildContext) setup() {
+    final formKey = GlobalKey<FormState>();
+    final (emailController, _, __) = useTextEditingController();
+    final (passwordController, ___, ____) = useTextEditingController();
+    final authStore = inject(authStoreKey);
+
+    final isPasswordVisible = ref(false);
+    final loading = ref(false);
+    final authError = ref<String?>(null);
+    final contextRef = useContext();
+
+    String? validateEmail(String? value) {
+      if (value == null || value.isEmpty) return 'E-post krävs';
+      if (!value.contains('@')) return 'Ogiltig e-postadress';
+      return null;
+    }
+
+    String? validatePassword(String? value) {
+      if (value == null || value.isEmpty) return 'Lösenord krävs';
+      return null;
+    }
+
+    Future<void> handleLogin() async {
+      if (!formKey.currentState!.validate()) return;
+
+      loading.value = true;
+      authError.value = null;
+
+      try {
+        await authStore.signIn(
+          emailController.text.trim().toLowerCase(),
+          passwordController.text,
+        );
+
+        final context = contextRef.value;
+        if (context != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Inloggning lyckades!'),
+              backgroundColor: AppTheme.primaryColor,
+            ),
+          );
+          context.go(DashboardPage.path);
+        }
+      } catch (error) {
+        authError.value = error.toString().replaceAll('Exception: ', '');
+        final context = contextRef.value;
+        if (context != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(authError.value ?? 'Inloggning misslyckades'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    return (context) => Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 500),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor,
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                    child: const Icon(
+                      Icons.apartment,
+                      size: 50,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'BRF Samlat',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+
+                  // Form
+                  Form(
+                    key: formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (authError.value != null)
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red),
+                            ),
+                            child: Text(
+                              authError.value!,
+                              style: const TextStyle(color: Colors.red),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+
+                        TextFormField(
+                          controller: emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          textCapitalization: TextCapitalization.none,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(
+                              RegExp(r'[a-zA-Z0-9@._\-+]'),
+                            ),
+                          ],
+                          decoration: const InputDecoration(
+                            labelText: 'E-post',
+                            prefixIcon: Icon(Icons.email_outlined),
+                          ),
+                          validator: validateEmail,
+                        ),
+                        const SizedBox(height: 16),
+
+                        TextFormField(
+                          controller: passwordController,
+                          obscureText: !isPasswordVisible.value,
+                          decoration: InputDecoration(
+                            labelText: 'Lösenord',
+                            prefixIcon: const Icon(Icons.lock_outlined),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                isPasswordVisible.value
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
+                              ),
+                              onPressed: () => isPasswordVisible.value =
+                                  !isPasswordVisible.value,
+                            ),
+                          ),
+                          validator: validatePassword,
+                        ),
+                        const SizedBox(height: 24),
+
+                        FilledButton(
+                          onPressed: loading.value ? null : handleLogin,
+                          child: loading.value
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
+                                    ),
+                                  ),
+                                )
+                              : const Text(
+                                  'Logga in',
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        Align(
+                          alignment: Alignment.center,
+                          child: TextButton(
+                            onPressed: () =>
+                                context.push(ForgotPasswordPage.path),
+                            child: const Text('Glömt lösenord?'),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        Center(
+                          child: TextButton(
+                            onPressed: () => context.push(RegisterPage.path),
+                            child: const Text(
+                              'Registrera med inbjudan',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

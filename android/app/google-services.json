@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "262104836767",
+    "project_id": "brf-samlat",
+    "storage_bucket": "brf-samlat.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:262104836767:android:72e392bd6c87fd96ce50aa",
+        "android_client_info": {
+          "package_name": "se.brfsamlat.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvy6FweyPCouvd7XPeKLKmZw1fg7acM_I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:262104836767:android:1080e139470813c6ce50aa",
+        "android_client_info": {
+          "package_name": "se.brfsamlat.app.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvy6FweyPCouvd7XPeKLKmZw1fg7acM_I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:262104836767:android:889e55856dd8f89ace50aa",
+        "android_client_info": {
+          "package_name": "se.hrfsamlat.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvy6FweyPCouvd7XPeKLKmZw1fg7acM_I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

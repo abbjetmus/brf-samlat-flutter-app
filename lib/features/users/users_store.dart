@@ -1,0 +1,92 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_compositions/flutter_compositions.dart';
+import 'package:pocketbase/pocketbase.dart' show PocketBase;
+import '../../core/models/pocketbase_models.dart';
+import '../auth/auth_store.dart' as auth;
+
+class UsersStore {
+  final PocketBase _pb;
+  final auth.AuthStore _authStore;
+
+  UsersStore(this._pb, this._authStore);
+
+  final _users = ref<List<UsersRecord>>([]);
+  final _invitations = ref<List<UserInvitationsRecord>>([]);
+  final _loading = ref<bool>(false);
+
+  Ref<List<UsersRecord>> get users => _users;
+  Ref<List<UserInvitationsRecord>> get invitations => _invitations;
+  Ref<bool> get loading => _loading;
+
+  Future<bool> getUsers() async {
+    _loading.value = true;
+    try {
+      final assocId = _authStore.association.value?.id ?? '';
+      if (assocId.isEmpty) return false;
+
+      final records = await _pb.collection(Collections.users).getFullList(
+        filter: 'association="$assocId"',
+        sort: 'name',
+      );
+      _users.value = records
+          .map((r) => UsersRecord.fromJson(r.toJson()))
+          .toList();
+      return true;
+    } catch (e) {
+      debugPrint('UsersStore: Error fetching users: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
+  Future<bool> getInvitations() async {
+    _loading.value = true;
+    try {
+      final assocId = _authStore.association.value?.id ?? '';
+      if (assocId.isEmpty) return false;
+
+      final records = await _pb.collection(Collections.userInvitations).getFullList(
+        filter: 'association="$assocId"',
+        sort: '-created',
+      );
+      _invitations.value = records
+          .map((r) => UserInvitationsRecord.fromJson(r.toJson()))
+          .toList();
+      return true;
+    } catch (e) {
+      debugPrint('UsersStore: Error fetching invitations: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
+  Future<bool> deleteUser(String id) async {
+    _loading.value = true;
+    try {
+      await _pb.collection(Collections.users).delete(id);
+      await getUsers();
+      return true;
+    } catch (e) {
+      debugPrint('UsersStore: Error deleting user: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
+  Future<bool> deleteInvitation(String id) async {
+    _loading.value = true;
+    try {
+      await _pb.collection(Collections.userInvitations).delete(id);
+      await getInvitations();
+      return true;
+    } catch (e) {
+      debugPrint('UsersStore: Error deleting invitation: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+}

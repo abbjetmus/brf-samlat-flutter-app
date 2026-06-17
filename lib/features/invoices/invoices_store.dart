@@ -1,0 +1,96 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_compositions/flutter_compositions.dart';
+import 'package:pocketbase/pocketbase.dart' show PocketBase;
+import '../../core/models/pocketbase_models.dart';
+import '../auth/auth_store.dart' as auth;
+
+class InvoicesStore {
+  final PocketBase _pb;
+  final auth.AuthStore _authStore;
+
+  InvoicesStore(this._pb, this._authStore);
+
+  final _invoices = ref<List<InvoicesRecord>>([]);
+  final _currentInvoice = ref<InvoicesRecord?>(null);
+  final _invoiceTemplate = ref<InvoiceTemplatesRecord?>(null);
+  final _loading = ref<bool>(false);
+
+  Ref<List<InvoicesRecord>> get invoices => _invoices;
+  Ref<InvoicesRecord?> get currentInvoice => _currentInvoice;
+  Ref<InvoiceTemplatesRecord?> get invoiceTemplate => _invoiceTemplate;
+  Ref<bool> get loading => _loading;
+
+  Future<bool> getAllInvoices() async {
+    _loading.value = true;
+    try {
+      final residenceId = _authStore.residence.value?.id;
+
+      String? filter;
+      if (residenceId != null && residenceId.isNotEmpty) {
+        filter = 'residence="$residenceId"';
+      }
+
+      final records = await _pb.collection(Collections.invoices).getList(
+        page: 1,
+        perPage: 100,
+        filter: filter ?? '',
+        sort: '-invoice_date',
+      );
+      _invoices.value = records.items
+          .map((r) => InvoicesRecord.fromJson(r.toJson()))
+          .toList();
+      return true;
+    } catch (e) {
+      debugPrint('InvoicesStore: Error fetching invoices: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
+  Future<bool> getInvoice(String id) async {
+    _loading.value = true;
+    try {
+      final record = await _pb.collection(Collections.invoices).getOne(id);
+      _currentInvoice.value = InvoicesRecord.fromJson(record.toJson());
+      return true;
+    } catch (e) {
+      debugPrint('InvoicesStore: Error fetching invoice: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
+  Future<bool> getInvoiceTemplate() async {
+    try {
+      final assocId = _authStore.association.value?.id ?? '';
+      if (assocId.isEmpty) return false;
+
+      final records = await _pb.collection(Collections.invoiceTemplates).getFullList(
+        filter: 'association="$assocId"',
+      );
+      if (records.isNotEmpty) {
+        _invoiceTemplate.value = InvoiceTemplatesRecord.fromJson(records.first.toJson());
+      }
+      return true;
+    } catch (e) {
+      debugPrint('InvoicesStore: Error fetching invoice template: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteInvoice(String id) async {
+    _loading.value = true;
+    try {
+      await _pb.collection(Collections.invoices).delete(id);
+      await getAllInvoices();
+      return true;
+    } catch (e) {
+      debugPrint('InvoicesStore: Error deleting invoice: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+}

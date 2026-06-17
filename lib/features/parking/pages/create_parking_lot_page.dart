@@ -1,0 +1,163 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_compositions/flutter_compositions.dart';
+import '../../../core/di/injection_keys.dart';
+import '../../../core/theme/app_theme.dart';
+
+class CreateParkingLotPage extends CompositionWidget {
+  static const String path = '/parking/create';
+
+  const CreateParkingLotPage({super.key});
+
+  @override
+  Widget Function(BuildContext) setup() {
+    final parkingStore = inject(parkingStoreKey);
+    final (nameController, _, __) = useTextEditingController();
+    final (descriptionController, a1, a2) = useTextEditingController();
+    final (streetController, a3, a4) = useTextEditingController();
+    final (zipController, a5, a6) = useTextEditingController();
+    final (localityController, a7, a8) = useTextEditingController();
+    final (capacityController, a9, a10) = useTextEditingController();
+    final loading = ref(false);
+    final selectedParkingType = ref<String>('Garage');
+    final contextRef = useContext();
+
+    Future<void> createParkingLot() async {
+      if (nameController.text.trim().isEmpty) return;
+      if (streetController.text.trim().isEmpty) return;
+
+      loading.value = true;
+      final success = await parkingStore.createParkingLot(
+        name: nameController.text.trim(),
+        description: descriptionController.text.trim(),
+        streetAddress: streetController.text.trim(),
+        zipCode: zipController.text.trim(),
+        locality: localityController.text.trim(),
+        parkingType: selectedParkingType.value,
+        capacity: int.tryParse(capacityController.text),
+      );
+      loading.value = false;
+
+      final context = contextRef.value;
+      if (context != null && context.mounted) {
+        if (success) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Parkering skapad!'),
+              backgroundColor: AppTheme.primaryColor,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Kunde inte skapa parkering.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+
+    return (context) => Scaffold(
+      appBar: AppBar(
+        title: const Text('Skapa parkering'),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Namn',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: descriptionController,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Beskrivning',
+                border: OutlineInputBorder(),
+                alignLabelWithHint: true,
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: streetController,
+              decoration: const InputDecoration(
+                labelText: 'Gatuadress',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: zipController,
+                    decoration: const InputDecoration(
+                      labelText: 'Postnummer',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: TextFormField(
+                    controller: localityController,
+                    decoration: const InputDecoration(
+                      labelText: 'Ort',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: selectedParkingType.value,
+              decoration: const InputDecoration(
+                labelText: 'Parkeringstyp',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'Garage', child: Text('Garage')),
+                DropdownMenuItem(value: 'Utomhus', child: Text('Utomhus')),
+                DropdownMenuItem(value: 'Carport', child: Text('Carport')),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  selectedParkingType.value = value;
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: capacityController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Antal platser',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              onPressed: loading.value ? null : createParkingLot,
+              child: loading.value
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Text('Skapa parkering'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
