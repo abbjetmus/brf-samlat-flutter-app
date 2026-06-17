@@ -59,6 +59,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_compositions_lints: ^0.1.1
   custom_lint: ^0.8.1
+  flutter_native_splash: ^2.4.7
   build_runner: ^2.10.4
   freezed: ^3.2.4
   json_serializable: ^6.11.3
@@ -69,3 +70,30 @@ dependency_overrides:
 
 flutter:
   uses-material-design: true
+
+# App icons — generated from the BRF Samlat logo (green house mark on white).
+# Run: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  remove_alpha_ios: true
+  background_color_ios: "#ffffff"
+  min_sdk_android: 21
+  adaptive_icon_background: "#ffffff"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+
+# Splash screen — BRF Samlat logo centered on a white (light) / dark canvas.
+# Run: dart run flutter_native_splash:create
+flutter_native_splash:
+  color: "#ffffff"
+  image: assets/splash/splash_logo.png
+  color_dark: "#0B1220"
+  image_dark: assets/splash/splash_logo.png
+  android_12:
+    image: assets/splash/splash_logo.png
+    color: "#ffffff"
+    image_dark: assets/splash/splash_logo.png
+    color_dark: "#0B1220"
+  android: true
+  ios: true
