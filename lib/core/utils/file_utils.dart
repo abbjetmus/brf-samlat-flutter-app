@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-const String _pbBaseUrl = 'https://api.brfsamlat.se';
+const String _pbBaseUrl = 'https://brf-samlat-pb.cloud.mustini.com';
 
 String getImageUrl(String collectionId, String recordId, String filename) {
   return '$_pbBaseUrl/api/files/$collectionId/$recordId/$filename';

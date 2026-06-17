@@ -17,7 +17,7 @@ class PocketBaseClient {
         initial: _prefs!.getString('pb_auth'),
       );
 
-      const prodUrl = 'https://api.brfsamlat.se';
+      const prodUrl = 'https://brf-samlat-pb.cloud.mustini.com';
       const localUrl = 'http://127.0.0.1:8090';
 
       // Release builds always use prod to prevent accidentally shipping localhost.

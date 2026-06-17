@@ -14,7 +14,7 @@
       "type": "dart",
       "program": "lib/main.dart",
       "flutterMode": "debug",
-      "args": ["--dart-define=PB_URL=https://api.brfsamlat.se"]
+      "args": ["--dart-define=PB_URL=https://brf-samlat-pb.cloud.mustini.com"]
     },
     {
       "name": "brf-samlat (profile)",
