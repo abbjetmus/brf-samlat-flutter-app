@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/paginated_list_view.dart';
 import '../../../shared/widgets/search_field.dart';
 
 class UsersListPage extends CompositionWidget {
@@ -24,6 +25,9 @@ class UsersListPage extends CompositionWidget {
       final users = usersStore.users.value;
       final invitations = usersStore.invitations.value;
       final loading = usersStore.loading.value;
+      final listLoading = usersStore.listLoading.value;
+      final loadingMore = usersStore.loadingMore.value;
+      final hasMore = usersStore.hasMore.value;
       final userRoleTypes = authStore.userRoleTypes.value;
 
       String getRoleTypeName(String roleTypeId) {
@@ -76,60 +80,61 @@ class UsersListPage extends CompositionWidget {
                 child: TabBarView(
                   children: [
                     // Users tab
-                    loading && users.isEmpty
+                    listLoading && users.isEmpty
                         ? const Center(child: CircularProgressIndicator())
                         : users.isEmpty
                         ? const Center(child: Text('Inga användare.'))
                         : filteredUsers.isEmpty
                         ? const Center(child: Text('Inga träffar.'))
-                        : RefreshIndicator(
-                            onRefresh: () => usersStore.getUsers(),
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              itemCount: filteredUsers.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 4),
-                              itemBuilder: (context, index) {
-                                final user = filteredUsers[index];
-                                final roleTypeName = getRoleTypeName(
-                                  user.userRoleType,
-                                );
-                                return Card(
-                                  clipBehavior: Clip.antiAlias,
-                                  child: ListTile(
-                                    leading: const Icon(Icons.person_outline),
-                                    title: Text(
-                                      user.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    subtitle: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        if (user.email != null &&
-                                            user.email!.isNotEmpty)
-                                          Text(
-                                            user.email!,
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                        if (roleTypeName.isNotEmpty)
-                                          Text(
-                                            roleTypeName,
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
+                        : PaginatedListView(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: filteredUsers.length,
+                            hasMore: hasMore,
+                            loadingMore: loadingMore,
+                            onLoadMore: usersStore.fetchNextUsers,
+                            onRefresh: usersStore.getUsers,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 4),
+                            itemBuilder: (context, index) {
+                              final user = filteredUsers[index];
+                              final roleTypeName = getRoleTypeName(
+                                user.userRoleType,
+                              );
+                              return Card(
+                                clipBehavior: Clip.antiAlias,
+                                child: ListTile(
+                                  leading: const Icon(Icons.person_outline),
+                                  title: Text(
+                                    user.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                );
-                              },
-                            ),
+                                  subtitle: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      if (user.email != null &&
+                                          user.email!.isNotEmpty)
+                                        Text(
+                                          user.email!,
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      if (roleTypeName.isNotEmpty)
+                                        Text(
+                                          roleTypeName,
+                                          style: TextStyle(
+                                            color: Colors.grey[600],
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
                           ),
 
                     // Invitations tab
@@ -144,7 +149,7 @@ class UsersListPage extends CompositionWidget {
                             child: ListView.separated(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               itemCount: filteredInvitations.length,
-                              separatorBuilder: (_, __) =>
+                              separatorBuilder: (_, _) =>
                                   const SizedBox(height: 4),
                               itemBuilder: (context, index) {
                                 final invitation = filteredInvitations[index];

@@ -4,6 +4,7 @@ import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 
 class InvoiceDetailPage extends CompositionWidget {
@@ -28,7 +29,10 @@ class InvoiceDetailPage extends CompositionWidget {
       final invoice = invoicesStore.currentInvoice.value;
       final template = invoicesStore.invoiceTemplate.value;
       final loading = invoicesStore.loading.value;
-      final canDelete = authStore.hasPermission('invoices', CrudOperation.delete);
+      final canDelete = authStore.hasPermission(
+        'invoices',
+        CrudOperation.delete,
+      );
 
       if (loading && invoice == null) {
         return const GradientScaffold(
@@ -47,10 +51,10 @@ class InvoiceDetailPage extends CompositionWidget {
       return GradientScaffold(
         title: 'Faktura',
         actions: [
-            if (canDelete)
-              HeaderIconButton(
-                icon: Icons.delete_outline,
-                onPressed: () async {
+          if (canDelete)
+            EntityActionMenu.header(
+              actions: [
+                EntityAction.delete(() async {
                   final confirmed = await showConfirmDialog(
                     context,
                     title: 'Radera faktura',
@@ -65,9 +69,10 @@ class InvoiceDetailPage extends CompositionWidget {
                       Navigator.of(ctx).pop();
                     }
                   }
-                },
-              ),
-          ],
+                }),
+              ],
+            ),
+        ],
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -79,12 +84,29 @@ class InvoiceDetailPage extends CompositionWidget {
               ),
               const SizedBox(height: 16),
               const Divider(),
-              _infoRow(Icons.calendar_today, 'Fakturadatum', AppDateUtils.formatDate(invoice.invoiceDate)),
-              _infoRow(Icons.send, 'Utskicksdatum', AppDateUtils.formatDate(invoice.invoiceDispatchDate)),
-              _infoRow(Icons.event, 'Förfallodatum', AppDateUtils.formatDate(invoice.invoiceDueDate)),
-              _infoRow(Icons.home_outlined, 'Bostad', invoice.residence.isNotEmpty ? invoice.residence : '-'),
+              _infoRow(
+                Icons.calendar_today,
+                'Fakturadatum',
+                AppDateUtils.formatDate(invoice.invoiceDate),
+              ),
+              _infoRow(
+                Icons.send,
+                'Utskicksdatum',
+                AppDateUtils.formatDate(invoice.invoiceDispatchDate),
+              ),
+              _infoRow(
+                Icons.event,
+                'Förfallodatum',
+                AppDateUtils.formatDate(invoice.invoiceDueDate),
+              ),
+              _infoRow(
+                Icons.home_outlined,
+                'Bostad',
+                invoice.residence.isNotEmpty ? invoice.residence : '-',
+              ),
               _infoRow(Icons.description_outlined, 'Mall', template?.id ?? '-'),
-              if (template?.message != null && template!.message!.isNotEmpty) ...[
+              if (template?.message != null &&
+                  template!.message!.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 8),

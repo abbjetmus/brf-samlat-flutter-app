@@ -51,6 +51,16 @@ class ChatRoomPage extends CompositionWidget {
         body: Chat(
           chatController: controller,
           currentUserId: currentUserId,
+          // Match the app's (emerald) Material theme instead of the package's
+          // default blue; also follows light/dark mode.
+          theme: ChatTheme.fromThemeData(Theme.of(context)),
+          // Load older messages as the user scrolls toward the top.
+          builders: Builders(
+            chatAnimatedListBuilder: (context, itemBuilder) => ChatAnimatedList(
+              itemBuilder: itemBuilder,
+              onEndReached: () => chatStore.loadOlderMessages(roomId),
+            ),
+          ),
           onMessageSend: (text) {
             final trimmed = text.trim();
             if (trimmed.isEmpty) return;

@@ -4,54 +4,56 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import 'package:http/http.dart' as http;
 import '../../core/models/pocketbase_models.dart';
+import '../../core/pagination/paginated.dart';
 import '../auth/auth_store.dart' as auth;
 
 class IssuesStore {
   final PocketBase _pb;
   final auth.AuthStore _authStore;
 
-  IssuesStore(this._pb, this._authStore);
-
-  final _issuesList = ref<List<IssuesViewRecord>>([]);
-  final _currentIssue = ref<IssuesRecord?>(null);
-  final _comments = ref<List<IssueCommentsRecord>>([]);
-  final _loading = ref<bool>(false);
-  final _showResolved = ref<bool>(false);
-
-  Ref<List<IssuesViewRecord>> get issuesList => _issuesList;
-  Ref<IssuesRecord?> get currentIssue => _currentIssue;
-  Ref<List<IssueCommentsRecord>> get comments => _comments;
-  Ref<bool> get loading => _loading;
-  Ref<bool> get showResolved => _showResolved;
-
-  Future<bool> getAllIssues() async {
-    _loading.value = true;
-    try {
+  IssuesStore(this._pb, this._authStore) {
+    _issues = Paginated<IssuesViewRecord>((page, perPage) async {
       final assocId = _authStore.association.value?.id ?? '';
-      if (assocId.isEmpty) return false;
+      if (assocId.isEmpty) return const PageResult([], 0);
 
       String filter = 'association="$assocId"';
       if (!_showResolved.value) {
         filter += ' && is_resolved=false';
       }
 
-      final records = await _pb.collection(Collections.issuesView).getList(
-        page: 1,
-        perPage: 100,
-        filter: filter,
-        sort: '-created',
+      final res = await _pb
+          .collection(Collections.issuesView)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: filter,
+            sort: '-created',
+          );
+      return PageResult(
+        res.items.map((r) => IssuesViewRecord.fromJson(r.toJson())).toList(),
+        res.totalPages,
       );
-      _issuesList.value = records.items
-          .map((r) => IssuesViewRecord.fromJson(r.toJson()))
-          .toList();
-      return true;
-    } catch (e) {
-      debugPrint('IssuesStore: Error fetching issues: $e');
-      return false;
-    } finally {
-      _loading.value = false;
-    }
+    });
   }
+
+  late final Paginated<IssuesViewRecord> _issues;
+  final _currentIssue = ref<IssuesRecord?>(null);
+  final _comments = ref<List<IssueCommentsRecord>>([]);
+  final _loading = ref<bool>(false);
+  final _showResolved = ref<bool>(false);
+
+  Ref<List<IssuesViewRecord>> get issuesList => _issues.items;
+  Ref<IssuesRecord?> get currentIssue => _currentIssue;
+  Ref<List<IssueCommentsRecord>> get comments => _comments;
+  Ref<bool> get loading => _loading; // detail + mutations
+  Ref<bool> get listLoading =>
+      _issues.loading; // first-page loading for the list
+  Ref<bool> get loadingMore => _issues.loadingMore;
+  Ref<bool> get hasMore => _issues.hasMore;
+  Ref<bool> get showResolved => _showResolved;
+
+  Future<void> getAllIssues() => _issues.refresh();
+  Future<void> fetchNextIssues() => _issues.loadMore();
 
   void toggleShowResolved() {
     _showResolved.value = !_showResolved.value;
@@ -76,13 +78,15 @@ class IssuesStore {
 
   Future<bool> getComments(String issueId) async {
     try {
-      final records = await _pb.collection(Collections.issueComments).getList(
-        page: 1,
-        perPage: 100,
-        filter: 'issue="$issueId"',
-        sort: '-created',
-        expand: 'user',
-      );
+      final records = await _pb
+          .collection(Collections.issueComments)
+          .getList(
+            page: 1,
+            perPage: 100,
+            filter: 'issue="$issueId"',
+            sort: '-created',
+            expand: 'user',
+          );
       _comments.value = records.items
           .map((r) => IssueCommentsRecord.fromJson(r.toJson()))
           .toList();
@@ -126,18 +130,17 @@ class IssuesStore {
       if (attachments != null) {
         for (final file in attachments) {
           final bytes = await file.readAsBytes();
-          files.add(http.MultipartFile.fromBytes(
-            'attachments',
-            bytes,
-            filename: file.path.split('/').last,
-          ));
+          files.add(
+            http.MultipartFile.fromBytes(
+              'attachments',
+              bytes,
+              filename: file.path.split('/').last,
+            ),
+          );
         }
       }
 
-      await _pb.collection(Collections.issues).create(
-        body: body,
-        files: files,
-      );
+      await _pb.collection(Collections.issues).create(body: body, files: files);
 
       await getAllIssues();
       return true;
@@ -152,10 +155,15 @@ class IssuesStore {
   Future<bool> resolveIssue(String id) async {
     _loading.value = true;
     try {
-      await _pb.collection(Collections.issues).update(id, body: {
-        'is_resolved': true,
-        'resolved_at': DateTime.now().toUtc().toIso8601String(),
-      });
+      await _pb
+          .collection(Collections.issues)
+          .update(
+            id,
+            body: {
+              'is_resolved': true,
+              'resolved_at': DateTime.now().toUtc().toIso8601String(),
+            },
+          );
       await getIssue(id);
       await getAllIssues();
       return true;
@@ -170,10 +178,9 @@ class IssuesStore {
   Future<bool> unresolveIssue(String id) async {
     _loading.value = true;
     try {
-      await _pb.collection(Collections.issues).update(id, body: {
-        'is_resolved': false,
-        'resolved_at': '',
-      });
+      await _pb
+          .collection(Collections.issues)
+          .update(id, body: {'is_resolved': false, 'resolved_at': ''});
       await getIssue(id);
       await getAllIssues();
       return true;
@@ -202,11 +209,9 @@ class IssuesStore {
   Future<bool> addComment(String issueId, String comment) async {
     try {
       final userId = _authStore.currentUser.value?.id ?? '';
-      await _pb.collection(Collections.issueComments).create(body: {
-        'comment': comment,
-        'issue': issueId,
-        'user': userId,
-      });
+      await _pb
+          .collection(Collections.issueComments)
+          .create(body: {'comment': comment, 'issue': issueId, 'user': userId});
       await getComments(issueId);
       return true;
     } catch (e) {
@@ -215,12 +220,15 @@ class IssuesStore {
     }
   }
 
-  Future<bool> updateComment(String commentId, String comment, String issueId) async {
+  Future<bool> updateComment(
+    String commentId,
+    String comment,
+    String issueId,
+  ) async {
     try {
-      await _pb.collection(Collections.issueComments).update(
-        commentId,
-        body: {'comment': comment},
-      );
+      await _pb
+          .collection(Collections.issueComments)
+          .update(commentId, body: {'comment': comment});
       await getComments(issueId);
       return true;
     } catch (e) {

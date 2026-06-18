@@ -4,47 +4,49 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import 'package:http/http.dart' as http;
 import '../../core/models/pocketbase_models.dart';
+import '../../core/pagination/paginated.dart';
 import '../auth/auth_store.dart' as auth;
 
 class PostsStore {
   final PocketBase _pb;
   final auth.AuthStore _authStore;
 
-  PostsStore(this._pb, this._authStore);
+  PostsStore(this._pb, this._authStore) {
+    _posts = Paginated<PostsViewRecord>((page, perPage) async {
+      final assocId = _authStore.association.value?.id ?? '';
+      if (assocId.isEmpty) return const PageResult([], 0);
+      final res = await _pb
+          .collection(Collections.postsView)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: 'association="$assocId" && pin_as_general_info=false',
+            sort: '-created',
+          );
+      return PageResult(
+        res.items.map((r) => PostsViewRecord.fromJson(r.toJson())).toList(),
+        res.totalPages,
+      );
+    });
+  }
 
-  final _postsList = ref<List<PostsViewRecord>>([]);
+  late final Paginated<PostsViewRecord> _posts;
   final _currentPost = ref<PostsRecord?>(null);
   final _comments = ref<List<PostCommentsRecord>>([]);
+  // Loading flag for the detail fetch (getPost) and mutations.
   final _loading = ref<bool>(false);
 
-  Ref<List<PostsViewRecord>> get postsList => _postsList;
+  Ref<List<PostsViewRecord>> get postsList => _posts.items;
+  Ref<bool> get loading => _loading;
+  // First-page loading for the paginated list.
+  Ref<bool> get listLoading => _posts.loading;
+  Ref<bool> get loadingMore => _posts.loadingMore;
+  Ref<bool> get hasMore => _posts.hasMore;
   Ref<PostsRecord?> get currentPost => _currentPost;
   Ref<List<PostCommentsRecord>> get comments => _comments;
-  Ref<bool> get loading => _loading;
 
-  Future<bool> getAllPosts() async {
-    _loading.value = true;
-    try {
-      final assocId = _authStore.association.value?.id ?? '';
-      if (assocId.isEmpty) return false;
-
-      final records = await _pb.collection(Collections.postsView).getList(
-        page: 1,
-        perPage: 100,
-        filter: 'association="$assocId"',
-        sort: '-created',
-      );
-      _postsList.value = records.items
-          .map((r) => PostsViewRecord.fromJson(r.toJson()))
-          .toList();
-      return true;
-    } catch (e) {
-      debugPrint('PostsStore: Error fetching posts: $e');
-      return false;
-    } finally {
-      _loading.value = false;
-    }
-  }
+  Future<void> getAllPosts() => _posts.refresh();
+  Future<void> fetchNextPosts() => _posts.loadMore();
 
   Future<bool> getPost(String id) async {
     _loading.value = true;
@@ -62,13 +64,15 @@ class PostsStore {
 
   Future<bool> getComments(String postId) async {
     try {
-      final records = await _pb.collection(Collections.postComments).getList(
-        page: 1,
-        perPage: 100,
-        filter: 'post="$postId"',
-        sort: '-created',
-        expand: 'user',
-      );
+      final records = await _pb
+          .collection(Collections.postComments)
+          .getList(
+            page: 1,
+            perPage: 100,
+            filter: 'post="$postId"',
+            sort: '-created',
+            expand: 'user',
+          );
       _comments.value = records.items
           .map((r) => PostCommentsRecord.fromJson(r.toJson()))
           .toList();
@@ -111,18 +115,17 @@ class PostsStore {
       if (attachments != null) {
         for (final file in attachments) {
           final bytes = await file.readAsBytes();
-          files.add(http.MultipartFile.fromBytes(
-            'attachments',
-            bytes,
-            filename: file.path.split('/').last,
-          ));
+          files.add(
+            http.MultipartFile.fromBytes(
+              'attachments',
+              bytes,
+              filename: file.path.split('/').last,
+            ),
+          );
         }
       }
 
-      await _pb.collection(Collections.posts).create(
-        body: body,
-        files: files,
-      );
+      await _pb.collection(Collections.posts).create(body: body, files: files);
 
       await getAllPosts();
       return true;
@@ -152,7 +155,8 @@ class PostsStore {
       };
 
       if (commentsAllowed != null) body['comments_allowed'] = commentsAllowed;
-      if (pinAsGeneralInfo != null) body['pin_as_general_info'] = pinAsGeneralInfo;
+      if (pinAsGeneralInfo != null)
+        body['pin_as_general_info'] = pinAsGeneralInfo;
       if (addToCalendar != null) body['add_to_calendar'] = addToCalendar;
       if (startAt != null) body['start_at'] = startAt;
       if (endAt != null) body['end_at'] = endAt;
@@ -185,11 +189,9 @@ class PostsStore {
   Future<bool> addComment(String postId, String comment) async {
     try {
       final userId = _authStore.currentUser.value?.id ?? '';
-      await _pb.collection(Collections.postComments).create(body: {
-        'comment': comment,
-        'post': postId,
-        'user': userId,
-      });
+      await _pb
+          .collection(Collections.postComments)
+          .create(body: {'comment': comment, 'post': postId, 'user': userId});
       await getComments(postId);
       return true;
     } catch (e) {
@@ -198,12 +200,15 @@ class PostsStore {
     }
   }
 
-  Future<bool> updateComment(String commentId, String comment, String postId) async {
+  Future<bool> updateComment(
+    String commentId,
+    String comment,
+    String postId,
+  ) async {
     try {
-      await _pb.collection(Collections.postComments).update(
-        commentId,
-        body: {'comment': comment},
-      );
+      await _pb
+          .collection(Collections.postComments)
+          .update(commentId, body: {'comment': comment});
       await getComments(postId);
       return true;
     } catch (e) {

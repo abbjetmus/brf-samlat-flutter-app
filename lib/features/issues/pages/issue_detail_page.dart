@@ -5,6 +5,7 @@ import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/comments_list.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/rich_description.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 
@@ -51,40 +52,44 @@ class IssueDetailPage extends CompositionWidget {
       return GradientScaffold(
         title: issue.type ?? 'Felanmälan',
         actions: [
-            if (canEdit)
-              HeaderIconButton(
-                icon: issue.isResolved ? Icons.refresh : Icons.check_circle_outline,
-                tooltip: issue.isResolved ? 'Återöppna' : 'Markera som löst',
-                onPressed: () async {
-                  if (issue.isResolved) {
-                    await issuesStore.unresolveIssue(issue.id);
-                  } else {
-                    await issuesStore.resolveIssue(issue.id);
-                  }
-                },
-              ),
-            if (canDelete)
-              HeaderIconButton(
-                icon: Icons.delete_outline,
-                onPressed: () async {
-                  final noun = (issue.type ?? 'Felanmälan').toLowerCase();
-                  final confirmed = await showConfirmDialog(
-                    context,
-                    title: 'Radera $noun',
-                    message: 'Är du säker på att du vill radera denna $noun?',
-                    okLabel: 'Radera',
-                    okColor: Colors.red,
-                  );
-                  if (confirmed) {
-                    await issuesStore.deleteIssue(issue.id);
-                    final ctx = contextRef.value;
-                    if (ctx != null && ctx.mounted) {
-                      Navigator.of(ctx).pop();
+          if (canEdit || canDelete)
+            EntityActionMenu.header(
+              actions: [
+                if (canEdit)
+                  EntityAction(
+                    icon: issue.isResolved
+                        ? Icons.refresh
+                        : Icons.check_circle_outline,
+                    label: issue.isResolved ? 'Återöppna' : 'Markera som löst',
+                    onSelected: () async {
+                      if (issue.isResolved) {
+                        await issuesStore.unresolveIssue(issue.id);
+                      } else {
+                        await issuesStore.resolveIssue(issue.id);
+                      }
+                    },
+                  ),
+                if (canDelete)
+                  EntityAction.delete(() async {
+                    final noun = (issue.type ?? 'Felanmälan').toLowerCase();
+                    final confirmed = await showConfirmDialog(
+                      context,
+                      title: 'Radera $noun',
+                      message: 'Är du säker på att du vill radera denna $noun?',
+                      okLabel: 'Radera',
+                      okColor: Colors.red,
+                    );
+                    if (confirmed) {
+                      await issuesStore.deleteIssue(issue.id);
+                      final ctx = contextRef.value;
+                      if (ctx != null && ctx.mounted) {
+                        Navigator.of(ctx).pop();
+                      }
                     }
-                  }
-                },
-              ),
-          ],
+                  }),
+              ],
+            ),
+        ],
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,15 +106,20 @@ class IssueDetailPage extends CompositionWidget {
                       children: [
                         Chip(
                           label: Text(issue.type ?? 'Felanmälan'),
-                          backgroundColor: (issue.type ?? 'Felanmälan') == 'Ärende'
+                          backgroundColor:
+                              (issue.type ?? 'Felanmälan') == 'Ärende'
                               ? Colors.blue.shade50
                               : Colors.orange.shade50,
                         ),
                         Chip(
                           avatar: Icon(
-                            issue.isResolved ? Icons.check_circle : Icons.report_problem,
+                            issue.isResolved
+                                ? Icons.check_circle
+                                : Icons.report_problem,
                             size: 16,
-                            color: issue.isResolved ? Colors.green : Colors.orange,
+                            color: issue.isResolved
+                                ? Colors.green
+                                : Colors.orange,
                           ),
                           label: Text(issue.isResolved ? 'Löst' : 'Öppen'),
                           backgroundColor: issue.isResolved
@@ -189,7 +199,9 @@ class IssueDetailPage extends CompositionWidget {
                     if (expandUser is Map<String, dynamic>) {
                       userName = expandUser['name'] as String?;
                     } else if (expandUser is List && expandUser.isNotEmpty) {
-                      userName = (expandUser.first as Map<String, dynamic>)['name'] as String?;
+                      userName =
+                          (expandUser.first as Map<String, dynamic>)['name']
+                              as String?;
                     }
                     return CommentItem(
                       id: c.id,
@@ -200,9 +212,11 @@ class IssueDetailPage extends CompositionWidget {
                     );
                   }).toList(),
                   currentUserId: currentUserId,
-                  onAddComment: (comment) => issuesStore.addComment(issueId, comment),
+                  onAddComment: (comment) =>
+                      issuesStore.addComment(issueId, comment),
                   onEditComment: canEdit
-                      ? (id, comment) => issuesStore.updateComment(id, comment, issueId)
+                      ? (id, comment) =>
+                            issuesStore.updateComment(id, comment, issueId)
                       : null,
                   onDeleteComment: canDelete
                       ? (id) => issuesStore.deleteComment(id, issueId)

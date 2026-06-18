@@ -7,6 +7,7 @@ import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../dashboard_store.dart';
 import '../../settings/pages/settings_page.dart';
+import '../../posts/pages/post_detail_page.dart';
 
 class _MenuItem {
   final String label;
@@ -36,8 +37,21 @@ class DashboardPage extends CompositionWidget {
 
     onMounted(() {
       dashboardStore.getNotSeenCount();
-      dashboardStore.getGeneralInfoList();
     });
+
+    // The association is loaded asynchronously on cold start (after this widget
+    // mounts), so getGeneralInfoList() in onMounted can run before it's set and
+    // return nothing. (Re)fetch the pinned general-info posts whenever the
+    // association id becomes available or changes.
+    watch(
+      () => authStore.association.value?.id,
+      (assocId, _) {
+        if (assocId != null && assocId.isNotEmpty) {
+          dashboardStore.getGeneralInfoList();
+        }
+      },
+      immediate: true,
+    );
 
     const menuItems = [
       _MenuItem(
@@ -176,7 +190,14 @@ class DashboardPage extends CompositionWidget {
                 onSettings: () => context.push(SettingsPage.path),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+                // Add the Android system nav-bar inset so the last cards don't
+                // sit under the bottom bar.
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  24,
+                  20,
+                  28 + MediaQuery.of(context).padding.bottom,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -192,6 +213,8 @@ class DashboardPage extends CompositionWidget {
                         (post) => _InfoCard(
                           title: post.title,
                           subtitle: AppDateUtils.formatDate(post.created),
+                          onTap: () =>
+                              context.push('${PostDetailPage.path}/${post.id}'),
                         ),
                       ),
                     ],
@@ -466,63 +489,68 @@ class _MenuCard extends StatelessWidget {
 class _InfoCard extends StatelessWidget {
   final String title;
   final String subtitle;
+  final VoidCallback? onTap;
 
-  const _InfoCard({required this.title, required this.subtitle});
+  const _InfoCard({required this.title, required this.subtitle, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         border: Border.all(color: theme.colorScheme.outline),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceLight,
-                borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceLight,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.campaign_outlined,
+                  color: AppTheme.primaryDarken1,
+                  size: 22,
+                ),
               ),
-              child: const Icon(
-                Icons.campaign_outlined,
-                color: AppTheme.primaryDarken1,
-                size: 22,
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: theme.colorScheme.onSurfaceVariant,
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -5,6 +5,7 @@ import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../core/models/pocketbase_models.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/rich_description.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../gadgets_store.dart';
@@ -74,7 +75,13 @@ class GadgetDetailPage extends CompositionWidget {
                         );
                         if (time != null) {
                           setState(() {
-                            startDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+                            startDate = DateTime(
+                              date.year,
+                              date.month,
+                              date.day,
+                              time.hour,
+                              time.minute,
+                            );
                             if (endDate.isBefore(startDate)) {
                               endDate = startDate.add(const Duration(hours: 1));
                             }
@@ -104,7 +111,13 @@ class GadgetDetailPage extends CompositionWidget {
                         );
                         if (time != null) {
                           setState(() {
-                            endDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+                            endDate = DateTime(
+                              date.year,
+                              date.month,
+                              date.day,
+                              time.hour,
+                              time.minute,
+                            );
                           });
                         }
                       }
@@ -143,8 +156,14 @@ class GadgetDetailPage extends CompositionWidget {
       final gadget = gadgetsStore.currentGadget.value;
       final bookings = gadgetsStore.bookings.value;
       final loading = gadgetsStore.loading.value;
-      final canCreate = authStore.hasPermission('gadget_bookings', CrudOperation.create);
-      final canDelete = authStore.hasPermission('gadgets', CrudOperation.delete);
+      final canCreate = authStore.hasPermission(
+        'gadget_bookings',
+        CrudOperation.create,
+      );
+      final canDelete = authStore.hasPermission(
+        'gadgets',
+        CrudOperation.delete,
+      );
 
       if (loading && gadget == null) {
         return const GradientScaffold(
@@ -165,10 +184,10 @@ class GadgetDetailPage extends CompositionWidget {
         child: GradientScaffold(
           title: gadget.name,
           actions: [
-              if (canDelete)
-                HeaderIconButton(
-                  icon: Icons.delete_outline,
-                  onPressed: () async {
+            if (canDelete)
+              EntityActionMenu.header(
+                actions: [
+                  EntityAction.delete(() async {
                     final confirmed = await showConfirmDialog(
                       context,
                       title: 'Radera pryl',
@@ -181,9 +200,10 @@ class GadgetDetailPage extends CompositionWidget {
                       final ctx = contextRef.value;
                       if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
                     }
-                  },
-                ),
-            ],
+                  }),
+                ],
+              ),
+          ],
           floatingActionButton: canCreate
               ? FloatingActionButton(
                   onPressed: showAddBookingDialog,
@@ -200,76 +220,117 @@ class GadgetDetailPage extends CompositionWidget {
               ),
               Expanded(
                 child: TabBarView(
-            children: [
-              // Info tab
-              SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      gadget.name,
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    // Info tab
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            gadget.name,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (gadget.description != null &&
+                              gadget.description!.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            RichDescription(html: gadget.description!),
+                          ],
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          _infoRow(
+                            Icons.location_on,
+                            '${gadget.streetAddress}, ${gadget.zipCode} ${gadget.locality}',
+                          ),
+                          _infoRow(
+                            Icons.schedule,
+                            'Bokningsbar ${gadget.bookingStartTime} - ${gadget.bookingEndTime}',
+                          ),
+                          _infoRow(
+                            Icons.timelapse,
+                            '${gadget.bookingSlotDurationLength} ${gadget.bookingSlotDurationType}',
+                          ),
+                          if (gadget.pricePerSlot != null &&
+                              gadget.pricePerSlot! > 0)
+                            _infoRow(
+                              Icons.payments,
+                              '${gadget.pricePerSlot!.toStringAsFixed(0)} kr/slot',
+                            ),
+                        ],
+                      ),
                     ),
-                    if (gadget.description != null && gadget.description!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      RichDescription(html: gadget.description!),
-                    ],
-                    const SizedBox(height: 16),
-                    const Divider(),
-                    _infoRow(Icons.location_on, '${gadget.streetAddress}, ${gadget.zipCode} ${gadget.locality}'),
-                    _infoRow(Icons.schedule, 'Bokningsbar ${gadget.bookingStartTime} - ${gadget.bookingEndTime}'),
-                    _infoRow(Icons.timelapse, '${gadget.bookingSlotDurationLength} ${gadget.bookingSlotDurationType}'),
-                    if (gadget.pricePerSlot != null && gadget.pricePerSlot! > 0)
-                      _infoRow(Icons.payments, '${gadget.pricePerSlot!.toStringAsFixed(0)} kr/slot'),
-                  ],
-                ),
-              ),
 
-              // Bookings tab
-              Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: SegmentedButton<CalendarView>(
-                      segments: const [
-                        ButtonSegment(value: CalendarView.day, label: Text('Dag')),
-                        ButtonSegment(value: CalendarView.week, label: Text('Vecka')),
-                        ButtonSegment(value: CalendarView.month, label: Text('Månad')),
+                    // Bookings tab
+                    Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          child: SegmentedButton<CalendarView>(
+                            segments: const [
+                              ButtonSegment(
+                                value: CalendarView.day,
+                                label: Text('Dag'),
+                              ),
+                              ButtonSegment(
+                                value: CalendarView.week,
+                                label: Text('Vecka'),
+                              ),
+                              ButtonSegment(
+                                value: CalendarView.month,
+                                label: Text('Månad'),
+                              ),
+                            ],
+                            selected: {currentView.value},
+                            onSelectionChanged: (views) {
+                              currentView.value = views.first;
+                            },
+                          ),
+                        ),
+                        Expanded(
+                          child: SfCalendar(
+                            view: currentView.value,
+                            dataSource: _BookingDataSource(
+                              bookings,
+                              gadget.bookingSlotDurationType == 'Dagar',
+                            ),
+                            firstDayOfWeek: 1,
+                            showNavigationArrow: true,
+                            monthViewSettings: const MonthViewSettings(
+                              appointmentDisplayMode:
+                                  MonthAppointmentDisplayMode.appointment,
+                              showAgenda: true,
+                            ),
+                            timeSlotViewSettings: const TimeSlotViewSettings(
+                              startHour: 6,
+                              endHour: 23,
+                              timeFormat: 'HH:mm',
+                            ),
+                            onTap: (details) {
+                              if (details.appointments != null &&
+                                  details.appointments!.isNotEmpty) {
+                                final appointment =
+                                    details.appointments!.first as Appointment;
+                                final booking =
+                                    appointment.id as GadgetBookingsRecord;
+                                _showBookingDetails(
+                                  context,
+                                  booking,
+                                  gadgetsStore,
+                                  gadgetId,
+                                );
+                              }
+                            },
+                          ),
+                        ),
                       ],
-                      selected: {currentView.value},
-                      onSelectionChanged: (views) {
-                        currentView.value = views.first;
-                      },
                     ),
-                  ),
-                  Expanded(
-                    child: SfCalendar(
-                      view: currentView.value,
-                      dataSource: _BookingDataSource(bookings, gadget.bookingSlotDurationType == 'Dagar'),
-                      firstDayOfWeek: 1,
-                      showNavigationArrow: true,
-                      monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
-                        showAgenda: true,
-                      ),
-                      timeSlotViewSettings: const TimeSlotViewSettings(
-                        startHour: 6,
-                        endHour: 23,
-                        timeFormat: 'HH:mm',
-                      ),
-                      onTap: (details) {
-                        if (details.appointments != null && details.appointments!.isNotEmpty) {
-                          final appointment = details.appointments!.first as Appointment;
-                          final booking = appointment.id as GadgetBookingsRecord;
-                          _showBookingDetails(context, booking, gadgetsStore, gadgetId);
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
                 ),
               ),
             ],
@@ -320,40 +381,48 @@ void _showBookingDetails(
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  booking.isBlock ? 'Inte bokningsbar' : (booking.title ?? 'Bokning'),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  booking.isBlock
+                      ? 'Inte bokningsbar'
+                      : (booking.title ?? 'Bokning'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                onPressed: () async {
-                  await gadgetsStore.deleteBooking(booking.id, gadgetId);
-                  if (context.mounted) Navigator.of(context).pop();
-                },
+              EntityActionMenu(
+                actions: [
+                  EntityAction.delete(() async {
+                    await gadgetsStore.deleteBooking(booking.id, gadgetId);
+                    if (context.mounted) Navigator.of(context).pop();
+                  }),
+                ],
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Builder(builder: (_) {
-            try {
-              final start = DateTime.parse(booking.startAt).toLocal();
-              final end = DateTime.parse(booking.endAt).toLocal();
-              return Row(
-                children: [
-                  const Icon(Icons.schedule, size: 16, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')} '
-                    '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} - '
-                    '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ],
-              );
-            } catch (_) {
-              return const SizedBox.shrink();
-            }
-          }),
+          Builder(
+            builder: (_) {
+              try {
+                final start = DateTime.parse(booking.startAt).toLocal();
+                final end = DateTime.parse(booking.endAt).toLocal();
+                return Row(
+                  children: [
+                    const Icon(Icons.schedule, size: 16, color: Colors.grey),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')} '
+                      '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} - '
+                      '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                );
+              } catch (_) {
+                return const SizedBox.shrink();
+              }
+            },
+          ),
           const SizedBox(height: 16),
         ],
       ),

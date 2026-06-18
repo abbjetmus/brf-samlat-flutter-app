@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:syncfusion_localizations/syncfusion_localizations.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -34,6 +37,12 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Lock the app to portrait orientation on all devices.
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
   // Initialize Firebase from the generated options so config is explicit on
   // both platforms (matches the native google-services.json / plist).
@@ -124,6 +133,16 @@ class MyApp extends CompositionWidget {
       darkTheme: AppTheme.darkTheme,
       themeMode: themeStore.themeMode.value,
       routerConfig: router,
+      // Force Swedish across Material widgets, date/time pickers and the
+      // Syncfusion calendar (month/day names, "today", agenda labels, etc.).
+      locale: const Locale('sv'),
+      supportedLocales: const [Locale('sv')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        SfGlobalLocalizations.delegate,
+      ],
       builder: (context, child) => AppUpdateBanner(
         child: child ?? const SizedBox(),
       ),

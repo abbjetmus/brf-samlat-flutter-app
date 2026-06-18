@@ -2,27 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import '../../core/models/pocketbase_models.dart';
+import '../../core/pagination/paginated.dart';
 import '../auth/auth_store.dart' as auth;
 
 class InvoicesStore {
   final PocketBase _pb;
   final auth.AuthStore _authStore;
 
-  InvoicesStore(this._pb, this._authStore);
-
-  final _invoices = ref<List<InvoicesRecord>>([]);
-  final _currentInvoice = ref<InvoicesRecord?>(null);
-  final _invoiceTemplate = ref<InvoiceTemplatesRecord?>(null);
-  final _loading = ref<bool>(false);
-
-  Ref<List<InvoicesRecord>> get invoices => _invoices;
-  Ref<InvoicesRecord?> get currentInvoice => _currentInvoice;
-  Ref<InvoiceTemplatesRecord?> get invoiceTemplate => _invoiceTemplate;
-  Ref<bool> get loading => _loading;
-
-  Future<bool> getAllInvoices() async {
-    _loading.value = true;
-    try {
+  InvoicesStore(this._pb, this._authStore) {
+    _invoices = Paginated<InvoicesRecord>((page, perPage) async {
       final residenceId = _authStore.residence.value?.id;
 
       String? filter;
@@ -30,23 +18,36 @@ class InvoicesStore {
         filter = 'residence="$residenceId"';
       }
 
-      final records = await _pb.collection(Collections.invoices).getList(
-        page: 1,
-        perPage: 100,
-        filter: filter ?? '',
-        sort: '-invoice_date',
+      final records = await _pb
+          .collection(Collections.invoices)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: filter ?? '',
+            sort: '-invoice_date',
+          );
+      return PageResult(
+        records.items.map((r) => InvoicesRecord.fromJson(r.toJson())).toList(),
+        records.totalPages,
       );
-      _invoices.value = records.items
-          .map((r) => InvoicesRecord.fromJson(r.toJson()))
-          .toList();
-      return true;
-    } catch (e) {
-      debugPrint('InvoicesStore: Error fetching invoices: $e');
-      return false;
-    } finally {
-      _loading.value = false;
-    }
+    });
   }
+
+  late final Paginated<InvoicesRecord> _invoices;
+  final _currentInvoice = ref<InvoicesRecord?>(null);
+  final _invoiceTemplate = ref<InvoiceTemplatesRecord?>(null);
+  final _loading = ref<bool>(false);
+
+  Ref<List<InvoicesRecord>> get invoices => _invoices.items;
+  Ref<InvoicesRecord?> get currentInvoice => _currentInvoice;
+  Ref<InvoiceTemplatesRecord?> get invoiceTemplate => _invoiceTemplate;
+  Ref<bool> get loading => _loading;
+  Ref<bool> get listLoading => _invoices.loading;
+  Ref<bool> get loadingMore => _invoices.loadingMore;
+  Ref<bool> get hasMore => _invoices.hasMore;
+
+  Future<void> getAllInvoices() => _invoices.refresh();
+  Future<void> fetchNextInvoices() => _invoices.loadMore();
 
   Future<bool> getInvoice(String id) async {
     _loading.value = true;
@@ -67,11 +68,13 @@ class InvoicesStore {
       final assocId = _authStore.association.value?.id ?? '';
       if (assocId.isEmpty) return false;
 
-      final records = await _pb.collection(Collections.invoiceTemplates).getFullList(
-        filter: 'association="$assocId"',
-      );
+      final records = await _pb
+          .collection(Collections.invoiceTemplates)
+          .getFullList(filter: 'association="$assocId"');
       if (records.isNotEmpty) {
-        _invoiceTemplate.value = InvoiceTemplatesRecord.fromJson(records.first.toJson());
+        _invoiceTemplate.value = InvoiceTemplatesRecord.fromJson(
+          records.first.toJson(),
+        );
       }
       return true;
     } catch (e) {

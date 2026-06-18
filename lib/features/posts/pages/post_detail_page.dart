@@ -6,6 +6,7 @@ import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/comments_list.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/rich_description.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 
@@ -52,10 +53,10 @@ class PostDetailPage extends CompositionWidget {
       return GradientScaffold(
         title: 'Nyhet',
         actions: [
-            if (canDelete)
-              HeaderIconButton(
-                icon: Icons.delete_outline,
-                onPressed: () async {
+          if (canDelete)
+            EntityActionMenu.header(
+              actions: [
+                EntityAction.delete(() async {
                   final confirmed = await showConfirmDialog(
                     context,
                     title: 'Radera nyhet',
@@ -70,9 +71,10 @@ class PostDetailPage extends CompositionWidget {
                       Navigator.of(ctx).pop();
                     }
                   }
-                },
-              ),
-          ],
+                }),
+              ],
+            ),
+        ],
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,7 +168,9 @@ class PostDetailPage extends CompositionWidget {
                     if (expandUser is Map<String, dynamic>) {
                       userName = expandUser['name'] as String?;
                     } else if (expandUser is List && expandUser.isNotEmpty) {
-                      userName = (expandUser.first as Map<String, dynamic>)['name'] as String?;
+                      userName =
+                          (expandUser.first as Map<String, dynamic>)['name']
+                              as String?;
                     }
                     return CommentItem(
                       id: c.id,
@@ -177,9 +181,11 @@ class PostDetailPage extends CompositionWidget {
                     );
                   }).toList(),
                   currentUserId: currentUserId,
-                  onAddComment: (comment) => postsStore.addComment(postId, comment),
+                  onAddComment: (comment) =>
+                      postsStore.addComment(postId, comment),
                   onEditComment: canEdit
-                      ? (id, comment) => postsStore.updateComment(id, comment, postId)
+                      ? (id, comment) =>
+                            postsStore.updateComment(id, comment, postId)
                       : null,
                   onDeleteComment: canDelete
                       ? (id) => postsStore.deleteComment(id, postId)

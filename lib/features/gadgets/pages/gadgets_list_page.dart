@@ -4,6 +4,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/paginated_list_view.dart';
 import '../../../shared/widgets/search_field.dart';
 import 'gadget_detail_page.dart';
 import 'create_gadget_page.dart';
@@ -25,7 +26,9 @@ class GadgetsListPage extends CompositionWidget {
 
     return (context) {
       final gadgets = gadgetsStore.gadgetsList.value;
-      final loading = gadgetsStore.loading.value;
+      final loading = gadgetsStore.listLoading.value;
+      final loadingMore = gadgetsStore.loadingMore.value;
+      final hasMore = gadgetsStore.hasMore.value;
       final canCreate = authStore.hasPermission(
         'gadgets',
         CrudOperation.create,
@@ -67,41 +70,40 @@ class GadgetsListPage extends CompositionWidget {
                   Expanded(
                     child: filteredGadgets.isEmpty
                         ? const Center(child: Text('Inga träffar.'))
-                        : RefreshIndicator(
-                            onRefresh: () => gadgetsStore.getAllGadgets(),
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              itemCount: filteredGadgets.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 4),
-                              itemBuilder: (context, index) {
-                                final gadget = filteredGadgets[index];
-                                return Card(
-                                  clipBehavior: Clip.antiAlias,
-                                  child: ListTile(
-                                    leading: const Icon(
-                                      Icons.handyman_outlined,
-                                    ),
-                                    title: Text(
-                                      gadget.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    subtitle: Text(
-                                      gadget.streetAddress,
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    trailing: const Icon(Icons.chevron_right),
-                                    onTap: () => context.push(
-                                      '${GadgetDetailPage.path}/${gadget.id}',
+                        : PaginatedListView(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: filteredGadgets.length,
+                            hasMore: hasMore,
+                            loadingMore: loadingMore,
+                            onLoadMore: gadgetsStore.fetchNextGadgets,
+                            onRefresh: gadgetsStore.getAllGadgets,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 4),
+                            itemBuilder: (context, index) {
+                              final gadget = filteredGadgets[index];
+                              return Card(
+                                clipBehavior: Clip.antiAlias,
+                                child: ListTile(
+                                  leading: const Icon(Icons.handyman_outlined),
+                                  title: Text(
+                                    gadget.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(
+                                    gadget.streetAddress,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 12,
                                     ),
                                   ),
-                                );
-                              },
-                            ),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => context.push(
+                                    '${GadgetDetailPage.path}/${gadget.id}',
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                   ),
                 ],

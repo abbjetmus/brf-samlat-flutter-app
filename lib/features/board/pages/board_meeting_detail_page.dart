@@ -5,6 +5,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 
 class BoardMeetingDetailPage extends CompositionWidget {
@@ -27,7 +28,10 @@ class BoardMeetingDetailPage extends CompositionWidget {
     return (context) {
       final meeting = boardStore.currentMeeting.value;
       final loading = boardStore.loading.value;
-      final canDelete = authStore.hasPermission('board_meetings', CrudOperation.delete);
+      final canDelete = authStore.hasPermission(
+        'board_meetings',
+        CrudOperation.delete,
+      );
 
       if (loading && meeting == null) {
         return const GradientScaffold(
@@ -46,19 +50,21 @@ class BoardMeetingDetailPage extends CompositionWidget {
       final dateStr = AppDateUtils.formatDateLong(meeting.startAt);
       final startTime = AppDateUtils.formatTime(meeting.startAt);
       final endTime = AppDateUtils.formatTime(meeting.endAt);
-      final address = '${meeting.streetAddress}, ${meeting.zipCode} ${meeting.locality}';
+      final address =
+          '${meeting.streetAddress}, ${meeting.zipCode} ${meeting.locality}';
 
       return GradientScaffold(
         title: 'Styrelsemöte',
         actions: [
-            if (canDelete)
-              HeaderIconButton(
-                icon: Icons.delete_outline,
-                onPressed: () async {
+          if (canDelete)
+            EntityActionMenu.header(
+              actions: [
+                EntityAction.delete(() async {
                   final confirmed = await showConfirmDialog(
                     context,
                     title: 'Radera styrelsemöte',
-                    message: 'Är du säker på att du vill radera detta styrelsemöte?',
+                    message:
+                        'Är du säker på att du vill radera detta styrelsemöte?',
                     okLabel: 'Radera',
                     okColor: Colors.red,
                   );
@@ -69,9 +75,10 @@ class BoardMeetingDetailPage extends CompositionWidget {
                       Navigator.of(ctx).pop();
                     }
                   }
-                },
-              ),
-          ],
+                }),
+              ],
+            ),
+        ],
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,11 +99,18 @@ class BoardMeetingDetailPage extends CompositionWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 18, color: Colors.grey[600]),
+                        Icon(
+                          Icons.access_time,
+                          size: 18,
+                          color: Colors.grey[600],
+                        ),
                         const SizedBox(width: 6),
                         Text(
                           '$startTime - $endTime',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 15),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 15,
+                          ),
                         ),
                       ],
                     ),
@@ -111,7 +125,10 @@ class BoardMeetingDetailPage extends CompositionWidget {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Icon(Icons.location_on_outlined, color: AppTheme.primaryColor),
+                    Icon(
+                      Icons.location_on_outlined,
+                      color: AppTheme.primaryColor,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -130,7 +147,10 @@ class BoardMeetingDetailPage extends CompositionWidget {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Icon(Icons.description_outlined, color: AppTheme.primaryColor),
+                    Icon(
+                      Icons.description_outlined,
+                      color: AppTheme.primaryColor,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
@@ -138,7 +158,10 @@ class BoardMeetingDetailPage extends CompositionWidget {
                         children: [
                           Text(
                             'Protokoll-ID',
-                            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
                           ),
                           Text(
                             meeting.meetingProtocolId,
@@ -152,7 +175,8 @@ class BoardMeetingDetailPage extends CompositionWidget {
               ),
 
               // Meeting Agenda
-              if (meeting.meetingAgenda != null && meeting.meetingAgenda!.isNotEmpty) ...[
+              if (meeting.meetingAgenda != null &&
+                  meeting.meetingAgenda!.isNotEmpty) ...[
                 const Divider(height: 1),
                 Padding(
                   padding: const EdgeInsets.all(16),
@@ -177,11 +201,11 @@ class BoardMeetingDetailPage extends CompositionWidget {
                             children: [
                               Text(
                                 '$index. ',
-                                style: const TextStyle(fontWeight: FontWeight.w500),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                              Expanded(
-                                child: Text('$item'),
-                              ),
+                              Expanded(child: Text('$item')),
                             ],
                           ),
                         );
@@ -192,7 +216,8 @@ class BoardMeetingDetailPage extends CompositionWidget {
               ],
 
               // Meeting Protocol
-              if (meeting.meetingProtocol != null && meeting.meetingProtocol!.isNotEmpty) ...[
+              if (meeting.meetingProtocol != null &&
+                  meeting.meetingProtocol!.isNotEmpty) ...[
                 const Divider(height: 1),
                 Padding(
                   padding: const EdgeInsets.all(16),
@@ -217,11 +242,11 @@ class BoardMeetingDetailPage extends CompositionWidget {
                             children: [
                               Text(
                                 '$index. ',
-                                style: const TextStyle(fontWeight: FontWeight.w500),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                              Expanded(
-                                child: Text('$item'),
-                              ),
+                              Expanded(child: Text('$item')),
                             ],
                           ),
                         );
@@ -237,4 +262,3 @@ class BoardMeetingDetailPage extends CompositionWidget {
     };
   }
 }
-

@@ -2,44 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import '../../core/models/pocketbase_models.dart';
+import '../../core/pagination/paginated.dart';
 import '../auth/auth_store.dart' as auth;
 
 class ParkingStore {
   final PocketBase _pb;
   final auth.AuthStore _authStore;
 
-  ParkingStore(this._pb, this._authStore);
+  ParkingStore(this._pb, this._authStore) {
+    _parkingLots = Paginated<ParkingLotsRecord>((page, perPage) async {
+      final assocId = _authStore.association.value?.id ?? '';
+      if (assocId.isEmpty) return const PageResult([], 0);
+      final res = await _pb
+          .collection(Collections.parkingLots)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: 'association="$assocId"',
+          );
+      return PageResult(
+        res.items.map((r) => ParkingLotsRecord.fromJson(r.toJson())).toList(),
+        res.totalPages,
+      );
+    });
+  }
 
-  final _parkingLotsList = ref<List<ParkingLotsRecord>>([]);
+  late final Paginated<ParkingLotsRecord> _parkingLots;
   final _currentParkingLot = ref<ParkingLotsRecord?>(null);
   final _parkingSpaces = ref<List<ParkingSpacesRecord>>([]);
   final _loading = ref<bool>(false);
 
-  Ref<List<ParkingLotsRecord>> get parkingLotsList => _parkingLotsList;
+  Ref<List<ParkingLotsRecord>> get parkingLotsList => _parkingLots.items;
   Ref<ParkingLotsRecord?> get currentParkingLot => _currentParkingLot;
   Ref<List<ParkingSpacesRecord>> get parkingSpaces => _parkingSpaces;
   Ref<bool> get loading => _loading;
+  Ref<bool> get listLoading => _parkingLots.loading;
+  Ref<bool> get loadingMore => _parkingLots.loadingMore;
+  Ref<bool> get hasMore => _parkingLots.hasMore;
 
-  Future<bool> getAllParkingLots() async {
-    _loading.value = true;
-    try {
-      final assocId = _authStore.association.value?.id ?? '';
-      if (assocId.isEmpty) return false;
-
-      final records = await _pb.collection(Collections.parkingLots).getFullList(
-        filter: 'association="$assocId"',
-      );
-      _parkingLotsList.value = records
-          .map((r) => ParkingLotsRecord.fromJson(r.toJson()))
-          .toList();
-      return true;
-    } catch (e) {
-      debugPrint('ParkingStore: Error fetching parking lots: $e');
-      return false;
-    } finally {
-      _loading.value = false;
-    }
-  }
+  Future<void> getAllParkingLots() => _parkingLots.refresh();
+  Future<void> fetchNextParkingLots() => _parkingLots.loadMore();
 
   Future<bool> getParkingLot(String id) async {
     _loading.value = true;
@@ -57,10 +59,12 @@ class ParkingStore {
 
   Future<bool> getParkingSpaces(String parkingLotId) async {
     try {
-      final records = await _pb.collection(Collections.parkingSpaces).getFullList(
-        filter: 'parking_lot="$parkingLotId"',
-        expand: 'residence',
-      );
+      final records = await _pb
+          .collection(Collections.parkingSpaces)
+          .getFullList(
+            filter: 'parking_lot="$parkingLotId"',
+            expand: 'residence',
+          );
       _parkingSpaces.value = records
           .map((r) => ParkingSpacesRecord.fromJson(r.toJson()))
           .toList();
@@ -87,19 +91,23 @@ class ParkingStore {
       final assocId = _authStore.association.value?.id ?? '';
       final userId = _authStore.currentUser.value?.id ?? '';
 
-      await _pb.collection(Collections.parkingLots).create(body: {
-        'name': name,
-        'description': description ?? '',
-        'association': assocId,
-        'user': userId,
-        'street_address': streetAddress,
-        'zip_code': zipCode,
-        'locality': locality,
-        'parking_type': parkingType,
-        'capacity': capacity,
-        'booking_period_type': bookingPeriodType ?? '',
-        'price_per_booking_period': pricePerBookingPeriod,
-      });
+      await _pb
+          .collection(Collections.parkingLots)
+          .create(
+            body: {
+              'name': name,
+              'description': description ?? '',
+              'association': assocId,
+              'user': userId,
+              'street_address': streetAddress,
+              'zip_code': zipCode,
+              'locality': locality,
+              'parking_type': parkingType,
+              'capacity': capacity,
+              'booking_period_type': bookingPeriodType ?? '',
+              'price_per_booking_period': pricePerBookingPeriod,
+            },
+          );
 
       await getAllParkingLots();
       return true;
@@ -119,13 +127,17 @@ class ParkingStore {
     String? parkingStartDate,
   }) async {
     try {
-      await _pb.collection(Collections.parkingSpaces).create(body: {
-        'parking_lot': parkingLotId,
-        'name': name,
-        'residence': residence ?? '',
-        'has_charging_station': hasChargingStation,
-        'parking_start_date': parkingStartDate ?? '',
-      });
+      await _pb
+          .collection(Collections.parkingSpaces)
+          .create(
+            body: {
+              'parking_lot': parkingLotId,
+              'name': name,
+              'residence': residence ?? '',
+              'has_charging_station': hasChargingStation,
+              'parking_start_date': parkingStartDate ?? '',
+            },
+          );
 
       await getParkingSpaces(parkingLotId);
       return true;
@@ -144,12 +156,17 @@ class ParkingStore {
     required String parkingLotId,
   }) async {
     try {
-      await _pb.collection(Collections.parkingSpaces).update(id, body: {
-        'name': name,
-        'residence': residence ?? '',
-        'has_charging_station': hasChargingStation,
-        'parking_start_date': parkingStartDate ?? '',
-      });
+      await _pb
+          .collection(Collections.parkingSpaces)
+          .update(
+            id,
+            body: {
+              'name': name,
+              'residence': residence ?? '',
+              'has_charging_station': hasChargingStation,
+              'parking_start_date': parkingStartDate ?? '',
+            },
+          );
 
       await getParkingSpaces(parkingLotId);
       return true;

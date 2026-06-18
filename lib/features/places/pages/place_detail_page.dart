@@ -5,6 +5,7 @@ import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../core/models/pocketbase_models.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/rich_description.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../places_store.dart';
@@ -74,7 +75,13 @@ class PlaceDetailPage extends CompositionWidget {
                         );
                         if (time != null) {
                           setState(() {
-                            startDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+                            startDate = DateTime(
+                              date.year,
+                              date.month,
+                              date.day,
+                              time.hour,
+                              time.minute,
+                            );
                             if (endDate.isBefore(startDate)) {
                               endDate = startDate.add(const Duration(hours: 1));
                             }
@@ -104,7 +111,13 @@ class PlaceDetailPage extends CompositionWidget {
                         );
                         if (time != null) {
                           setState(() {
-                            endDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+                            endDate = DateTime(
+                              date.year,
+                              date.month,
+                              date.day,
+                              time.hour,
+                              time.minute,
+                            );
                           });
                         }
                       }
@@ -143,7 +156,10 @@ class PlaceDetailPage extends CompositionWidget {
       final place = placesStore.currentPlace.value;
       final bookings = placesStore.bookings.value;
       final loading = placesStore.loading.value;
-      final canCreate = authStore.hasPermission('place_bookings', CrudOperation.create);
+      final canCreate = authStore.hasPermission(
+        'place_bookings',
+        CrudOperation.create,
+      );
       final canDelete = authStore.hasPermission('places', CrudOperation.delete);
 
       if (loading && place == null) {
@@ -166,22 +182,23 @@ class PlaceDetailPage extends CompositionWidget {
           title: place.name,
           actions: [
             if (canDelete)
-              HeaderIconButton(
-                icon: Icons.delete_outline,
-                onPressed: () async {
-                  final confirmed = await showConfirmDialog(
-                    context,
-                    title: 'Radera lokal',
-                    message: 'Är du säker på att du vill radera denna lokal?',
-                    okLabel: 'Radera',
-                    okColor: Colors.red,
-                  );
-                  if (confirmed) {
-                    await placesStore.deletePlace(place.id);
-                    final ctx = contextRef.value;
-                    if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
-                  }
-                },
+              EntityActionMenu.header(
+                actions: [
+                  EntityAction.delete(() async {
+                    final confirmed = await showConfirmDialog(
+                      context,
+                      title: 'Radera lokal',
+                      message: 'Är du säker på att du vill radera denna lokal?',
+                      okLabel: 'Radera',
+                      okColor: Colors.red,
+                    );
+                    if (confirmed) {
+                      await placesStore.deletePlace(place.id);
+                      final ctx = contextRef.value;
+                      if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
+                    }
+                  }),
+                ],
               ),
           ],
           floatingActionButton: canCreate
@@ -201,79 +218,124 @@ class PlaceDetailPage extends CompositionWidget {
               Expanded(
                 child: TabBarView(
                   children: [
-              // Info tab
-              SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      place.name,
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    // Info tab
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            place.name,
+                            style: const TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (place.description != null &&
+                              place.description!.isNotEmpty) ...[
+                            const SizedBox(height: 12),
+                            RichDescription(html: place.description!),
+                          ],
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          _infoRow(
+                            Icons.location_on,
+                            '${place.streetAddress}, ${place.zipCode} ${place.locality}',
+                          ),
+                          if (place.placeType != null &&
+                              place.placeType!.isNotEmpty)
+                            _infoRow(Icons.category, place.placeType!),
+                          _infoRow(
+                            Icons.schedule,
+                            'Bokningsbar ${place.bookingStartTime} - ${place.bookingEndTime}',
+                          ),
+                          _infoRow(
+                            Icons.timelapse,
+                            '${place.bookingSlotDurationLength} ${place.bookingSlotDurationType}',
+                          ),
+                          if (place.maxRoomCapacity != null)
+                            _infoRow(
+                              Icons.people,
+                              'Max ${place.maxRoomCapacity} personer',
+                            ),
+                          if (place.pricePerSlot != null &&
+                              place.pricePerSlot! > 0)
+                            _infoRow(
+                              Icons.payments,
+                              '${place.pricePerSlot!.toStringAsFixed(0)} kr/slot',
+                            ),
+                        ],
+                      ),
                     ),
-                    if (place.description != null && place.description!.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      RichDescription(html: place.description!),
-                    ],
-                    const SizedBox(height: 16),
-                    const Divider(),
-                    _infoRow(Icons.location_on, '${place.streetAddress}, ${place.zipCode} ${place.locality}'),
-                    if (place.placeType != null && place.placeType!.isNotEmpty)
-                      _infoRow(Icons.category, place.placeType!),
-                    _infoRow(Icons.schedule, 'Bokningsbar ${place.bookingStartTime} - ${place.bookingEndTime}'),
-                    _infoRow(Icons.timelapse, '${place.bookingSlotDurationLength} ${place.bookingSlotDurationType}'),
-                    if (place.maxRoomCapacity != null)
-                      _infoRow(Icons.people, 'Max ${place.maxRoomCapacity} personer'),
-                    if (place.pricePerSlot != null && place.pricePerSlot! > 0)
-                      _infoRow(Icons.payments, '${place.pricePerSlot!.toStringAsFixed(0)} kr/slot'),
-                  ],
-                ),
-              ),
 
-              // Bookings tab
-              Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: SegmentedButton<CalendarView>(
-                      segments: const [
-                        ButtonSegment(value: CalendarView.day, label: Text('Dag')),
-                        ButtonSegment(value: CalendarView.week, label: Text('Vecka')),
-                        ButtonSegment(value: CalendarView.month, label: Text('Månad')),
+                    // Bookings tab
+                    Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          child: SegmentedButton<CalendarView>(
+                            segments: const [
+                              ButtonSegment(
+                                value: CalendarView.day,
+                                label: Text('Dag'),
+                              ),
+                              ButtonSegment(
+                                value: CalendarView.week,
+                                label: Text('Vecka'),
+                              ),
+                              ButtonSegment(
+                                value: CalendarView.month,
+                                label: Text('Månad'),
+                              ),
+                            ],
+                            selected: {currentView.value},
+                            onSelectionChanged: (views) {
+                              currentView.value = views.first;
+                            },
+                          ),
+                        ),
+                        Expanded(
+                          child: SfCalendar(
+                            view: currentView.value,
+                            dataSource: _BookingDataSource(
+                              bookings,
+                              place.bookingSlotDurationType == 'Dagar',
+                            ),
+                            firstDayOfWeek: 1,
+                            showNavigationArrow: true,
+                            monthViewSettings: const MonthViewSettings(
+                              appointmentDisplayMode:
+                                  MonthAppointmentDisplayMode.appointment,
+                              showAgenda: true,
+                            ),
+                            timeSlotViewSettings: const TimeSlotViewSettings(
+                              startHour: 6,
+                              endHour: 23,
+                              timeFormat: 'HH:mm',
+                            ),
+                            onTap: (details) {
+                              if (details.appointments != null &&
+                                  details.appointments!.isNotEmpty) {
+                                final appointment =
+                                    details.appointments!.first as Appointment;
+                                final booking =
+                                    appointment.id as PlaceBookingsRecord;
+                                _showBookingDetails(
+                                  context,
+                                  booking,
+                                  placesStore,
+                                  placeId,
+                                );
+                              }
+                            },
+                          ),
+                        ),
                       ],
-                      selected: {currentView.value},
-                      onSelectionChanged: (views) {
-                        currentView.value = views.first;
-                      },
                     ),
-                  ),
-                  Expanded(
-                    child: SfCalendar(
-                      view: currentView.value,
-                      dataSource: _BookingDataSource(bookings, place.bookingSlotDurationType == 'Dagar'),
-                      firstDayOfWeek: 1,
-                      showNavigationArrow: true,
-                      monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
-                        showAgenda: true,
-                      ),
-                      timeSlotViewSettings: const TimeSlotViewSettings(
-                        startHour: 6,
-                        endHour: 23,
-                        timeFormat: 'HH:mm',
-                      ),
-                      onTap: (details) {
-                        if (details.appointments != null && details.appointments!.isNotEmpty) {
-                          final appointment = details.appointments!.first as Appointment;
-                          final booking = appointment.id as PlaceBookingsRecord;
-                          _showBookingDetails(context, booking, placesStore, placeId);
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                  ],
                 ),
               ),
             ],
@@ -324,16 +386,22 @@ void _showBookingDetails(
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  booking.isBlock ? 'Inte bokningsbar' : (booking.title ?? 'Bokning'),
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  booking.isBlock
+                      ? 'Inte bokningsbar'
+                      : (booking.title ?? 'Bokning'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.red),
-                onPressed: () async {
-                  await placesStore.deleteBooking(booking.id, placeId);
-                  if (context.mounted) Navigator.of(context).pop();
-                },
+              EntityActionMenu(
+                actions: [
+                  EntityAction.delete(() async {
+                    await placesStore.deleteBooking(booking.id, placeId);
+                    if (context.mounted) Navigator.of(context).pop();
+                  }),
+                ],
               ),
             ],
           ),

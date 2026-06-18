@@ -209,7 +209,16 @@ class GradientScaffold extends StatelessWidget {
             actions: actions,
             showBack: showBack,
           ),
-          Expanded(child: body),
+          // Bottom SafeArea so page content (lists, last cards, etc.) never sits
+          // under the Android system nav bar. Top is handled by the header.
+          Expanded(
+            child: SafeArea(
+              top: false,
+              left: false,
+              right: false,
+              child: body,
+            ),
+          ),
         ],
       ),
     );

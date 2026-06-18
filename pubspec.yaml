@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   cupertino_icons: ^1.0.8
 
@@ -29,6 +31,7 @@ dependencies:
 
   # Calendar
   syncfusion_flutter_calendar: ^28.1.33
+  syncfusion_localizations: ^28.1.33
 
   # Storage
   shared_preferences: ^2.5.4

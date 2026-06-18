@@ -4,6 +4,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/paginated_list_view.dart';
 import '../../../shared/widgets/search_field.dart';
 import 'place_detail_page.dart';
 import 'create_place_page.dart';
@@ -25,7 +26,9 @@ class PlacesListPage extends CompositionWidget {
 
     return (context) {
       final places = placesStore.placesList.value;
-      final loading = placesStore.loading.value;
+      final loading = placesStore.listLoading.value;
+      final loadingMore = placesStore.loadingMore.value;
+      final hasMore = placesStore.hasMore.value;
       final canCreate = authStore.hasPermission('places', CrudOperation.create);
 
       final query = searchQuery.value.trim().toLowerCase();
@@ -65,41 +68,42 @@ class PlacesListPage extends CompositionWidget {
                   Expanded(
                     child: filteredPlaces.isEmpty
                         ? const Center(child: Text('Inga träffar.'))
-                        : RefreshIndicator(
-                            onRefresh: () => placesStore.getAllPlaces(),
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              itemCount: filteredPlaces.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 4),
-                              itemBuilder: (context, index) {
-                                final place = filteredPlaces[index];
-                                return Card(
-                                  clipBehavior: Clip.antiAlias,
-                                  child: ListTile(
-                                    leading: const Icon(
-                                      Icons.meeting_room_outlined,
-                                    ),
-                                    title: Text(
-                                      place.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    subtitle: Text(
-                                      place.streetAddress,
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    trailing: const Icon(Icons.chevron_right),
-                                    onTap: () => context.push(
-                                      '${PlaceDetailPage.path}/${place.id}',
+                        : PaginatedListView(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: filteredPlaces.length,
+                            hasMore: hasMore,
+                            loadingMore: loadingMore,
+                            onLoadMore: placesStore.fetchNextPlaces,
+                            onRefresh: placesStore.getAllPlaces,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 4),
+                            itemBuilder: (context, index) {
+                              final place = filteredPlaces[index];
+                              return Card(
+                                clipBehavior: Clip.antiAlias,
+                                child: ListTile(
+                                  leading: const Icon(
+                                    Icons.meeting_room_outlined,
+                                  ),
+                                  title: Text(
+                                    place.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(
+                                    place.streetAddress,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 12,
                                     ),
                                   ),
-                                );
-                              },
-                            ),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => context.push(
+                                    '${PlaceDetailPage.path}/${place.id}',
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                   ),
                 ],

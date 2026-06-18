@@ -4,6 +4,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/paginated_list_view.dart';
 import '../../../shared/widgets/search_field.dart';
 import 'parking_lot_detail_page.dart';
 import 'create_parking_lot_page.dart';
@@ -25,7 +26,9 @@ class ParkingLotsListPage extends CompositionWidget {
 
     return (context) {
       final lots = parkingStore.parkingLotsList.value;
-      final loading = parkingStore.loading.value;
+      final loading = parkingStore.listLoading.value;
+      final loadingMore = parkingStore.loadingMore.value;
+      final hasMore = parkingStore.hasMore.value;
       final canCreate = authStore.hasPermission(
         'parking_lots',
         CrudOperation.create,
@@ -66,41 +69,42 @@ class ParkingLotsListPage extends CompositionWidget {
                   Expanded(
                     child: filteredLots.isEmpty
                         ? const Center(child: Text('Inga träffar.'))
-                        : RefreshIndicator(
-                            onRefresh: () => parkingStore.getAllParkingLots(),
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              itemCount: filteredLots.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 4),
-                              itemBuilder: (context, index) {
-                                final lot = filteredLots[index];
-                                return Card(
-                                  clipBehavior: Clip.antiAlias,
-                                  child: ListTile(
-                                    leading: const Icon(
-                                      Icons.local_parking_outlined,
-                                    ),
-                                    title: Text(
-                                      lot.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    subtitle: Text(
-                                      lot.parkingType,
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    trailing: const Icon(Icons.chevron_right),
-                                    onTap: () => context.push(
-                                      '${ParkingLotDetailPage.path}/${lot.id}',
+                        : PaginatedListView(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: filteredLots.length,
+                            hasMore: hasMore,
+                            loadingMore: loadingMore,
+                            onLoadMore: parkingStore.fetchNextParkingLots,
+                            onRefresh: parkingStore.getAllParkingLots,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 4),
+                            itemBuilder: (context, index) {
+                              final lot = filteredLots[index];
+                              return Card(
+                                clipBehavior: Clip.antiAlias,
+                                child: ListTile(
+                                  leading: const Icon(
+                                    Icons.local_parking_outlined,
+                                  ),
+                                  title: Text(
+                                    lot.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(
+                                    lot.parkingType,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 12,
                                     ),
                                   ),
-                                );
-                              },
-                            ),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => context.push(
+                                    '${ParkingLotDetailPage.path}/${lot.id}',
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                   ),
                 ],

@@ -24,6 +24,11 @@ class ChatStore {
   final _currentRoomId = ref<String?>(null);
   final _loadingRooms = ref<bool>(false);
   final _loadingMessages = ref<bool>(false);
+  final _loadingOlderMessages = ref<bool>(false);
+  final _hasMoreMessages = ref<bool>(false);
+
+  /// How many messages to load per page (initial load + each scroll-up).
+  static const int _messagesPageSize = 30;
 
   // Cache of resolved users for flutter_chat_ui's resolveUser callback.
   final Map<String, UsersRecord> _userCache = {};
@@ -37,6 +42,10 @@ class ChatStore {
   Ref<String?> get currentRoomId => _currentRoomId;
   Ref<bool> get loadingRooms => _loadingRooms;
   Ref<bool> get loadingMessages => _loadingMessages;
+  Ref<bool> get loadingOlderMessages => _loadingOlderMessages;
+
+  /// True when there are older messages to load by scrolling up.
+  Ref<bool> get hasMoreMessages => _hasMoreMessages;
 
   String? get _myId => _authStore.currentUser.value?.id;
 
@@ -47,13 +56,16 @@ class ChatStore {
     if (me == null) return false;
     _loadingRooms.value = true;
     try {
-      final result = await _pb.collection(Collections.chatRooms).getFullList(
+      final result = await _pb
+          .collection(Collections.chatRooms)
+          .getFullList(
             filter: 'members.id ?= "$me"',
             sort: '-updated',
             expand: 'members',
           );
-      final rooms =
-          result.map((r) => ChatRoomsRecord.fromJson(r.toJson())).toList();
+      final rooms = result
+          .map((r) => ChatRoomsRecord.fromJson(r.toJson()))
+          .toList();
       _rooms.value = rooms;
 
       // Cache member users for resolveUser.
@@ -74,7 +86,9 @@ class ChatStore {
       final previews = <String, ChatMessagesRecord>{};
       for (final room in rooms) {
         try {
-          final msgs = await _pb.collection(Collections.chatMessages).getList(
+          final msgs = await _pb
+              .collection(Collections.chatMessages)
+              .getList(
                 page: 1,
                 perPage: 1,
                 filter: 'room = "${room.id}"',
@@ -82,8 +96,9 @@ class ChatStore {
                 expand: 'sender',
               );
           if (msgs.items.isNotEmpty) {
-            previews[room.id] =
-                ChatMessagesRecord.fromJson(msgs.items.first.toJson());
+            previews[room.id] = ChatMessagesRecord.fromJson(
+              msgs.items.first.toJson(),
+            );
           }
         } catch (_) {
           // Room may have no messages yet.
@@ -130,7 +145,10 @@ class ChatStore {
     final associationId = _authStore.association.value?.id;
     if (me == null || associationId == null) return null;
     try {
-      final allUsers = <String>{me, ...userIds.where((id) => id != me)}.toList();
+      final allUsers = <String>{
+        me,
+        ...userIds.where((id) => id != me),
+      }.toList();
 
       // Reuse an existing DM with the same two members.
       if (!isGroup && allUsers.length == 2) {
@@ -143,14 +161,18 @@ class ChatStore {
         if (existing != null) return existing.id;
       }
 
-      final record =
-          await _pb.collection(Collections.chatRooms).create(body: {
-        'association': associationId,
-        'name': name ?? '',
-        'is_group': isGroup,
-        'created_by': me,
-        'members': allUsers,
-      }, expand: 'members');
+      final record = await _pb
+          .collection(Collections.chatRooms)
+          .create(
+            body: {
+              'association': associationId,
+              'name': name ?? '',
+              'is_group': isGroup,
+              'created_by': me,
+              'members': allUsers,
+            },
+            expand: 'members',
+          );
       final room = ChatRoomsRecord.fromJson(record.toJson());
       _rooms.value = [room, ..._rooms.value];
       for (final u in room.memberUsers) {
@@ -168,17 +190,25 @@ class ChatStore {
   Future<bool> getMessages(String roomId) async {
     _currentRoomId.value = roomId;
     _loadingMessages.value = true;
+    _hasMoreMessages.value = false;
     try {
-      final result = await _pb.collection(Collections.chatMessages).getList(
+      // Load the newest page, then reverse to ascending (oldest -> newest) for
+      // display. Older messages are paged in on scroll-up via [loadOlderMessages].
+      final result = await _pb
+          .collection(Collections.chatMessages)
+          .getList(
             page: 1,
-            perPage: 100,
+            perPage: _messagesPageSize,
             filter: 'room = "$roomId"',
-            sort: 'created',
+            sort: '-created',
             expand: 'sender,reply_to',
           );
       _messages.value = result.items
           .map((r) => ChatMessagesRecord.fromJson(r.toJson()))
+          .toList()
+          .reversed
           .toList();
+      _hasMoreMessages.value = result.totalPages > 1;
       for (final m in _messages.value) {
         if (m.senderUser != null) _userCache[m.sender] = m.senderUser!;
       }
@@ -189,6 +219,48 @@ class ChatStore {
       return false;
     } finally {
       _loadingMessages.value = false;
+    }
+  }
+
+  /// Loads the next page of older messages (scroll-up pagination), prepending
+  /// them to [messages]. Cursor-based on the oldest loaded message's timestamp
+  /// so concurrent realtime inserts don't shift an offset.
+  Future<void> loadOlderMessages(String roomId) async {
+    if (!_hasMoreMessages.value || _loadingOlderMessages.value) return;
+    if (_currentRoomId.value != roomId) return;
+    final oldestCreated = _messages.value.isNotEmpty
+        ? _messages.value.first.created
+        : null;
+    if (oldestCreated == null || oldestCreated.isEmpty) return;
+
+    _loadingOlderMessages.value = true;
+    try {
+      final result = await _pb
+          .collection(Collections.chatMessages)
+          .getList(
+            page: 1,
+            perPage: _messagesPageSize,
+            filter: 'room = "$roomId" && created < "$oldestCreated"',
+            sort: '-created',
+            expand: 'sender,reply_to',
+          );
+      final older = result.items
+          .map((r) => ChatMessagesRecord.fromJson(r.toJson()))
+          .toList()
+          .reversed
+          .toList();
+      for (final m in older) {
+        if (m.senderUser != null) _userCache[m.sender] = m.senderUser!;
+      }
+      // Skip any already present (in case a realtime event raced in).
+      final existingIds = _messages.value.map((m) => m.id).toSet();
+      final fresh = older.where((m) => !existingIds.contains(m.id)).toList();
+      _messages.value = [...fresh, ..._messages.value];
+      _hasMoreMessages.value = result.totalPages > 1;
+    } catch (e) {
+      debugPrint('ChatStore: Error fetching older messages: $e');
+    } finally {
+      _loadingOlderMessages.value = false;
     }
   }
 
@@ -204,23 +276,27 @@ class ChatStore {
       if (imageFiles != null) {
         for (final file in imageFiles) {
           final bytes = await file.readAsBytes();
-          files.add(http.MultipartFile.fromBytes(
-            'files',
-            bytes,
-            filename: file.path.split('/').last,
-          ));
+          files.add(
+            http.MultipartFile.fromBytes(
+              'files',
+              bytes,
+              filename: file.path.split('/').last,
+            ),
+          );
         }
       }
-      await _pb.collection(Collections.chatMessages).create(
-        body: {
-          'room': roomId,
-          'sender': me,
-          'content': content,
-          'deleted': false,
-          'edited': false,
-        },
-        files: files,
-      );
+      await _pb
+          .collection(Collections.chatMessages)
+          .create(
+            body: {
+              'room': roomId,
+              'sender': me,
+              'content': content,
+              'deleted': false,
+              'edited': false,
+            },
+            files: files,
+          );
       return true;
     } catch (e) {
       debugPrint('ChatStore: Error sending message: $e');
@@ -255,12 +331,11 @@ class ChatStore {
             .collection(Collections.chatReadReceipts)
             .update(existing.id, body: {'last_read_message': lastId});
       } else {
-        final record =
-            await _pb.collection(Collections.chatReadReceipts).create(body: {
-          'room': roomId,
-          'user': me,
-          'last_read_message': lastId,
-        });
+        final record = await _pb
+            .collection(Collections.chatReadReceipts)
+            .create(
+              body: {'room': roomId, 'user': me, 'last_read_message': lastId},
+            );
         _readReceipts.value = [
           ..._readReceipts.value,
           ChatReadReceiptsRecord.fromJson(record.toJson()),
@@ -290,37 +365,40 @@ class ChatStore {
   // --- Realtime ---------------------------------------------------------
 
   Future<void> subscribeMessages() async {
-    _messagesUnsub ??= await _pb
-        .collection(Collections.chatMessages)
-        .subscribe('*', (e) {
-      final record = e.record;
-      if (record == null) return;
-      final msg = ChatMessagesRecord.fromJson(record.toJson());
-      if (msg.senderUser != null) _userCache[msg.sender] = msg.senderUser!;
+    _messagesUnsub ??= await _pb.collection(Collections.chatMessages).subscribe(
+      '*',
+      (e) {
+        final record = e.record;
+        if (record == null) return;
+        final msg = ChatMessagesRecord.fromJson(record.toJson());
+        if (msg.senderUser != null) _userCache[msg.sender] = msg.senderUser!;
 
-      // Keep the room list preview fresh regardless of which room is open.
-      if (e.action == 'create' || e.action == 'update') {
-        _lastMessages.value = {..._lastMessages.value, msg.room: msg};
-      }
+        // Keep the room list preview fresh regardless of which room is open.
+        if (e.action == 'create' || e.action == 'update') {
+          _lastMessages.value = {..._lastMessages.value, msg.room: msg};
+        }
 
-      if (msg.room != _currentRoomId.value) return;
-      final current = [..._messages.value];
-      final idx = current.indexWhere((m) => m.id == msg.id);
-      if (e.action == 'delete') {
-        if (idx != -1) current.removeAt(idx);
-      } else if (idx != -1) {
-        current[idx] = msg;
-      } else if (e.action == 'create') {
-        current.add(msg);
-        markAsRead(msg.room);
-      }
-      _messages.value = current;
-    }, expand: 'sender,reply_to');
+        if (msg.room != _currentRoomId.value) return;
+        final current = [..._messages.value];
+        final idx = current.indexWhere((m) => m.id == msg.id);
+        if (e.action == 'delete') {
+          if (idx != -1) current.removeAt(idx);
+        } else if (idx != -1) {
+          current[idx] = msg;
+        } else if (e.action == 'create') {
+          current.add(msg);
+          markAsRead(msg.room);
+        }
+        _messages.value = current;
+      },
+      expand: 'sender,reply_to',
+    );
   }
 
   Future<void> subscribeRooms() async {
-    _roomsUnsub ??=
-        await _pb.collection(Collections.chatRooms).subscribe('*', (e) {
+    _roomsUnsub ??= await _pb.collection(Collections.chatRooms).subscribe('*', (
+      e,
+    ) {
       final record = e.record;
       if (record == null) return;
       final room = ChatRoomsRecord.fromJson(record.toJson());

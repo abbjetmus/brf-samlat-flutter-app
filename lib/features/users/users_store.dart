@@ -2,43 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import '../../core/models/pocketbase_models.dart';
+import '../../core/pagination/paginated.dart';
 import '../auth/auth_store.dart' as auth;
 
 class UsersStore {
   final PocketBase _pb;
   final auth.AuthStore _authStore;
 
-  UsersStore(this._pb, this._authStore);
+  UsersStore(this._pb, this._authStore) {
+    _usersPage = Paginated<UsersRecord>((page, perPage) async {
+      final assocId = _authStore.association.value?.id ?? '';
+      if (assocId.isEmpty) return const PageResult([], 0);
 
-  final _users = ref<List<UsersRecord>>([]);
+      final res = await _pb
+          .collection(Collections.users)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: 'association="$assocId"',
+            sort: 'name',
+          );
+      return PageResult(
+        res.items.map((r) => UsersRecord.fromJson(r.toJson())).toList(),
+        res.totalPages,
+      );
+    });
+  }
+
+  late final Paginated<UsersRecord> _usersPage;
   final _invitations = ref<List<UserInvitationsRecord>>([]);
   final _loading = ref<bool>(false);
 
-  Ref<List<UsersRecord>> get users => _users;
+  Ref<List<UsersRecord>> get users => _usersPage.items;
   Ref<List<UserInvitationsRecord>> get invitations => _invitations;
   Ref<bool> get loading => _loading;
+  Ref<bool> get listLoading => _usersPage.loading;
+  Ref<bool> get loadingMore => _usersPage.loadingMore;
+  Ref<bool> get hasMore => _usersPage.hasMore;
 
-  Future<bool> getUsers() async {
-    _loading.value = true;
-    try {
-      final assocId = _authStore.association.value?.id ?? '';
-      if (assocId.isEmpty) return false;
-
-      final records = await _pb.collection(Collections.users).getFullList(
-        filter: 'association="$assocId"',
-        sort: 'name',
-      );
-      _users.value = records
-          .map((r) => UsersRecord.fromJson(r.toJson()))
-          .toList();
-      return true;
-    } catch (e) {
-      debugPrint('UsersStore: Error fetching users: $e');
-      return false;
-    } finally {
-      _loading.value = false;
-    }
-  }
+  Future<void> getUsers() => _usersPage.refresh();
+  Future<void> fetchNextUsers() => _usersPage.loadMore();
 
   Future<bool> getInvitations() async {
     _loading.value = true;
@@ -46,10 +49,9 @@ class UsersStore {
       final assocId = _authStore.association.value?.id ?? '';
       if (assocId.isEmpty) return false;
 
-      final records = await _pb.collection(Collections.userInvitations).getFullList(
-        filter: 'association="$assocId"',
-        sort: '-created',
-      );
+      final records = await _pb
+          .collection(Collections.userInvitations)
+          .getFullList(filter: 'association="$assocId"', sort: '-created');
       _invitations.value = records
           .map((r) => UserInvitationsRecord.fromJson(r.toJson()))
           .toList();

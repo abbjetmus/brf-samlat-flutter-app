@@ -2,23 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import '../../core/models/pocketbase_models.dart';
+import '../../core/pagination/paginated.dart';
 import '../auth/auth_store.dart' as auth;
 
 class FormsStore {
   final PocketBase _pb;
   final auth.AuthStore _authStore;
 
-  FormsStore(this._pb, this._authStore);
+  FormsStore(this._pb, this._authStore) {
+    _userFormResponses = Paginated<FormResponsesRecord>((page, perPage) async {
+      final userId = _authStore.currentUser.value?.id ?? '';
+      if (userId.isEmpty) return const PageResult([], 0);
+      final res = await _pb
+          .collection(Collections.formResponses)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: 'user="$userId"',
+            expand: 'form',
+            sort: '-created',
+          );
+      return PageResult(
+        res.items.map((r) => FormResponsesRecord.fromJson(r.toJson())).toList(),
+        res.totalPages,
+      );
+    });
+  }
 
   final _forms = ref<List<FormsRecord>>([]);
-  final _userFormResponses = ref<List<FormResponsesRecord>>([]);
+  late final Paginated<FormResponsesRecord> _userFormResponses;
   final _currentForm = ref<FormsRecord?>(null);
   final _loading = ref<bool>(false);
 
   Ref<List<FormsRecord>> get forms => _forms;
-  Ref<List<FormResponsesRecord>> get userFormResponses => _userFormResponses;
+  Ref<List<FormResponsesRecord>> get userFormResponses =>
+      _userFormResponses.items;
   Ref<FormsRecord?> get currentForm => _currentForm;
   Ref<bool> get loading => _loading;
+  Ref<bool> get listLoading => _userFormResponses.loading;
+  Ref<bool> get loadingMore => _userFormResponses.loadingMore;
+  Ref<bool> get hasMore => _userFormResponses.hasMore;
 
   Future<bool> getForms() async {
     _loading.value = true;
@@ -26,10 +49,9 @@ class FormsStore {
       final assocId = _authStore.association.value?.id ?? '';
       if (assocId.isEmpty) return false;
 
-      final records = await _pb.collection(Collections.forms).getFullList(
-        filter: 'association="$assocId"',
-        sort: '-created',
-      );
+      final records = await _pb
+          .collection(Collections.forms)
+          .getFullList(filter: 'association="$assocId"', sort: '-created');
       _forms.value = records
           .map((r) => FormsRecord.fromJson(r.toJson()))
           .toList();
@@ -56,28 +78,9 @@ class FormsStore {
     }
   }
 
-  Future<bool> getUserFormResponses() async {
-    _loading.value = true;
-    try {
-      final userId = _authStore.currentUser.value?.id ?? '';
-      if (userId.isEmpty) return false;
+  Future<void> getUserFormResponses() => _userFormResponses.refresh();
 
-      final records = await _pb.collection(Collections.formResponses).getFullList(
-        filter: 'user="$userId"',
-        expand: 'form',
-        sort: '-created',
-      );
-      _userFormResponses.value = records
-          .map((r) => FormResponsesRecord.fromJson(r.toJson()))
-          .toList();
-      return true;
-    } catch (e) {
-      debugPrint('FormsStore: Error fetching user form responses: $e');
-      return false;
-    } finally {
-      _loading.value = false;
-    }
-  }
+  Future<void> fetchNextForms() => _userFormResponses.loadMore();
 
   Future<bool> updateFormResponse({
     required String id,
@@ -85,10 +88,9 @@ class FormsStore {
   }) async {
     _loading.value = true;
     try {
-      await _pb.collection(Collections.formResponses).update(
-        id,
-        body: {'answers': answers},
-      );
+      await _pb
+          .collection(Collections.formResponses)
+          .update(id, body: {'answers': answers});
       await getUserFormResponses();
       return true;
     } catch (e) {

@@ -4,7 +4,10 @@ import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../core/models/pocketbase_models.dart';
+import '../../../shared/widgets/app_bottom_sheet.dart';
+import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/rich_description.dart';
 import '../calendar_store.dart';
 
 class CalendarPage extends CompositionWidget {
@@ -17,11 +20,16 @@ class CalendarPage extends CompositionWidget {
     final calendarStore = inject(calendarStoreKey);
     final authStore = inject(authStoreKey);
     final currentView = ref(CalendarView.month);
+    // Drive view changes through a controller so SfCalendar reliably switches
+    // between Dag/Vecka/Månad (changing only the `view` property is flaky).
+    final calendarController = CalendarController()..view = CalendarView.month;
     final contextRef = useContext();
 
     onMounted(() {
       calendarStore.getAllEvents();
     });
+
+    onUnmounted(calendarController.dispose);
 
     Future<void> showCreateEventDialog() async {
       final context = contextRef.value;
@@ -89,7 +97,13 @@ class CalendarPage extends CompositionWidget {
                         );
                         if (time != null) {
                           setState(() {
-                            startDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+                            startDate = DateTime(
+                              date.year,
+                              date.month,
+                              date.day,
+                              time.hour,
+                              time.minute,
+                            );
                             if (endDate.isBefore(startDate)) {
                               endDate = startDate.add(const Duration(hours: 1));
                             }
@@ -119,7 +133,13 @@ class CalendarPage extends CompositionWidget {
                         );
                         if (time != null) {
                           setState(() {
-                            endDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+                            endDate = DateTime(
+                              date.year,
+                              date.month,
+                              date.day,
+                              time.hour,
+                              time.minute,
+                            );
                           });
                         }
                       }
@@ -132,9 +152,12 @@ class CalendarPage extends CompositionWidget {
                       return ChoiceChip(
                         label: Text(entry.value),
                         selected: selectedColor == entry.key,
-                        selectedColor: CalendarStore.parseColor(entry.key).withValues(alpha: 0.3),
+                        selectedColor: CalendarStore.parseColor(
+                          entry.key,
+                        ).withValues(alpha: 0.3),
                         onSelected: (selected) {
-                          if (selected) setState(() => selectedColor = entry.key);
+                          if (selected)
+                            setState(() => selectedColor = entry.key);
                         },
                       );
                     }).toList(),
@@ -173,8 +196,14 @@ class CalendarPage extends CompositionWidget {
     return (context) {
       final events = calendarStore.events.value;
       final loading = calendarStore.loading.value;
-      final canCreate = authStore.hasPermission('calendar_events', CrudOperation.create);
-      final canDelete = authStore.hasPermission('calendar_events', CrudOperation.delete);
+      final canCreate = authStore.hasPermission(
+        'calendar_events',
+        CrudOperation.create,
+      );
+      final canDelete = authStore.hasPermission(
+        'calendar_events',
+        CrudOperation.delete,
+      );
 
       return GradientScaffold(
         title: 'Kalender',
@@ -193,11 +222,15 @@ class CalendarPage extends CompositionWidget {
                 segments: const [
                   ButtonSegment(value: CalendarView.day, label: Text('Dag')),
                   ButtonSegment(value: CalendarView.week, label: Text('Vecka')),
-                  ButtonSegment(value: CalendarView.month, label: Text('Månad')),
+                  ButtonSegment(
+                    value: CalendarView.month,
+                    label: Text('Månad'),
+                  ),
                 ],
                 selected: {currentView.value},
                 onSelectionChanged: (views) {
                   currentView.value = views.first;
+                  calendarController.view = views.first;
                 },
               ),
             ),
@@ -207,12 +240,13 @@ class CalendarPage extends CompositionWidget {
               child: loading && events.isEmpty
                   ? const Center(child: CircularProgressIndicator())
                   : SfCalendar(
-                      view: currentView.value,
+                      controller: calendarController,
                       dataSource: _EventDataSource(events),
                       firstDayOfWeek: 1,
                       showNavigationArrow: true,
                       monthViewSettings: const MonthViewSettings(
-                        appointmentDisplayMode: MonthAppointmentDisplayMode.appointment,
+                        appointmentDisplayMode:
+                            MonthAppointmentDisplayMode.appointment,
                         showAgenda: true,
                       ),
                       timeSlotViewSettings: const TimeSlotViewSettings(
@@ -223,9 +257,15 @@ class CalendarPage extends CompositionWidget {
                       onTap: (details) {
                         if (details.appointments != null &&
                             details.appointments!.isNotEmpty) {
-                          final appointment = details.appointments!.first as Appointment;
+                          final appointment =
+                              details.appointments!.first as Appointment;
                           final event = appointment.id as CalendarEventsRecord;
-                          _showEventDetails(context, event, calendarStore, canDelete);
+                          _showEventDetails(
+                            context,
+                            event,
+                            calendarStore,
+                            canDelete,
+                          );
                         }
                       },
                     ),
@@ -243,59 +283,61 @@ void _showEventDetails(
   CalendarStore calendarStore,
   bool canDelete,
 ) {
-  showModalBottomSheet(
+  showAppBottomSheet(
     context: context,
-    builder: (context) => Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: CalendarStore.parseColor(event.color),
-                  shape: BoxShape.circle,
+    builder: (context) => Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: CalendarStore.parseColor(event.color),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                event.title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  event.title,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-              ),
-              if (canDelete)
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () async {
+            ),
+            if (canDelete)
+              EntityActionMenu(
+                actions: [
+                  EntityAction.delete(() async {
                     await calendarStore.deleteEvent(event.id);
                     if (context.mounted) Navigator.of(context).pop();
-                  },
-                ),
-            ],
-          ),
-          if (event.description != null && event.description!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(event.description!),
-          ],
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.schedule, size: 16, color: Colors.grey),
-              const SizedBox(width: 4),
-              Text(
-                _formatEventTime(event),
-                style: TextStyle(color: Colors.grey[600]),
+                  }),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
+          ],
+        ),
+        if (event.description != null &&
+            event.description!.trim().isNotEmpty) ...[
+          const SizedBox(height: 12),
+          RichDescription(html: event.description!),
         ],
-      ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            const Icon(Icons.schedule, size: 16, color: Colors.grey),
+            const SizedBox(width: 4),
+            Text(
+              _formatEventTime(event),
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+      ],
     ),
   );
 }
@@ -304,8 +346,10 @@ String _formatEventTime(CalendarEventsRecord event) {
   try {
     final start = DateTime.parse(event.startAt).toLocal();
     final end = DateTime.parse(event.endAt).toLocal();
-    final startStr = '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')} ${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
-    final endStr = '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+    final startStr =
+        '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')} ${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+    final endStr =
+        '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
     return '$startStr - $endStr';
   } catch (_) {
     return '${event.startAt} - ${event.endAt}';

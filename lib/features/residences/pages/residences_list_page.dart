@@ -4,6 +4,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/paginated_list_view.dart';
 import '../../../shared/widgets/search_field.dart';
 import 'residence_detail_page.dart';
 import 'create_residence_page.dart';
@@ -25,7 +26,9 @@ class ResidencesListPage extends CompositionWidget {
 
     return (context) {
       final residences = residencesStore.residencesList.value;
-      final loading = residencesStore.loading.value;
+      final loading = residencesStore.listLoading.value;
+      final loadingMore = residencesStore.loadingMore.value;
+      final hasMore = residencesStore.hasMore.value;
       final canCreate = authStore.hasPermission(
         'residences',
         CrudOperation.create,
@@ -68,39 +71,40 @@ class ResidencesListPage extends CompositionWidget {
                   Expanded(
                     child: filteredResidences.isEmpty
                         ? const Center(child: Text('Inga träffar.'))
-                        : RefreshIndicator(
-                            onRefresh: () => residencesStore.getAllResidences(),
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              itemCount: filteredResidences.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 4),
-                              itemBuilder: (context, index) {
-                                final residence = filteredResidences[index];
-                                return Card(
-                                  clipBehavior: Clip.antiAlias,
-                                  child: ListTile(
-                                    leading: const Icon(Icons.home_outlined),
-                                    title: Text(
-                                      residence.streetAddress,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    subtitle: Text(
-                                      residence.residenceType,
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                    trailing: const Icon(Icons.chevron_right),
-                                    onTap: () => context.push(
-                                      '${ResidenceDetailPage.path}/${residence.id}',
+                        : PaginatedListView(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            itemCount: filteredResidences.length,
+                            hasMore: hasMore,
+                            loadingMore: loadingMore,
+                            onLoadMore: residencesStore.fetchNextResidences,
+                            onRefresh: residencesStore.getAllResidences,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 4),
+                            itemBuilder: (context, index) {
+                              final residence = filteredResidences[index];
+                              return Card(
+                                clipBehavior: Clip.antiAlias,
+                                child: ListTile(
+                                  leading: const Icon(Icons.home_outlined),
+                                  title: Text(
+                                    residence.streetAddress,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(
+                                    residence.residenceType,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 12,
                                     ),
                                   ),
-                                );
-                              },
-                            ),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => context.push(
+                                    '${ResidenceDetailPage.path}/${residence.id}',
+                                  ),
+                                ),
+                              );
+                            },
                           ),
                   ),
                 ],

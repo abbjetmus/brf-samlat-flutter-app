@@ -2,47 +2,48 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import '../../core/models/pocketbase_models.dart';
+import '../../core/pagination/paginated.dart';
 import '../auth/auth_store.dart' as auth;
 
 class BoardStore {
   final PocketBase _pb;
   final auth.AuthStore _authStore;
 
-  BoardStore(this._pb, this._authStore);
+  BoardStore(this._pb, this._authStore) {
+    _boardMeetings = Paginated<BoardMeetingsRecord>((page, perPage) async {
+      final assocId = _authStore.association.value?.id ?? '';
+      if (assocId.isEmpty) return const PageResult([], 0);
 
-  final _boardMeetings = ref<List<BoardMeetingsRecord>>([]);
+      final res = await _pb
+          .collection(Collections.boardMeetings)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: 'association="$assocId"',
+            sort: '-start_at',
+          );
+      return PageResult(
+        res.items.map((r) => BoardMeetingsRecord.fromJson(r.toJson())).toList(),
+        res.totalPages,
+      );
+    });
+  }
+
+  late final Paginated<BoardMeetingsRecord> _boardMeetings;
   final _currentMeeting = ref<BoardMeetingsRecord?>(null);
   final _templates = ref<List<BoardMeetingTemplatesRecord>>([]);
   final _loading = ref<bool>(false);
 
-  Ref<List<BoardMeetingsRecord>> get boardMeetings => _boardMeetings;
+  Ref<List<BoardMeetingsRecord>> get boardMeetings => _boardMeetings.items;
   Ref<BoardMeetingsRecord?> get currentMeeting => _currentMeeting;
   Ref<List<BoardMeetingTemplatesRecord>> get templates => _templates;
   Ref<bool> get loading => _loading;
+  Ref<bool> get listLoading => _boardMeetings.loading;
+  Ref<bool> get loadingMore => _boardMeetings.loadingMore;
+  Ref<bool> get hasMore => _boardMeetings.hasMore;
 
-  Future<bool> getAllBoardMeetings() async {
-    _loading.value = true;
-    try {
-      final assocId = _authStore.association.value?.id ?? '';
-      if (assocId.isEmpty) return false;
-
-      final records = await _pb.collection(Collections.boardMeetings).getList(
-        page: 1,
-        perPage: 100,
-        filter: 'association="$assocId"',
-        sort: '-start_at',
-      );
-      _boardMeetings.value = records.items
-          .map((r) => BoardMeetingsRecord.fromJson(r.toJson()))
-          .toList();
-      return true;
-    } catch (e) {
-      debugPrint('BoardStore: Error fetching board meetings: $e');
-      return false;
-    } finally {
-      _loading.value = false;
-    }
-  }
+  Future<void> getAllBoardMeetings() => _boardMeetings.refresh();
+  Future<void> fetchNextBoardMeetings() => _boardMeetings.loadMore();
 
   Future<bool> getBoardMeeting(String id) async {
     _loading.value = true;
@@ -63,11 +64,9 @@ class BoardStore {
       final assocId = _authStore.association.value?.id ?? '';
       if (assocId.isEmpty) return false;
 
-      final records = await _pb.collection(Collections.boardMeetingTemplates).getList(
-        page: 1,
-        perPage: 100,
-        filter: 'association="$assocId"',
-      );
+      final records = await _pb
+          .collection(Collections.boardMeetingTemplates)
+          .getList(page: 1, perPage: 100, filter: 'association="$assocId"');
       _templates.value = records.items
           .map((r) => BoardMeetingTemplatesRecord.fromJson(r.toJson()))
           .toList();
