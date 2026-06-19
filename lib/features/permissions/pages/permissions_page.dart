@@ -4,6 +4,7 @@ import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/app_bottom_sheet.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/search_field.dart';
 
@@ -86,12 +87,23 @@ class PermissionsPage extends CompositionWidget {
         CrudOperation.update,
       );
 
+      void showResult(bool ok, String okMsg, String errMsg) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ok ? okMsg : errMsg),
+            backgroundColor: ok ? AppTheme.primaryColor : Colors.red,
+          ),
+        );
+      }
+
       Future<void> editPermission(
         DashboardMenuPermission menu,
         RolePermission p,
       ) async {
+        final menuLabel = _menuLabels[menu.name] ?? menu.name;
         final selected = {...p.allowedOperations};
-        final saved = await showAppBottomSheet<bool>(
+        await showAppBottomSheet<void>(
           context: context,
           builder: (sheetContext) {
             bool saving = false;
@@ -107,7 +119,7 @@ class PermissionsPage extends CompositionWidget {
                           ?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     Text(
-                      _menuLabels[menu.name] ?? menu.name,
+                      menuLabel,
                       style: Theme.of(sheetContext).textTheme.bodySmall
                           ?.copyWith(color: Theme.of(sheetContext).hintColor),
                     ),
@@ -145,8 +157,13 @@ class PermissionsPage extends CompositionWidget {
                                   ),
                                 );
                                 if (sheetContext.mounted) {
-                                  Navigator.of(sheetContext).pop(ok);
+                                  Navigator.of(sheetContext).pop();
                                 }
+                                showResult(
+                                  ok,
+                                  'Rättigheter uppdaterade',
+                                  'Kunde inte uppdatera rättigheter',
+                                );
                               },
                         child: saving
                             ? const SizedBox(
@@ -160,23 +177,241 @@ class PermissionsPage extends CompositionWidget {
                             : const Text('Spara'),
                       ),
                     ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: TextButton.icon(
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                final confirmed = await showConfirmDialog(
+                                  sheetContext,
+                                  title: 'Ta bort rättighet',
+                                  message:
+                                      'Ta bort ${roleName(p)} från $menuLabel?',
+                                  okLabel: 'Ta bort',
+                                  okColor: Colors.red,
+                                );
+                                if (!confirmed) return;
+                                setSheetState(() => saving = true);
+                                final ok = await authStore.removeRolePermission(
+                                  menu.name,
+                                  p,
+                                );
+                                if (sheetContext.mounted) {
+                                  Navigator.of(sheetContext).pop();
+                                }
+                                showResult(
+                                  ok,
+                                  'Rättigheten borttagen',
+                                  'Kunde inte ta bort rättigheten',
+                                );
+                              },
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: Colors.red,
+                        ),
+                        label: const Text(
+                          'Ta bort roll',
+                          style: TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ),
                   ],
                 );
               },
             );
           },
         );
+      }
 
-        if (!context.mounted || saved == null) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              saved
-                  ? 'Rättigheter uppdaterade'
-                  : 'Kunde inte uppdatera rättigheter',
-            ),
-            backgroundColor: saved ? AppTheme.primaryColor : Colors.red,
-          ),
+      Future<void> addPermission(DashboardMenuPermission menu) async {
+        final menuLabel = _menuLabels[menu.name] ?? menu.name;
+        final assignedUserIds = menu.permissions
+            .where((p) => p.roleCategory == RoleCategory.user.value)
+            .map((p) => p.roleTypeId)
+            .toSet();
+        final assignedAssocIds = menu.permissions
+            .where((p) => p.roleCategory == RoleCategory.association.value)
+            .map((p) => p.roleTypeId)
+            .toSet();
+        // Admin is excluded — it always has full access and isn't editable.
+        final userRoles = authStore.userRoleTypes.value
+            .where((r) => r.name != 'admin' && !assignedUserIds.contains(r.id))
+            .toList();
+        final assocRoles = authStore.associationRoleTypes.value
+            .where((r) => !assignedAssocIds.contains(r.id))
+            .toList();
+
+        if (userRoles.isEmpty && assocRoles.isEmpty) {
+          showResult(
+            true,
+            'Alla roller har redan rättigheter för $menuLabel.',
+            '',
+          );
+          return;
+        }
+
+        final selectedUserIds = <String>{};
+        final selectedAssocIds = <String>{};
+        final selectedOps = <String>{};
+
+        await showAppBottomSheet<void>(
+          context: context,
+          builder: (sheetContext) {
+            bool saving = false;
+            bool error = false;
+            final labelStyle = Theme.of(
+              sheetContext,
+            ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold);
+            return StatefulBuilder(
+              builder: (sheetContext, setSheetState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Lägg till rättighet',
+                      style: Theme.of(sheetContext).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      menuLabel,
+                      style: Theme.of(sheetContext).textTheme.bodySmall
+                          ?.copyWith(color: Theme.of(sheetContext).hintColor),
+                    ),
+                    const SizedBox(height: 8),
+                    if (userRoles.isNotEmpty) ...[
+                      Text('Användarroller', style: labelStyle),
+                      for (final r in userRoles)
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          title: Text(
+                            r.displayName.isNotEmpty ? r.displayName : r.name,
+                          ),
+                          value: selectedUserIds.contains(r.id),
+                          onChanged: saving
+                              ? null
+                              : (v) => setSheetState(() {
+                                  error = false;
+                                  if (v == true) {
+                                    selectedUserIds.add(r.id);
+                                  } else {
+                                    selectedUserIds.remove(r.id);
+                                  }
+                                }),
+                        ),
+                    ],
+                    if (assocRoles.isNotEmpty) ...[
+                      Text('Föreningsroller', style: labelStyle),
+                      for (final r in assocRoles)
+                        CheckboxListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          title: Text(
+                            r.displayName.isNotEmpty ? r.displayName : r.name,
+                          ),
+                          value: selectedAssocIds.contains(r.id),
+                          onChanged: saving
+                              ? null
+                              : (v) => setSheetState(() {
+                                  error = false;
+                                  if (v == true) {
+                                    selectedAssocIds.add(r.id);
+                                  } else {
+                                    selectedAssocIds.remove(r.id);
+                                  }
+                                }),
+                        ),
+                    ],
+                    const Divider(height: 24),
+                    Text('Rättigheter', style: labelStyle),
+                    for (final op in CrudOperation.values)
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(op.displayName),
+                        value: selectedOps.contains(op.value),
+                        onChanged: saving
+                            ? null
+                            : (v) => setSheetState(() {
+                                if (v) {
+                                  selectedOps.add(op.value);
+                                } else {
+                                  selectedOps.remove(op.value);
+                                }
+                              }),
+                      ),
+                    if (error)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Välj minst en roll.',
+                          style: TextStyle(
+                            color: Theme.of(sheetContext).colorScheme.error,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                if (selectedUserIds.isEmpty &&
+                                    selectedAssocIds.isEmpty) {
+                                  setSheetState(() => error = true);
+                                  return;
+                                }
+                                setSheetState(() => saving = true);
+                                final ops = selectedOps.toList();
+                                final newPerms = <RolePermission>[
+                                  for (final id in selectedUserIds)
+                                    RolePermission(
+                                      roleCategory: RoleCategory.user.value,
+                                      roleTypeId: id,
+                                      allowedOperations: ops,
+                                    ),
+                                  for (final id in selectedAssocIds)
+                                    RolePermission(
+                                      roleCategory:
+                                          RoleCategory.association.value,
+                                      roleTypeId: id,
+                                      allowedOperations: ops,
+                                    ),
+                                ];
+                                final ok = await authStore.addRolePermissions(
+                                  menu.name,
+                                  newPerms,
+                                );
+                                if (sheetContext.mounted) {
+                                  Navigator.of(sheetContext).pop();
+                                }
+                                showResult(
+                                  ok,
+                                  'Rättigheter tillagda',
+                                  'Kunde inte lägga till rättigheter',
+                                );
+                              },
+                        child: saving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Tilldela'),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
         );
       }
 
@@ -265,13 +500,30 @@ class PermissionsPage extends CompositionWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _menuLabels[menu.name] ?? menu.name,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _menuLabels[menu.name] ?? menu.name,
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                if (canEdit)
+                                  TextButton.icon(
+                                    onPressed: () => addPermission(menu),
+                                    icon: const Icon(Icons.add, size: 18),
+                                    label: const Text('Lägg till'),
+                                    style: TextButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                      ),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                  ),
+                              ],
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 8),
                             if (menu.permissions.isEmpty)
                               Text(
                                 'Ingen roll har åtkomst.',

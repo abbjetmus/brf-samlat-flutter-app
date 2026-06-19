@@ -236,17 +236,79 @@ class AuthStore {
       );
     }).toList();
 
+    return _persistMenuPermissions(association.id, newMenus);
+  }
+
+  /// Assigns [newPermissions] to [menuName], replacing any existing entry for
+  /// the same role + category (mirrors the web's replaceRolePermission). Use for
+  /// adding roles — both user and association role types.
+  Future<bool> addRolePermissions(
+    String menuName,
+    List<RolePermission> newPermissions,
+  ) async {
+    final association = _association.value;
+    if (association == null || newPermissions.isEmpty) return false;
+
+    final newMenus = _menuPermissions.value.map((menu) {
+      if (menu.name != menuName) return menu;
+      final retained = menu.permissions
+          .where(
+            (existing) => !newPermissions.any(
+              (np) =>
+                  np.roleTypeId == existing.roleTypeId &&
+                  np.roleCategory == existing.roleCategory,
+            ),
+          )
+          .toList();
+      return DashboardMenuPermission(
+        name: menu.name,
+        permissions: [...retained, ...newPermissions],
+      );
+    }).toList();
+
+    return _persistMenuPermissions(association.id, newMenus);
+  }
+
+  /// Removes a single role's entry for [menuName].
+  Future<bool> removeRolePermission(
+    String menuName,
+    RolePermission permission,
+  ) async {
+    final association = _association.value;
+    if (association == null) return false;
+
+    final newMenus = _menuPermissions.value.map((menu) {
+      if (menu.name != menuName) return menu;
+      return DashboardMenuPermission(
+        name: menu.name,
+        permissions: menu.permissions
+            .where(
+              (p) =>
+                  !(p.roleTypeId == permission.roleTypeId &&
+                      p.roleCategory == permission.roleCategory),
+            )
+            .toList(),
+      );
+    }).toList();
+
+    return _persistMenuPermissions(association.id, newMenus);
+  }
+
+  Future<bool> _persistMenuPermissions(
+    String associationId,
+    DashboardMenuPermissions newMenus,
+  ) async {
     try {
       await _pb
           .collection(Collections.associations)
           .update(
-            association.id,
+            associationId,
             body: {'permissions': newMenus.map((m) => m.toJson()).toList()},
           );
       _menuPermissions.value = newMenus;
       return true;
     } catch (e) {
-      debugPrint('AuthStore: Error updating role permission: $e');
+      debugPrint('AuthStore: Error saving role permissions: $e');
       return false;
     }
   }
