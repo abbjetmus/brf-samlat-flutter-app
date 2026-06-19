@@ -26,7 +26,8 @@ class AuthStore {
   Ref<AssociationsRecord?> get association => _association;
   Ref<ResidencesRecord?> get residence => _residence;
   Ref<List<UserRoleTypesRecord>> get userRoleTypes => _userRoleTypes;
-  Ref<List<AssociationRoleTypesRecord>> get associationRoleTypes => _associationRoleTypes;
+  Ref<List<AssociationRoleTypesRecord>> get associationRoleTypes =>
+      _associationRoleTypes;
   Ref<DashboardMenuPermissions> get menuPermissions => _menuPermissions;
 
   late final _isAuthenticated = computed(() => _currentUser.value != null);
@@ -34,7 +35,8 @@ class AuthStore {
     final adminRole = _userRoleTypes.value
         .where((r) => r.name == 'admin')
         .firstOrNull;
-    return adminRole != null && _currentUser.value?.userRoleType == adminRole.id;
+    return adminRole != null &&
+        _currentUser.value?.userRoleType == adminRole.id;
   });
   late final _isBoardMember = computed(
     () => (_currentUser.value?.associationRoleTypes ?? []).isNotEmpty,
@@ -101,27 +103,35 @@ class AuthStore {
       // Get invitation details
       final invitation = await _pb
           .collection(Collections.userInvitations)
-          .getFirstListItem('invitation_token="$invitationToken"', expand: 'association');
+          .getFirstListItem(
+            'invitation_token="$invitationToken"',
+            expand: 'association',
+          );
 
-      final invitationData = UserInvitationsRecord.fromJson(invitation.toJson());
+      final invitationData = UserInvitationsRecord.fromJson(
+        invitation.toJson(),
+      );
 
       // Create user account
-      await _pb.collection(Collections.users).create(body: {
-        'email': email,
-        'emailVisibility': true,
-        'password': password,
-        'passwordConfirm': password,
-        'name': name,
-        'user_role_type': invitationData.userRoleType,
-        'association': invitationData.association,
-        'association_role_types': invitationData.associationRoleTypes,
-      });
+      await _pb
+          .collection(Collections.users)
+          .create(
+            body: {
+              'email': email,
+              'emailVisibility': true,
+              'password': password,
+              'passwordConfirm': password,
+              'name': name,
+              'user_role_type': invitationData.userRoleType,
+              'association': invitationData.association,
+              'association_role_types': invitationData.associationRoleTypes,
+            },
+          );
 
       // Update invitation status
-      await _pb.collection(Collections.userInvitations).update(
-        invitationData.id,
-        body: {'invitation_status': 'Aktiverad'},
-      );
+      await _pb
+          .collection(Collections.userInvitations)
+          .update(invitationData.id, body: {'invitation_status': 'Aktiverad'});
 
       return true;
     } catch (e) {
@@ -201,6 +211,46 @@ class AuthStore {
     }
   }
 
+  /// Persists a single role's allowed operations for [menuName] back to the
+  /// association's `permissions` field, then refreshes the local matrix.
+  Future<bool> updateRolePermission(
+    String menuName,
+    RolePermission updated,
+  ) async {
+    final association = _association.value;
+    if (association == null) return false;
+
+    final newMenus = _menuPermissions.value.map((menu) {
+      if (menu.name != menuName) return menu;
+      return DashboardMenuPermission(
+        name: menu.name,
+        permissions: menu.permissions
+            .map(
+              (p) =>
+                  (p.roleTypeId == updated.roleTypeId &&
+                      p.roleCategory == updated.roleCategory)
+                  ? updated
+                  : p,
+            )
+            .toList(),
+      );
+    }).toList();
+
+    try {
+      await _pb
+          .collection(Collections.associations)
+          .update(
+            association.id,
+            body: {'permissions': newMenus.map((m) => m.toJson()).toList()},
+          );
+      _menuPermissions.value = newMenus;
+      return true;
+    } catch (e) {
+      debugPrint('AuthStore: Error updating role permission: $e');
+      return false;
+    }
+  }
+
   Future<void> _loadResidence() async {
     final user = _currentUser.value;
     if (user == null || user.association.isEmpty) return;
@@ -214,7 +264,9 @@ class AuthStore {
             filter: 'association="${user.association}" && users~"${user.id}"',
           );
       if (records.items.isNotEmpty) {
-        _residence.value = ResidencesRecord.fromJson(records.items.first.toJson());
+        _residence.value = ResidencesRecord.fromJson(
+          records.items.first.toJson(),
+        );
       }
     } catch (e) {
       debugPrint('AuthStore: Error loading residence: $e');
@@ -226,10 +278,15 @@ class AuthStore {
     final user = _currentUser.value;
     if (user == null) return false;
 
+    // Admins have full access everywhere, matching the web admin layout which
+    // shows every menu to admins unconditionally.
+    if (_isAdmin.value) return true;
+
     final permissions = <({RoleCategory roleCategory, String roleTypeId})>[
       (roleCategory: RoleCategory.user, roleTypeId: user.userRoleType),
       ...user.associationRoleTypes.map(
-        (roleId) => (roleCategory: RoleCategory.association, roleTypeId: roleId),
+        (roleId) =>
+            (roleCategory: RoleCategory.association, roleTypeId: roleId),
       ),
     ];
 
@@ -245,10 +302,9 @@ class AuthStore {
   Future<bool> updateUserName(String name) async {
     if (_currentUser.value == null) return false;
     try {
-      await _pb.collection(Collections.users).update(
-        _currentUser.value!.id,
-        body: {'name': name},
-      );
+      await _pb
+          .collection(Collections.users)
+          .update(_currentUser.value!.id, body: {'name': name});
       _currentUser.value = _currentUser.value!.copyWith(name: name);
       return true;
     } catch (e) {
@@ -260,10 +316,9 @@ class AuthStore {
   Future<bool> updateUserEmail(String email) async {
     if (_currentUser.value == null) return false;
     try {
-      await _pb.collection(Collections.users).update(
-        _currentUser.value!.id,
-        body: {'email': email},
-      );
+      await _pb
+          .collection(Collections.users)
+          .update(_currentUser.value!.id, body: {'email': email});
       _currentUser.value = _currentUser.value!.copyWith(email: email);
       return true;
     } catch (e) {
@@ -279,14 +334,16 @@ class AuthStore {
   }) async {
     if (_currentUser.value == null) return false;
     try {
-      await _pb.collection(Collections.users).update(
-        _currentUser.value!.id,
-        body: {
-          'oldPassword': oldPassword,
-          'password': password,
-          'passwordConfirm': passwordConfirm,
-        },
-      );
+      await _pb
+          .collection(Collections.users)
+          .update(
+            _currentUser.value!.id,
+            body: {
+              'oldPassword': oldPassword,
+              'password': password,
+              'passwordConfirm': passwordConfirm,
+            },
+          );
       return true;
     } catch (e) {
       debugPrint('AuthStore: Error updating password: $e');
@@ -298,10 +355,9 @@ class AuthStore {
     if (_currentUser.value == null) return false;
     try {
       if (image is List && image.isEmpty) {
-        await _pb.collection(Collections.users).update(
-          _currentUser.value!.id,
-          body: {'avatar': ''},
-        );
+        await _pb
+            .collection(Collections.users)
+            .update(_currentUser.value!.id, body: {'avatar': ''});
       } else if (image is File) {
         final fileBytes = await image.readAsBytes();
         final multipartFile = http.MultipartFile.fromBytes(
@@ -309,11 +365,9 @@ class AuthStore {
           fileBytes,
           filename: image.path.split('/').last,
         );
-        await _pb.collection(Collections.users).update(
-          _currentUser.value!.id,
-          body: {},
-          files: [multipartFile],
-        );
+        await _pb
+            .collection(Collections.users)
+            .update(_currentUser.value!.id, body: {}, files: [multipartFile]);
       } else {
         return false;
       }

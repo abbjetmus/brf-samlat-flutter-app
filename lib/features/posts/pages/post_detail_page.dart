@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
@@ -9,6 +10,7 @@ import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/rich_description.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import 'create_post_page.dart';
 
 class PostDetailPage extends CompositionWidget {
   static const String path = '/posts/detail';
@@ -53,10 +55,15 @@ class PostDetailPage extends CompositionWidget {
       return GradientScaffold(
         title: 'Nyhet',
         actions: [
-          if (canDelete)
+          if (canEdit || canDelete)
             EntityActionMenu.header(
               actions: [
-                EntityAction.delete(() async {
+                if (canEdit)
+                  EntityAction.update(() {
+                    context.push('${CreatePostPage.editPath}/${post.id}');
+                  }),
+                if (canDelete)
+                  EntityAction.delete(() async {
                   final confirmed = await showConfirmDialog(
                     context,
                     title: 'Radera nyhet',

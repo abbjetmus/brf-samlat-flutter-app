@@ -6,32 +6,70 @@ import '../../../shared/widgets/gradient_scaffold.dart';
 
 class CreateIssuePage extends CompositionWidget {
   static const String path = '/issues/create';
+  static const String editPath = '/issues/edit';
 
-  const CreateIssuePage({super.key});
+  /// When non-null the page edits the existing issue instead of creating one.
+  final String? issueId;
+
+  const CreateIssuePage({super.key, this.issueId});
 
   @override
   Widget Function(BuildContext) setup() {
     final issuesStore = inject(issuesStoreKey);
+    final isEdit = issueId != null;
+    final existing = (isEdit && issuesStore.currentIssue.value?.id == issueId)
+        ? issuesStore.currentIssue.value
+        : null;
+
     final (titleController, _, __) = useTextEditingController();
     final (descriptionController, ___, ____) = useTextEditingController();
-    final issueType = ref<String>('Felanmälan');
-    final commentsAllowed = ref(true);
-    final consentToMasterKey = ref(false);
+    final issueType = ref<String>(existing?.type ?? 'Felanmälan');
+    final commentsAllowed = ref(existing?.commentsAllowed ?? true);
+    final consentToMasterKey = ref(existing?.consentToMasterKey ?? false);
     final loading = ref(false);
     final contextRef = useContext();
 
-    Future<void> createIssue() async {
+    if (existing != null) {
+      titleController.text = existing.title;
+      descriptionController.text = existing.description;
+    }
+
+    onMounted(() async {
+      // Cover deep-links / stale state where the issue isn't loaded yet.
+      if (isEdit && existing == null) {
+        await issuesStore.getIssue(issueId!);
+        final issue = issuesStore.currentIssue.value;
+        if (issue != null && issue.id == issueId) {
+          titleController.text = issue.title;
+          descriptionController.text = issue.description;
+          issueType.value = issue.type ?? 'Felanmälan';
+          commentsAllowed.value = issue.commentsAllowed;
+          consentToMasterKey.value = issue.consentToMasterKey ?? false;
+        }
+      }
+    });
+
+    Future<void> saveIssue() async {
       if (titleController.text.trim().isEmpty) return;
       if (descriptionController.text.trim().isEmpty) return;
 
       loading.value = true;
-      final success = await issuesStore.createIssue(
-        title: titleController.text.trim(),
-        description: descriptionController.text.trim(),
-        type: issueType.value,
-        commentsAllowed: commentsAllowed.value,
-        consentToMasterKey: consentToMasterKey.value,
-      );
+      final success = isEdit
+          ? await issuesStore.updateIssue(
+              id: issueId!,
+              title: titleController.text.trim(),
+              description: descriptionController.text.trim(),
+              type: issueType.value,
+              commentsAllowed: commentsAllowed.value,
+              consentToMasterKey: consentToMasterKey.value,
+            )
+          : await issuesStore.createIssue(
+              title: titleController.text.trim(),
+              description: descriptionController.text.trim(),
+              type: issueType.value,
+              commentsAllowed: commentsAllowed.value,
+              consentToMasterKey: consentToMasterKey.value,
+            );
       loading.value = false;
 
       final context = contextRef.value;
@@ -41,14 +79,22 @@ class CreateIssuePage extends CompositionWidget {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('${issueType.value} skapad!'),
+              content: Text(
+                isEdit
+                    ? '${issueType.value} uppdaterad!'
+                    : '${issueType.value} skapad!',
+              ),
               backgroundColor: AppTheme.primaryColor,
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Kunde inte skapa $noun.'),
+              content: Text(
+                isEdit
+                    ? 'Kunde inte uppdatera $noun.'
+                    : 'Kunde inte skapa $noun.',
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -59,7 +105,7 @@ class CreateIssuePage extends CompositionWidget {
     return (context) {
       final noun = issueType.value.toLowerCase();
       return GradientScaffold(
-        title: 'Skapa $noun',
+        title: isEdit ? 'Redigera $noun' : 'Skapa $noun',
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -111,14 +157,14 @@ class CreateIssuePage extends CompositionWidget {
             ),
             const SizedBox(height: 24),
             FilledButton(
-              onPressed: loading.value ? null : createIssue,
+              onPressed: loading.value ? null : saveIssue,
               child: loading.value
                   ? const SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : Text('Skapa $noun'),
+                  : Text(isEdit ? 'Spara ändringar' : 'Skapa $noun'),
             ),
           ],
         ),

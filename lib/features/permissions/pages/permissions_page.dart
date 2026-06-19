@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/permissions_utils.dart';
+import '../../../shared/widgets/app_bottom_sheet.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/search_field.dart';
 
 /// Swedish labels for the permission/menu tokens stored on the association.
 const _menuLabels = <String, String>{
   'posts': 'Nyheter',
   'chat': 'Meddelanden',
   'issues': 'Felanmälan & ärenden',
+  'residence_issues': 'Felanmälan & ärenden (bostäder)',
   'calendar_events': 'Kalender',
   'places': 'Lokaler',
   'gadgets': 'Prylar',
@@ -19,7 +23,9 @@ const _menuLabels = <String, String>{
   'users': 'Användare',
   'user_role_types': 'Behörigheter',
   'invoices': 'Fakturor',
+  'invoice_builder': 'Faktura Byggaren',
   'forms': 'Formulär',
+  'form_builder': 'Formulär Byggaren',
 };
 
 class PermissionsPage extends CompositionWidget {
@@ -30,6 +36,7 @@ class PermissionsPage extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final authStore = inject(authStoreKey);
+    final searchQuery = ref('');
 
     onMounted(() {
       // Ensure the matrix and role names are available even on a cold start
@@ -50,17 +57,128 @@ class PermissionsPage extends CompositionWidget {
         final match = authStore.userRoleTypes.value
             .where((r) => r.id == p.roleTypeId)
             .firstOrNull;
-        return match?.name ?? 'Okänd användarroll';
+        if (match == null) return 'Okänd användarroll';
+        return match.displayName.isNotEmpty ? match.displayName : match.name;
       }
       final match = authStore.associationRoleTypes.value
           .where((r) => r.id == p.roleTypeId)
           .firstOrNull;
-      return match?.name ?? 'Okänd föreningsroll';
+      if (match == null) return 'Okänd föreningsroll';
+      return match.displayName.isNotEmpty ? match.displayName : match.name;
+    }
+
+    // The admin user role always has full access (see AuthStore.hasPermission,
+    // which short-circuits to true for admins). Its matrix entries are therefore
+    // not editable — we show "Full åtkomst" instead of toggleable operations.
+    bool isAdminRole(RolePermission p) {
+      if (p.roleCategory != RoleCategory.user.value) return false;
+      final match = authStore.userRoleTypes.value
+          .where((r) => r.id == p.roleTypeId)
+          .firstOrNull;
+      return match?.name == 'admin';
     }
 
     return (context) {
       final theme = Theme.of(context);
       final menus = authStore.menuPermissions.value;
+      final canEdit = authStore.hasPermission(
+        'user_role_types',
+        CrudOperation.update,
+      );
+
+      Future<void> editPermission(
+        DashboardMenuPermission menu,
+        RolePermission p,
+      ) async {
+        final selected = {...p.allowedOperations};
+        final saved = await showAppBottomSheet<bool>(
+          context: context,
+          builder: (sheetContext) {
+            bool saving = false;
+            return StatefulBuilder(
+              builder: (sheetContext, setSheetState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      roleName(p),
+                      style: Theme.of(sheetContext).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      _menuLabels[menu.name] ?? menu.name,
+                      style: Theme.of(sheetContext).textTheme.bodySmall
+                          ?.copyWith(color: Theme.of(sheetContext).hintColor),
+                    ),
+                    const SizedBox(height: 8),
+                    for (final op in CrudOperation.values)
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(op.displayName),
+                        value: selected.contains(op.value),
+                        onChanged: saving
+                            ? null
+                            : (v) => setSheetState(() {
+                                if (v) {
+                                  selected.add(op.value);
+                                } else {
+                                  selected.remove(op.value);
+                                }
+                              }),
+                      ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: saving
+                            ? null
+                            : () async {
+                                setSheetState(() => saving = true);
+                                final ok = await authStore.updateRolePermission(
+                                  menu.name,
+                                  RolePermission(
+                                    roleCategory: p.roleCategory,
+                                    roleTypeId: p.roleTypeId,
+                                    allowedOperations: selected.toList(),
+                                  ),
+                                );
+                                if (sheetContext.mounted) {
+                                  Navigator.of(sheetContext).pop(ok);
+                                }
+                              },
+                        child: saving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Spara'),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+
+        if (!context.mounted || saved == null) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              saved
+                  ? 'Rättigheter uppdaterade'
+                  : 'Kunde inte uppdatera rättigheter',
+            ),
+            backgroundColor: saved ? AppTheme.primaryColor : Colors.red,
+          ),
+        );
+      }
 
       if (menus.isEmpty) {
         return const GradientScaffold(
@@ -78,81 +196,174 @@ class PermissionsPage extends CompositionWidget {
       }
 
       // Show menus in a stable, human-friendly order (known tokens first).
-      final ordered = [...menus]..sort((a, b) {
+      final ordered = [...menus]
+        ..sort((a, b) {
           final ia = _menuLabels.keys.toList().indexOf(a.name);
           final ib = _menuLabels.keys.toList().indexOf(b.name);
           return (ia == -1 ? 999 : ia).compareTo(ib == -1 ? 999 : ib);
         });
 
+      // Filter by the menu label/token or any role name within it.
+      final query = searchQuery.value.trim().toLowerCase();
+      final filtered = query.isEmpty
+          ? ordered
+          : ordered.where((menu) {
+              final label = (_menuLabels[menu.name] ?? menu.name).toLowerCase();
+              if (label.contains(query) ||
+                  menu.name.toLowerCase().contains(query)) {
+                return true;
+              }
+              return menu.permissions.any(
+                (p) => roleName(p).toLowerCase().contains(query),
+              );
+            }).toList();
+
       return GradientScaffold(
         title: 'Behörigheter',
-        body: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        body: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
-              child: Text(
-                'Översikt över vilka roller som får göra vad i föreningen.',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.hintColor),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: SearchField(
+                hintText: 'Sök behörighet eller roll...',
+                onChanged: (v) => searchQuery.value = v,
               ),
             ),
-            for (final menu in ordered)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _menuLabels[menu.name] ?? menu.name,
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 12),
-                      if (menu.permissions.isEmpty)
-                        Text(
-                          'Ingen roll har åtkomst.',
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: theme.hintColor),
-                        )
-                      else
-                        for (final p in menu.permissions) ...[
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: Text(
-                                  roleName(p),
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                              Expanded(
-                                flex: 3,
-                                child: Wrap(
-                                  spacing: 6,
-                                  runSpacing: 4,
-                                  children: [
-                                    for (final op in CrudOperation.values)
-                                      _OpChip(
-                                        label: op.displayName,
-                                        enabled: p.allowedOperations
-                                            .contains(op.value),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-                        ],
-                    ],
-                  ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
                 ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
+                    child: Text(
+                      canEdit
+                          ? 'Översikt över vilka roller som får göra vad. Tryck på en roll för att ändra.'
+                          : 'Översikt över vilka roller som får göra vad i föreningen.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.hintColor,
+                      ),
+                    ),
+                  ),
+                  if (filtered.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32),
+                      child: Text(
+                        'Inga behörigheter matchar "$query".',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.hintColor,
+                        ),
+                      ),
+                    ),
+                  for (final menu in filtered)
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _menuLabels[menu.name] ?? menu.name,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            if (menu.permissions.isEmpty)
+                              Text(
+                                'Ingen roll har åtkomst.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.hintColor,
+                                ),
+                              )
+                            else
+                              for (final p in menu.permissions) ...[
+                                Builder(
+                                  builder: (context) {
+                                    final isAdmin = isAdminRole(p);
+                                    final tappable = canEdit && !isAdmin;
+                                    return InkWell(
+                                      onTap: tappable
+                                          ? () => editPermission(menu, p)
+                                          : null,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 4,
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              flex: 2,
+                                              child: Text(
+                                                roleName(p),
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 3,
+                                              child: Wrap(
+                                                spacing: 6,
+                                                runSpacing: 4,
+                                                children: isAdmin
+                                                    ? const [
+                                                        _OpChip(
+                                                          label: 'Full åtkomst',
+                                                          enabled: true,
+                                                        ),
+                                                      ]
+                                                    : [
+                                                        for (final op
+                                                            in CrudOperation
+                                                                .values)
+                                                          _OpChip(
+                                                            label:
+                                                                op.displayName,
+                                                            enabled: p
+                                                                .allowedOperations
+                                                                .contains(
+                                                                  op.value,
+                                                                ),
+                                                          ),
+                                                      ],
+                                              ),
+                                            ),
+                                            if (canEdit)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                  left: 4,
+                                                ),
+                                                child: Icon(
+                                                  isAdmin
+                                                      ? Icons.lock_outline
+                                                      : Icons.edit_outlined,
+                                                  size: 18,
+                                                  color: theme.hintColor,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 24),
+                ],
               ),
-            const SizedBox(height: 24),
+            ),
           ],
         ),
       );
@@ -169,8 +380,7 @@ class _OpChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color =
-        enabled ? theme.colorScheme.primary : theme.disabledColor;
+    final color = enabled ? theme.colorScheme.primary : theme.disabledColor;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -183,11 +393,7 @@ class _OpChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            enabled ? Icons.check : Icons.remove,
-            size: 13,
-            color: color,
-          ),
+          Icon(enabled ? Icons.check : Icons.remove, size: 13, color: color),
           const SizedBox(width: 3),
           Text(
             label,

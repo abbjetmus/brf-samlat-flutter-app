@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
@@ -8,6 +9,7 @@ import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/rich_description.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import 'create_issue_page.dart';
 
 class IssueDetailPage extends CompositionWidget {
   static const String path = '/issues/detail';
@@ -55,6 +57,10 @@ class IssueDetailPage extends CompositionWidget {
           if (canEdit || canDelete)
             EntityActionMenu.header(
               actions: [
+                if (canEdit)
+                  EntityAction.update(() {
+                    context.push('${CreateIssuePage.editPath}/${issue.id}');
+                  }),
                 if (canEdit)
                   EntityAction(
                     icon: issue.isResolved

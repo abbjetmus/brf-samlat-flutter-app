@@ -83,6 +83,12 @@ final router = GoRouter(
       path: CreatePostPage.path,
       builder: (context, state) => const CreatePostPage(),
     ),
+    GoRoute(
+      path: '${CreatePostPage.editPath}/:id',
+      builder: (context, state) => CreatePostPage(
+        postId: state.pathParameters['id']!,
+      ),
+    ),
     // Issues
     GoRoute(
       path: IssuesListPage.path,
@@ -97,6 +103,12 @@ final router = GoRouter(
     GoRoute(
       path: CreateIssuePage.path,
       builder: (context, state) => const CreateIssuePage(),
+    ),
+    GoRoute(
+      path: '${CreateIssuePage.editPath}/:id',
+      builder: (context, state) => CreateIssuePage(
+        issueId: state.pathParameters['id']!,
+      ),
     ),
     // Calendar
     GoRoute(

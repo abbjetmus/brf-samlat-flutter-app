@@ -6,32 +6,70 @@ import '../../../shared/widgets/gradient_scaffold.dart';
 
 class CreatePostPage extends CompositionWidget {
   static const String path = '/posts/create';
+  static const String editPath = '/posts/edit';
 
-  const CreatePostPage({super.key});
+  /// When non-null the page edits the existing post instead of creating one.
+  final String? postId;
+
+  const CreatePostPage({super.key, this.postId});
 
   @override
   Widget Function(BuildContext) setup() {
     final postsStore = inject(postsStoreKey);
+    final isEdit = postId != null;
+    final existing = (isEdit && postsStore.currentPost.value?.id == postId)
+        ? postsStore.currentPost.value
+        : null;
+
     final (titleController, _, __) = useTextEditingController();
     final (descriptionController, ___, ____) = useTextEditingController();
-    final commentsAllowed = ref(true);
-    final pinAsGeneralInfo = ref(false);
-    final addToCalendar = ref(false);
+    final commentsAllowed = ref(existing?.commentsAllowed ?? true);
+    final pinAsGeneralInfo = ref(existing?.pinAsGeneralInfo ?? false);
+    final addToCalendar = ref(existing?.addToCalendar ?? false);
     final loading = ref(false);
     final contextRef = useContext();
 
-    Future<void> createPost() async {
+    if (existing != null) {
+      titleController.text = existing.title;
+      descriptionController.text = existing.description;
+    }
+
+    onMounted(() async {
+      // Cover deep-links / stale state where the post isn't loaded yet.
+      if (isEdit && existing == null) {
+        await postsStore.getPost(postId!);
+        final post = postsStore.currentPost.value;
+        if (post != null && post.id == postId) {
+          titleController.text = post.title;
+          descriptionController.text = post.description;
+          commentsAllowed.value = post.commentsAllowed;
+          pinAsGeneralInfo.value = post.pinAsGeneralInfo;
+          addToCalendar.value = post.addToCalendar;
+        }
+      }
+    });
+
+    Future<void> savePost() async {
       if (titleController.text.trim().isEmpty) return;
       if (descriptionController.text.trim().isEmpty) return;
 
       loading.value = true;
-      final success = await postsStore.createPost(
-        title: titleController.text.trim(),
-        description: descriptionController.text.trim(),
-        commentsAllowed: commentsAllowed.value,
-        pinAsGeneralInfo: pinAsGeneralInfo.value,
-        addToCalendar: addToCalendar.value,
-      );
+      final success = isEdit
+          ? await postsStore.updatePost(
+              id: postId!,
+              title: titleController.text.trim(),
+              description: descriptionController.text.trim(),
+              commentsAllowed: commentsAllowed.value,
+              pinAsGeneralInfo: pinAsGeneralInfo.value,
+              addToCalendar: addToCalendar.value,
+            )
+          : await postsStore.createPost(
+              title: titleController.text.trim(),
+              description: descriptionController.text.trim(),
+              commentsAllowed: commentsAllowed.value,
+              pinAsGeneralInfo: pinAsGeneralInfo.value,
+              addToCalendar: addToCalendar.value,
+            );
       loading.value = false;
 
       final context = contextRef.value;
@@ -40,14 +78,16 @@ class CreatePostPage extends CompositionWidget {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Nyhet skapad!'),
+              content: Text(isEdit ? 'Nyhet uppdaterad!' : 'Nyhet skapad!'),
               backgroundColor: AppTheme.primaryColor,
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Kunde inte skapa nyhet.'),
+            SnackBar(
+              content: Text(
+                isEdit ? 'Kunde inte uppdatera nyhet.' : 'Kunde inte skapa nyhet.',
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -56,7 +96,7 @@ class CreatePostPage extends CompositionWidget {
     }
 
     return (context) => GradientScaffold(
-      title: 'Skapa nyhet',
+      title: isEdit ? 'Redigera nyhet' : 'Skapa nyhet',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -97,14 +137,14 @@ class CreatePostPage extends CompositionWidget {
             ),
             const SizedBox(height: 24),
             FilledButton(
-              onPressed: loading.value ? null : createPost,
+              onPressed: loading.value ? null : savePost,
               child: loading.value
                   ? const SizedBox(
                       height: 20,
                       width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text('Skapa nyhet'),
+                  : Text(isEdit ? 'Spara ändringar' : 'Skapa nyhet'),
             ),
           ],
         ),

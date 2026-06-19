@@ -34,32 +34,42 @@ class RolePermission {
     return RolePermission(
       roleCategory: json['roleCategory'] as String? ?? '',
       roleTypeId: json['roleTypeId'] as String? ?? '',
-      allowedOperations: (json['allowedOperations'] as List<dynamic>?)
+      allowedOperations:
+          (json['allowedOperations'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'roleCategory': roleCategory,
+    'roleTypeId': roleTypeId,
+    'allowedOperations': allowedOperations,
+  };
 }
 
 class DashboardMenuPermission {
   final String name;
   final List<RolePermission> permissions;
 
-  DashboardMenuPermission({
-    required this.name,
-    required this.permissions,
-  });
+  DashboardMenuPermission({required this.name, required this.permissions});
 
   factory DashboardMenuPermission.fromJson(Map<String, dynamic> json) {
     return DashboardMenuPermission(
       name: json['name'] as String? ?? '',
-      permissions: (json['permissions'] as List<dynamic>?)
+      permissions:
+          (json['permissions'] as List<dynamic>?)
               ?.map((e) => RolePermission.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'permissions': permissions.map((p) => p.toJson()).toList(),
+  };
 }
 
 typedef DashboardMenuPermissions = List<DashboardMenuPermission>;
@@ -89,8 +99,7 @@ bool isOperationAllowed(
   final rolePermission = menuPermission.permissions
       .where(
         (p) =>
-            p.roleTypeId == roleTypeId &&
-            p.roleCategory == roleCategory.value,
+            p.roleTypeId == roleTypeId && p.roleCategory == roleCategory.value,
       )
       .firstOrNull;
   if (rolePermission == null) return false;

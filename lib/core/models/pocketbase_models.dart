@@ -25,10 +25,12 @@ class Collections {
   static const String postsView = 'posts_view';
   static const String residences = 'residences';
   static const String settings = 'settings';
-  static const String systemBoardMeetingTemplates = 'system_board_meeting_templates';
+  static const String systemBoardMeetingTemplates =
+      'system_board_meeting_templates';
   static const String userInvitations = 'user_invitations';
   static const String userNotifications = 'user_notifications';
-  static const String userNotificationsNotSeenCountView = 'user_notifications_not_seen_count_view';
+  static const String userNotificationsNotSeenCountView =
+      'user_notifications_not_seen_count_view';
   static const String userRoleTypes = 'user_role_types';
   static const String userSettings = 'user_settings';
   static const String users = 'users';
@@ -80,7 +82,8 @@ class UsersRecord {
       phone: json['phone'] as String?,
       association: json['association'] as String? ?? '',
       userRoleType: json['user_role_type'] as String? ?? '',
-      associationRoleTypes: (json['association_role_types'] as List<dynamic>?)
+      associationRoleTypes:
+          (json['association_role_types'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
@@ -172,12 +175,14 @@ class UserRoleTypesRecord {
   final String? created;
   final String? updated;
   final String name;
+  final String displayName;
 
   UserRoleTypesRecord({
     required this.id,
     this.created,
     this.updated,
     required this.name,
+    this.displayName = '',
   });
 
   factory UserRoleTypesRecord.fromJson(Map<String, dynamic> json) {
@@ -186,6 +191,7 @@ class UserRoleTypesRecord {
       created: json['created'] as String?,
       updated: json['updated'] as String?,
       name: json['name'] as String? ?? '',
+      displayName: json['displayName'] as String? ?? '',
     );
   }
 }
@@ -195,12 +201,14 @@ class AssociationRoleTypesRecord {
   final String? created;
   final String? updated;
   final String name;
+  final String displayName;
 
   AssociationRoleTypesRecord({
     required this.id,
     this.created,
     this.updated,
     required this.name,
+    this.displayName = '',
   });
 
   factory AssociationRoleTypesRecord.fromJson(Map<String, dynamic> json) {
@@ -209,6 +217,7 @@ class AssociationRoleTypesRecord {
       created: json['created'] as String?,
       updated: json['updated'] as String?,
       name: json['name'] as String? ?? '',
+      displayName: json['displayName'] as String? ?? '',
     );
   }
 }
@@ -257,7 +266,8 @@ class PostsRecord {
       description: json['description'] as String? ?? '',
       association: json['association'] as String? ?? '',
       user: json['user'] as String?,
-      attachments: (json['attachments'] as List<dynamic>?)
+      attachments:
+          (json['attachments'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
@@ -393,7 +403,8 @@ class IssuesRecord {
       assignedTo: json['assigned_to'] as String?,
       reportedBy: json['reported_by'] as String?,
       residence: json['residence'] as String?,
-      attachments: (json['attachments'] as List<dynamic>?)
+      attachments:
+          (json['attachments'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
@@ -527,7 +538,8 @@ class CalendarEventsRecord {
       endAt: json['end_at'] as String? ?? '',
       color: json['color'] as String? ?? '#2196F3',
       eventType: json['event_type'] as String?,
-      attachments: (json['attachments'] as List<dynamic>?)
+      attachments:
+          (json['attachments'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
@@ -595,19 +607,23 @@ class PlacesRecord {
       streetAddress: json['street_address'] as String? ?? '',
       zipCode: json['zip_code'] as String? ?? '',
       locality: json['locality'] as String? ?? '',
-      images: (json['images'] as List<dynamic>?)
+      images:
+          (json['images'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
       placeType: json['place_type'] as String?,
       bookingStartTime: json['booking_start_time'] as String? ?? '',
       bookingEndTime: json['booking_end_time'] as String? ?? '',
-      bookingSlotDurationLength: json['booking_slot_duration_length'] as int? ?? 0,
-      bookingSlotDurationType: json['booking_slot_duration_type'] as String? ?? '',
+      bookingSlotDurationLength:
+          json['booking_slot_duration_length'] as int? ?? 0,
+      bookingSlotDurationType:
+          json['booking_slot_duration_type'] as String? ?? '',
       maxRoomCapacity: json['max_room_capacity'] as int?,
       pricePerSlot: (json['price_per_slot'] as num?)?.toDouble(),
       allowedBookingPeriodType: json['allowed_booking_period_type'] as String?,
-      allowedNumberOfBookingsPerPeriod: json['allowed_number_of_bookings_per_period'] as int?,
+      allowedNumberOfBookingsPerPeriod:
+          json['allowed_number_of_bookings_per_period'] as int?,
       user: json['user'] as String? ?? '',
     );
   }
@@ -714,17 +730,21 @@ class GadgetsRecord {
       streetAddress: json['street_address'] as String? ?? '',
       zipCode: json['zip_code'] as String? ?? '',
       locality: json['locality'] as String? ?? '',
-      images: (json['images'] as List<dynamic>?)
+      images:
+          (json['images'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
       bookingStartTime: json['booking_start_time'] as String? ?? '',
       bookingEndTime: json['booking_end_time'] as String? ?? '',
-      bookingSlotDurationLength: json['booking_slot_duration_length'] as int? ?? 0,
-      bookingSlotDurationType: json['booking_slot_duration_type'] as String? ?? '',
+      bookingSlotDurationLength:
+          json['booking_slot_duration_length'] as int? ?? 0,
+      bookingSlotDurationType:
+          json['booking_slot_duration_type'] as String? ?? '',
       pricePerSlot: (json['price_per_slot'] as num?)?.toDouble(),
       allowedBookingPeriodType: json['allowed_booking_period_type'] as String?,
-      allowedNumberOfBookingsPerPeriod: json['allowed_number_of_bookings_per_period'] as int?,
+      allowedNumberOfBookingsPerPeriod:
+          json['allowed_number_of_bookings_per_period'] as int?,
       user: json['user'] as String? ?? '',
     );
   }
@@ -815,9 +835,8 @@ class ResidencesRecord {
       locality: json['locality'] as String? ?? '',
       residenceType: json['residence_type'] as String? ?? '',
       moveInDate: json['move_in_date'] as String?,
-      users: (json['users'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
+      users:
+          (json['users'] as List<dynamic>?)?.map((e) => e as String).toList() ??
           [],
     );
   }
@@ -871,14 +890,16 @@ class ParkingLotsRecord {
       streetAddress: json['street_address'] as String? ?? '',
       zipCode: json['zip_code'] as String? ?? '',
       locality: json['locality'] as String? ?? '',
-      images: (json['images'] as List<dynamic>?)
+      images:
+          (json['images'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
       parkingType: json['parking_type'] as String? ?? '',
       capacity: json['capacity'] as int?,
       bookingPeriodType: json['booking_period_type'] as String?,
-      pricePerBookingPeriod: (json['price_per_booking_period'] as num?)?.toDouble(),
+      pricePerBookingPeriod: (json['price_per_booking_period'] as num?)
+          ?.toDouble(),
       user: json['user'] as String? ?? '',
     );
   }
@@ -951,9 +972,8 @@ class FoldersAndFilesRecord {
       association: json['association'] as String? ?? '',
       parentFolder: json['parent_folder'] as String?,
       path: json['path'] as String? ?? '',
-      files: (json['files'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
+      files:
+          (json['files'] as List<dynamic>?)?.map((e) => e as String).toList() ??
           [],
     );
   }
@@ -1112,7 +1132,8 @@ class InvoiceTemplatesRecord {
       message: json['message'] as String?,
       bankAccountNumber: json['bank_account_number'] as String?,
       bankAccountType: json['bank_account_type'] as String?,
-      createInvoicesAutomatically: json['create_invoices_automatically'] as bool? ?? false,
+      createInvoicesAutomatically:
+          json['create_invoices_automatically'] as bool? ?? false,
       sendInvoicesByEmail: json['send_invoices_by_email'] as bool? ?? false,
     );
   }
@@ -1266,7 +1287,9 @@ class UserNotificationsNotSeenCountViewRecord {
     this.notSeenCount = 0,
   });
 
-  factory UserNotificationsNotSeenCountViewRecord.fromJson(Map<String, dynamic> json) {
+  factory UserNotificationsNotSeenCountViewRecord.fromJson(
+    Map<String, dynamic> json,
+  ) {
     return UserNotificationsNotSeenCountViewRecord(
       id: json['id'] as String? ?? '',
       user: json['user'] as String? ?? '',
@@ -1317,7 +1340,8 @@ class UserInvitationsRecord {
       association: json['association'] as String? ?? '',
       associationType: json['association_type'] as String? ?? '',
       userRoleType: json['user_role_type'] as String? ?? '',
-      associationRoleTypes: (json['association_role_types'] as List<dynamic>?)
+      associationRoleTypes:
+          (json['association_role_types'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
@@ -1371,12 +1395,14 @@ class ChatRoomsRecord {
       name: json['name'] as String?,
       isGroup: json['is_group'] as bool? ?? false,
       createdBy: json['created_by'] as String?,
-      members: (json['members'] as List<dynamic>?)
+      members:
+          (json['members'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
       avatar: json['avatar'] as String?,
-      memberUsers: expandedMembers
+      memberUsers:
+          expandedMembers
               ?.map((e) => UsersRecord.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
@@ -1422,9 +1448,8 @@ class ChatMessagesRecord {
       room: json['room'] as String? ?? '',
       sender: json['sender'] as String? ?? '',
       content: json['content'] as String?,
-      files: (json['files'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
+      files:
+          (json['files'] as List<dynamic>?)?.map((e) => e as String).toList() ??
           const [],
       deleted: json['deleted'] as bool? ?? false,
       edited: json['edited'] as bool? ?? false,

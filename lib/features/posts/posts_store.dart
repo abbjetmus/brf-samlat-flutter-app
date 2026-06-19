@@ -162,6 +162,7 @@ class PostsStore {
       if (endAt != null) body['end_at'] = endAt;
 
       await _pb.collection(Collections.posts).update(id, body: body);
+      await getPost(id);
       await getAllPosts();
       return true;
     } catch (e) {

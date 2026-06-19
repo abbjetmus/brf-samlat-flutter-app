@@ -152,6 +152,41 @@ class IssuesStore {
     }
   }
 
+  Future<bool> updateIssue({
+    required String id,
+    required String title,
+    required String description,
+    String? type,
+    String? assignedTo,
+    bool? commentsAllowed,
+    bool? consentToMasterKey,
+  }) async {
+    _loading.value = true;
+    try {
+      final body = <String, dynamic>{
+        'title': title,
+        'description': description,
+      };
+
+      if (type != null) body['type'] = type;
+      if (assignedTo != null) body['assigned_to'] = assignedTo;
+      if (commentsAllowed != null) body['comments_allowed'] = commentsAllowed;
+      if (consentToMasterKey != null) {
+        body['consent_to_master_key'] = consentToMasterKey;
+      }
+
+      await _pb.collection(Collections.issues).update(id, body: body);
+      await getIssue(id);
+      await getAllIssues();
+      return true;
+    } catch (e) {
+      debugPrint('IssuesStore: Error updating issue: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
   Future<bool> resolveIssue(String id) async {
     _loading.value = true;
     try {
