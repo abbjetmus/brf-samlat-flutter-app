@@ -4,6 +4,7 @@ import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../core/models/pocketbase_models.dart';
+import '../../../shared/widgets/booking_time_slot_dialog.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/rich_description.dart';
@@ -33,123 +34,36 @@ class PlaceDetailPage extends CompositionWidget {
       final context = contextRef.value;
       if (context == null) return;
 
-      final titleController = TextEditingController();
-      DateTime startDate = DateTime.now();
-      DateTime endDate = DateTime.now().add(const Duration(hours: 1));
+      final place = placesStore.currentPlace.value;
+      if (place == null) return;
 
-      final result = await showDialog<bool>(
+      final result = await showBookingTimeSlotDialog(
         context: context,
-        builder: (dialogContext) => StatefulBuilder(
-          builder: (context, setState) => AlertDialog(
-            title: const Text('Ny bokning'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: titleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Titel (valfritt)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Start'),
-                    subtitle: Text(
-                      '${startDate.year}-${startDate.month.toString().padLeft(2, '0')}-${startDate.day.toString().padLeft(2, '0')} ${startDate.hour.toString().padLeft(2, '0')}:${startDate.minute.toString().padLeft(2, '0')}',
-                    ),
-                    trailing: const Icon(Icons.calendar_today),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: startDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                      );
-                      if (date != null) {
-                        final time = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay.fromDateTime(startDate),
-                        );
-                        if (time != null) {
-                          setState(() {
-                            startDate = DateTime(
-                              date.year,
-                              date.month,
-                              date.day,
-                              time.hour,
-                              time.minute,
-                            );
-                            if (endDate.isBefore(startDate)) {
-                              endDate = startDate.add(const Duration(hours: 1));
-                            }
-                          });
-                        }
-                      }
-                    },
-                  ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Slut'),
-                    subtitle: Text(
-                      '${endDate.year}-${endDate.month.toString().padLeft(2, '0')}-${endDate.day.toString().padLeft(2, '0')} ${endDate.hour.toString().padLeft(2, '0')}:${endDate.minute.toString().padLeft(2, '0')}',
-                    ),
-                    trailing: const Icon(Icons.calendar_today),
-                    onTap: () async {
-                      final date = await showDatePicker(
-                        context: context,
-                        initialDate: endDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2030),
-                      );
-                      if (date != null) {
-                        final time = await showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay.fromDateTime(endDate),
-                        );
-                        if (time != null) {
-                          setState(() {
-                            endDate = DateTime(
-                              date.year,
-                              date.month,
-                              date.day,
-                              time.hour,
-                              time.minute,
-                            );
-                          });
-                        }
-                      }
-                    },
-                  ),
-                ],
+        bookingStartTime: place.bookingStartTime,
+        bookingEndTime: place.bookingEndTime,
+        slotDurationLength: place.bookingSlotDurationLength,
+        slotDurationType: place.bookingSlotDurationType,
+        existingBookings: placesStore.bookings.value
+            .map(
+              (b) => ExistingBooking(
+                DateTime.parse(b.startAt),
+                DateTime.parse(b.endAt),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Avbryt'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Boka'),
-              ),
-            ],
-          ),
-        ),
+            )
+            .toList(),
+        isAdmin: authStore.isAdmin.value,
       );
 
-      if (result == true) {
+      if (result != null) {
         await placesStore.addBooking(
           placeId: placeId,
-          startAt: startDate.toUtc().toIso8601String(),
-          endAt: endDate.toUtc().toIso8601String(),
-          title: titleController.text.trim(),
+          startAt: result.startAt.toUtc().toIso8601String(),
+          endAt: result.endAt.toUtc().toIso8601String(),
+          title: result.title,
+          isAllDay: result.isAllDay,
+          isBlock: result.isBlock,
         );
       }
-
-      titleController.dispose();
     }
 
     return (context) {
