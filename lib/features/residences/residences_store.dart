@@ -79,6 +79,7 @@ class ResidencesStore {
     required String locality,
     required String residenceType,
     String? moveInDate,
+    List<String>? users,
   }) async {
     _loading.value = true;
     try {
@@ -94,6 +95,7 @@ class ResidencesStore {
               'locality': locality,
               'residence_type': residenceType,
               'move_in_date': moveInDate ?? '',
+              if (users != null) 'users': users,
             },
           );
 

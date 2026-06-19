@@ -119,6 +119,48 @@ class ParkingStore {
     }
   }
 
+  Future<bool> updateParkingLot({
+    required String id,
+    required String name,
+    String? description,
+    required String streetAddress,
+    required String zipCode,
+    required String locality,
+    required String parkingType,
+    int? capacity,
+    String? bookingPeriodType,
+    double? pricePerBookingPeriod,
+  }) async {
+    _loading.value = true;
+    try {
+      await _pb
+          .collection(Collections.parkingLots)
+          .update(
+            id,
+            body: {
+              'name': name,
+              'description': description ?? '',
+              'street_address': streetAddress,
+              'zip_code': zipCode,
+              'locality': locality,
+              'parking_type': parkingType,
+              'capacity': capacity,
+              'booking_period_type': bookingPeriodType ?? '',
+              'price_per_booking_period': pricePerBookingPeriod,
+            },
+          );
+
+      await getParkingLot(id);
+      await getAllParkingLots();
+      return true;
+    } catch (e) {
+      debugPrint('ParkingStore: Error updating parking lot: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
   Future<bool> createParkingSpace({
     required String parkingLotId,
     required String name,

@@ -7,38 +7,88 @@ import '../../../shared/widgets/rich_text_editor.dart';
 
 class CreateParkingLotPage extends CompositionWidget {
   static const String path = '/parking/create';
+  static const String editPath = '/parking/edit';
 
-  const CreateParkingLotPage({super.key});
+  /// When non-null the page edits the existing parking lot instead of creating one.
+  final String? parkingLotId;
+
+  const CreateParkingLotPage({super.key, this.parkingLotId});
 
   @override
   Widget Function(BuildContext) setup() {
     final parkingStore = inject(parkingStoreKey);
+    final isEdit = parkingLotId != null;
+    final existing =
+        (isEdit && parkingStore.currentParkingLot.value?.id == parkingLotId)
+        ? parkingStore.currentParkingLot.value
+        : null;
+
     final (nameController, _, __) = useTextEditingController();
     final (streetController, a3, a4) = useTextEditingController();
     final (zipController, a5, a6) = useTextEditingController();
     final (localityController, a7, a8) = useTextEditingController();
     final (capacityController, a9, a10) = useTextEditingController();
     final loading = ref(false);
-    final selectedParkingType = ref<String>('Garage');
+    final selectedParkingType = ref<String>(existing?.parkingType ?? 'Garage');
     final contextRef = useContext();
 
     // Description is rich text (HTML), edited via the WYSIWYG editor.
-    var descriptionHtml = '';
+    var descriptionHtml = existing?.description ?? '';
+    final descriptionReady = ref(!isEdit || existing != null);
 
-    Future<void> createParkingLot() async {
+    void populateFrom(dynamic lot) {
+      nameController.text = lot.name;
+      streetController.text = lot.streetAddress;
+      zipController.text = lot.zipCode;
+      localityController.text = lot.locality;
+      capacityController.text = lot.capacity?.toString() ?? '';
+      selectedParkingType.value = lot.parkingType.isNotEmpty
+          ? lot.parkingType
+          : 'Garage';
+      descriptionHtml = lot.description ?? '';
+    }
+
+    if (existing != null) {
+      populateFrom(existing);
+    }
+
+    onMounted(() async {
+      // Cover deep-links / stale state where the lot isn't loaded yet.
+      if (isEdit && existing == null) {
+        await parkingStore.getParkingLot(parkingLotId!);
+        final lot = parkingStore.currentParkingLot.value;
+        if (lot != null && lot.id == parkingLotId) {
+          populateFrom(lot);
+        }
+        descriptionReady.value = true;
+      }
+    });
+
+    Future<void> save() async {
       if (nameController.text.trim().isEmpty) return;
       if (streetController.text.trim().isEmpty) return;
 
       loading.value = true;
-      final success = await parkingStore.createParkingLot(
-        name: nameController.text.trim(),
-        description: descriptionHtml,
-        streetAddress: streetController.text.trim(),
-        zipCode: zipController.text.trim(),
-        locality: localityController.text.trim(),
-        parkingType: selectedParkingType.value,
-        capacity: int.tryParse(capacityController.text),
-      );
+      final success = isEdit
+          ? await parkingStore.updateParkingLot(
+              id: parkingLotId!,
+              name: nameController.text.trim(),
+              description: descriptionHtml,
+              streetAddress: streetController.text.trim(),
+              zipCode: zipController.text.trim(),
+              locality: localityController.text.trim(),
+              parkingType: selectedParkingType.value,
+              capacity: int.tryParse(capacityController.text),
+            )
+          : await parkingStore.createParkingLot(
+              name: nameController.text.trim(),
+              description: descriptionHtml,
+              streetAddress: streetController.text.trim(),
+              zipCode: zipController.text.trim(),
+              locality: localityController.text.trim(),
+              parkingType: selectedParkingType.value,
+              capacity: int.tryParse(capacityController.text),
+            );
       loading.value = false;
 
       final context = contextRef.value;
@@ -47,14 +97,20 @@ class CreateParkingLotPage extends CompositionWidget {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Parkering skapad!'),
+              content: Text(
+                isEdit ? 'Parkering uppdaterad!' : 'Parkering skapad!',
+              ),
               backgroundColor: AppTheme.primaryColor,
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Kunde inte skapa parkering.'),
+            SnackBar(
+              content: Text(
+                isEdit
+                    ? 'Kunde inte uppdatera parkering.'
+                    : 'Kunde inte skapa parkering.',
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -63,7 +119,7 @@ class CreateParkingLotPage extends CompositionWidget {
     }
 
     return (context) => GradientScaffold(
-      title: 'Skapa parkering',
+      title: isEdit ? 'Redigera parkering' : 'Skapa parkering',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -84,10 +140,16 @@ class CreateParkingLotPage extends CompositionWidget {
               ),
             ),
             const SizedBox(height: 8),
-            RichTextEditor(
-              initialHtml: descriptionHtml,
-              onChanged: (html) => descriptionHtml = html,
-            ),
+            if (descriptionReady.value)
+              RichTextEditor(
+                initialHtml: descriptionHtml,
+                onChanged: (html) => descriptionHtml = html,
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
             const SizedBox(height: 16),
             TextFormField(
               controller: streetController,
@@ -128,11 +190,13 @@ class CreateParkingLotPage extends CompositionWidget {
                 labelText: 'Parkeringstyp',
                 border: OutlineInputBorder(),
               ),
-              items: const [
-                DropdownMenuItem(value: 'Garage', child: Text('Garage')),
-                DropdownMenuItem(value: 'Utomhus', child: Text('Utomhus')),
-                DropdownMenuItem(value: 'Carport', child: Text('Carport')),
-              ],
+              items:
+                  <String>{
+                    'Garage',
+                    'Utomhus',
+                    'Carport',
+                    selectedParkingType.value,
+                  }.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
               onChanged: (value) {
                 if (value != null) {
                   selectedParkingType.value = value;
@@ -150,7 +214,7 @@ class CreateParkingLotPage extends CompositionWidget {
             ),
             const SizedBox(height: 24),
             FilledButton(
-              onPressed: loading.value ? null : createParkingLot,
+              onPressed: loading.value ? null : save,
               child: loading.value
                   ? const SizedBox(
                       height: 20,
@@ -160,7 +224,7 @@ class CreateParkingLotPage extends CompositionWidget {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Skapa parkering'),
+                  : Text(isEdit ? 'Spara ändringar' : 'Skapa parkering'),
             ),
           ],
         ),

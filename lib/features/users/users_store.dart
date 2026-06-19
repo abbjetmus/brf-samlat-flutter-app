@@ -43,6 +43,23 @@ class UsersStore {
   Future<void> getUsers() => _usersPage.refresh();
   Future<void> fetchNextUsers() => _usersPage.loadMore();
 
+  /// Full (non-paginated) list of the association's users, for selection UIs
+  /// such as assigning residents to a residence.
+  Future<List<UsersRecord>> getAllAssociationUsers() async {
+    try {
+      final assocId = _authStore.association.value?.id ?? '';
+      if (assocId.isEmpty) return [];
+
+      final records = await _pb
+          .collection(Collections.users)
+          .getFullList(filter: 'association="$assocId"', sort: 'name');
+      return records.map((r) => UsersRecord.fromJson(r.toJson())).toList();
+    } catch (e) {
+      debugPrint('UsersStore: Error fetching association users: $e');
+      return [];
+    }
+  }
+
   Future<bool> getInvitations() async {
     _loading.value = true;
     try {

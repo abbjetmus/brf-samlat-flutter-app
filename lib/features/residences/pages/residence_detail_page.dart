@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/di/injection_keys.dart';
+import '../../../core/models/pocketbase_models.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../issues/pages/issue_detail_page.dart';
+import 'create_residence_page.dart';
 
 class ResidenceDetailPage extends CompositionWidget {
   static const String path = '/residences/detail';
@@ -16,18 +20,25 @@ class ResidenceDetailPage extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final residencesStore = inject(residencesStoreKey);
+    final usersStore = inject(usersStoreKey);
     final authStore = inject(authStoreKey);
     final contextRef = useContext();
+    final associationUsers = ref<List<UsersRecord>>([]);
 
-    onMounted(() {
+    onMounted(() async {
       residencesStore.getResidence(residenceId);
       residencesStore.getResidenceIssues(residenceId);
+      associationUsers.value = await usersStore.getAllAssociationUsers();
     });
 
     return (context) {
       final residence = residencesStore.currentResidence.value;
       final issues = residencesStore.residenceIssues.value;
       final loading = residencesStore.loading.value;
+      final canUpdate = authStore.hasPermission(
+        'residences',
+        CrudOperation.update,
+      );
       final canDelete = authStore.hasPermission(
         'residences',
         CrudOperation.delete,
@@ -52,24 +63,33 @@ class ResidenceDetailPage extends CompositionWidget {
         child: GradientScaffold(
           title: residence.streetAddress,
           actions: [
-            if (canDelete)
+            if (canUpdate || canDelete)
               EntityActionMenu.header(
                 actions: [
-                  EntityAction.delete(() async {
-                    final confirmed = await showConfirmDialog(
-                      context,
-                      title: 'Radera bostad',
-                      message:
-                          'Är du säker på att du vill radera denna bostad?',
-                      okLabel: 'Radera',
-                      okColor: Colors.red,
-                    );
-                    if (confirmed) {
-                      await residencesStore.deleteResidence(residence.id);
-                      final ctx = contextRef.value;
-                      if (ctx != null && ctx.mounted) Navigator.of(ctx).pop();
-                    }
-                  }),
+                  if (canUpdate)
+                    EntityAction.update(() {
+                      context.push(
+                        '${CreateResidencePage.editPath}/${residence.id}',
+                      );
+                    }),
+                  if (canDelete)
+                    EntityAction.delete(() async {
+                      final confirmed = await showConfirmDialog(
+                        context,
+                        title: 'Radera bostad',
+                        message:
+                            'Är du säker på att du vill radera denna bostad?',
+                        okLabel: 'Radera',
+                        okColor: Colors.red,
+                      );
+                      if (confirmed) {
+                        await residencesStore.deleteResidence(residence.id);
+                        final ctx = contextRef.value;
+                        if (ctx != null && ctx.mounted) {
+                          Navigator.of(ctx).pop();
+                        }
+                      }
+                    }),
                 ],
               ),
           ],
@@ -110,6 +130,40 @@ class ResidenceDetailPage extends CompositionWidget {
                               Icons.calendar_today,
                               'Inflyttningsdatum: ${residence.moveInDate}',
                             ),
+                          const SizedBox(height: 16),
+                          const Divider(),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Boende',
+                            style: Theme.of(context).textTheme.titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          if (residence.users.isEmpty)
+                            Text(
+                              'Inga boende tilldelade.',
+                              style: TextStyle(color: Colors.grey[600]),
+                            )
+                          else
+                            ...residence.users.map((userId) {
+                              final user = associationUsers.value
+                                  .where((u) => u.id == userId)
+                                  .firstOrNull;
+                              return ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: const CircleAvatar(
+                                  child: Icon(Icons.person),
+                                ),
+                                title: Text(
+                                  user?.name.isNotEmpty == true
+                                      ? user!.name
+                                      : (user?.email ?? 'Okänd användare'),
+                                ),
+                                subtitle: user?.email != null
+                                    ? Text(user!.email!)
+                                    : null,
+                              );
+                            }),
                         ],
                       ),
                     ),
@@ -129,6 +183,9 @@ class ResidenceDetailPage extends CompositionWidget {
                               return Card(
                                 clipBehavior: Clip.antiAlias,
                                 child: ListTile(
+                                  onTap: () => context.push(
+                                    '${IssueDetailPage.path}/${issue.id}',
+                                  ),
                                   leading: Icon(
                                     issue.isResolved
                                         ? Icons.check_circle
@@ -151,6 +208,7 @@ class ResidenceDetailPage extends CompositionWidget {
                                       fontSize: 12,
                                     ),
                                   ),
+                                  trailing: const Icon(Icons.chevron_right),
                                 ),
                               );
                             },

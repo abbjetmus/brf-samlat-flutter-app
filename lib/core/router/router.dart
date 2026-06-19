@@ -25,7 +25,7 @@ import '../../features/parking/pages/parking_lots_list_page.dart';
 import '../../features/parking/pages/parking_lot_detail_page.dart';
 import '../../features/parking/pages/create_parking_lot_page.dart';
 import '../../features/folders/pages/folders_page.dart';
-import '../../features/board/pages/board_meetings_list_page.dart';
+import '../../features/board/pages/board_details_page.dart';
 import '../../features/board/pages/board_meeting_detail_page.dart';
 import '../../features/board/pages/create_board_meeting_page.dart';
 import '../../features/users/pages/users_list_page.dart';
@@ -160,6 +160,12 @@ final router = GoRouter(
       path: CreateResidencePage.path,
       builder: (context, state) => const CreateResidencePage(),
     ),
+    GoRoute(
+      path: '${CreateResidencePage.editPath}/:id',
+      builder: (context, state) => CreateResidencePage(
+        residenceId: state.pathParameters['id']!,
+      ),
+    ),
     // Parking
     GoRoute(
       path: ParkingLotsListPage.path,
@@ -175,6 +181,12 @@ final router = GoRouter(
       path: CreateParkingLotPage.path,
       builder: (context, state) => const CreateParkingLotPage(),
     ),
+    GoRoute(
+      path: '${CreateParkingLotPage.editPath}/:id',
+      builder: (context, state) => CreateParkingLotPage(
+        parkingLotId: state.pathParameters['id']!,
+      ),
+    ),
     // Folders & Files
     GoRoute(
       path: FoldersPage.path,
@@ -182,8 +194,8 @@ final router = GoRouter(
     ),
     // Board Meetings
     GoRoute(
-      path: BoardMeetingsListPage.path,
-      builder: (context, state) => const BoardMeetingsListPage(),
+      path: BoardDetailsPage.path,
+      builder: (context, state) => const BoardDetailsPage(),
     ),
     GoRoute(
       path: '${BoardMeetingDetailPage.path}/:id',

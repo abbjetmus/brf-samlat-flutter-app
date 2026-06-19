@@ -7,6 +7,7 @@ import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/rich_description.dart';
 
 class BoardMeetingDetailPage extends CompositionWidget {
   static const String path = '/board/detail';
@@ -178,40 +179,9 @@ class BoardMeetingDetailPage extends CompositionWidget {
               if (meeting.meetingAgenda != null &&
                   meeting.meetingAgenda!.isNotEmpty) ...[
                 const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Dagordning',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ...meeting.meetingAgenda!.asMap().entries.map((entry) {
-                        final index = entry.key + 1;
-                        final item = entry.value;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$index. ',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              Expanded(child: Text('$item')),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
+                _MeetingItemsSection(
+                  title: 'Dagordning',
+                  items: meeting.meetingAgenda!,
                 ),
               ],
 
@@ -219,40 +189,9 @@ class BoardMeetingDetailPage extends CompositionWidget {
               if (meeting.meetingProtocol != null &&
                   meeting.meetingProtocol!.isNotEmpty) ...[
                 const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Mötesprotokoll',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ...meeting.meetingProtocol!.asMap().entries.map((entry) {
-                        final index = entry.key + 1;
-                        final item = entry.value;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 4),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '$index. ',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              Expanded(child: Text('$item')),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
+                _MeetingItemsSection(
+                  title: 'Mötesprotokoll',
+                  items: meeting.meetingProtocol!,
                 ),
               ],
             ],
@@ -260,5 +199,67 @@ class BoardMeetingDetailPage extends CompositionWidget {
         ),
       );
     };
+  }
+}
+
+/// Renders a meeting agenda/protocol section. Each entry is a template item
+/// (`{question, hint, answer}` where `answer` is rich-text HTML); plain string
+/// entries are supported for backwards compatibility.
+class _MeetingItemsSection extends StatelessWidget {
+  const _MeetingItemsSection({required this.title, required this.items});
+
+  final String title;
+  final List<dynamic> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          ...items.asMap().entries.map((entry) {
+            final index = entry.key + 1;
+            final item = entry.value;
+
+            String question = '';
+            String answer = '';
+            if (item is Map) {
+              question = (item['question'] as String?)?.trim() ?? '';
+              answer = (item['answer'] as String?)?.trim() ?? '';
+            } else {
+              answer = '$item';
+            }
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (question.isNotEmpty)
+                    Text(
+                      '$index. $question',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  if (answer.isNotEmpty)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        top: question.isNotEmpty ? 4 : 0,
+                        left: question.isNotEmpty ? 16 : 0,
+                      ),
+                      child: RichDescription(html: answer, fontSize: 15),
+                    ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
   }
 }

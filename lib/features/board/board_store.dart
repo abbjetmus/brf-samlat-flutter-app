@@ -32,11 +32,13 @@ class BoardStore {
   late final Paginated<BoardMeetingsRecord> _boardMeetings;
   final _currentMeeting = ref<BoardMeetingsRecord?>(null);
   final _templates = ref<List<BoardMeetingTemplatesRecord>>([]);
+  final _boardMembers = ref<List<UsersRecord>>([]);
   final _loading = ref<bool>(false);
 
   Ref<List<BoardMeetingsRecord>> get boardMeetings => _boardMeetings.items;
   Ref<BoardMeetingsRecord?> get currentMeeting => _currentMeeting;
   Ref<List<BoardMeetingTemplatesRecord>> get templates => _templates;
+  Ref<List<UsersRecord>> get boardMembers => _boardMembers;
   Ref<bool> get loading => _loading;
   Ref<bool> get listLoading => _boardMeetings.loading;
   Ref<bool> get loadingMore => _boardMeetings.loadingMore;
@@ -44,6 +46,55 @@ class BoardStore {
 
   Future<void> getAllBoardMeetings() => _boardMeetings.refresh();
   Future<void> fetchNextBoardMeetings() => _boardMeetings.loadMore();
+
+  /// Board members are the association's users that have at least one
+  /// `association_role_types` role assigned.
+  Future<bool> getBoardMembers() async {
+    try {
+      final assocId = _authStore.association.value?.id ?? '';
+      if (assocId.isEmpty) return false;
+
+      final records = await _pb
+          .collection(Collections.users)
+          .getFullList(
+            filter:
+                'association="$assocId" && association_role_types:length > 0',
+            sort: 'name',
+          );
+      _boardMembers.value = records
+          .map((r) => UsersRecord.fromJson(r.toJson()))
+          .toList();
+      return true;
+    } catch (e) {
+      debugPrint('BoardStore: Error fetching board members: $e');
+      return false;
+    }
+  }
+
+  /// Assigns (or replaces) the association roles for a user, turning them into
+  /// a board member. Passing an empty list removes them from the board.
+  Future<bool> setBoardMemberRoles({
+    required String userId,
+    required List<String> roleTypeIds,
+  }) async {
+    _loading.value = true;
+    try {
+      await _pb
+          .collection(Collections.users)
+          .update(userId, body: {'association_role_types': roleTypeIds});
+      await getBoardMembers();
+      return true;
+    } catch (e) {
+      debugPrint('BoardStore: Error updating board member: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
+  /// Removes a user from the board by clearing their association roles.
+  Future<bool> removeBoardMember(String userId) =>
+      setBoardMemberRoles(userId: userId, roleTypeIds: const []);
 
   Future<bool> getBoardMeeting(String id) async {
     _loading.value = true;
