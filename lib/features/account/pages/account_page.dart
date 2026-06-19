@@ -1,8 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../core/di/injection_keys.dart';
+import '../../../core/models/pocketbase_models.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/file_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/image_thumbnail.dart';
 
 class AccountPage extends CompositionWidget {
   static const String path = '/account';
@@ -20,6 +25,7 @@ class AccountPage extends CompositionWidget {
 
     final loading = ref(false);
     final contextRef = useContext();
+    final imagePicker = ImagePicker();
 
     onMounted(() {
       final user = authStore.currentUser.value;
@@ -28,6 +34,49 @@ class AccountPage extends CompositionWidget {
         emailController.text = user.email ?? '';
       }
     });
+
+    String? avatarUrl(UsersRecord? user) {
+      if (user == null || user.avatar == null || user.avatar!.isEmpty) {
+        return null;
+      }
+      return getImageUrl(Collections.users, user.id, user.avatar!);
+    }
+
+    Future<void> handleImage(File? file) async {
+      loading.value = true;
+      // An empty list tells the store to clear the avatar.
+      final success = await authStore.updateUserImage(file ?? []);
+      loading.value = false;
+
+      final context = contextRef.value;
+      if (context != null && context.mounted) {
+        final removing = file == null;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? (removing ? 'Profilbild borttagen!' : 'Profilbild uppdaterad!')
+                  : (removing
+                        ? 'Kunde inte ta bort profilbild.'
+                        : 'Kunde inte uppdatera profilbild.'),
+            ),
+            backgroundColor: success ? AppTheme.primaryColor : Colors.red,
+          ),
+        );
+      }
+    }
+
+    Future<void> pickImage() async {
+      final picked = await imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+        maxWidth: 1024,
+        maxHeight: 1024,
+      );
+      if (picked != null) {
+        await handleImage(File(picked.path));
+      }
+    }
 
     Future<void> saveName() async {
       loading.value = true;
@@ -98,13 +147,27 @@ class AccountPage extends CompositionWidget {
       }
     }
 
-    return (context) => GradientScaffold(
+    return (context) {
+      final user = authStore.currentUser.value;
+      return GradientScaffold(
       title: 'Mitt konto',
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Profile image
+            const SizedBox(height: 8),
+            Center(
+              child: ImageThumbnail(
+                size: 140,
+                photoUrl: avatarUrl(user),
+                onPickImage: loading.value ? () {} : pickImage,
+                onRemoveImage: loading.value ? () {} : () => handleImage(null),
+              ),
+            ),
+            const SizedBox(height: 24),
+
             // Name section
             Card(
               child: Padding(
@@ -212,5 +275,6 @@ class AccountPage extends CompositionWidget {
         ),
       ),
     );
+    };
   }
 }
