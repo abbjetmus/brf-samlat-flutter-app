@@ -46,8 +46,13 @@ class CommentsList extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: FilledButton.icon(
             onPressed: () => _showAddCommentDialog(context),
-            icon: const Icon(Icons.add_comment_outlined),
+            icon: const Icon(Icons.add_comment_outlined, size: 18),
             label: const Text('Kommentera'),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
           ),
         ),
 
@@ -64,10 +69,11 @@ class CommentsList extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: comments.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
+            separatorBuilder: (_, _) => const Divider(height: 1),
             itemBuilder: (context, index) {
               final comment = comments[index];
-              final isOwn = currentUserId != null && comment.userId == currentUserId;
+              final isOwn =
+                  currentUserId != null && comment.userId == currentUserId;
 
               return ListTile(
                 leading: CircleAvatar(
@@ -81,7 +87,10 @@ class CommentsList extends StatelessWidget {
                   children: [
                     Text(
                       comment.userName ?? 'Okänd',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -109,7 +118,10 @@ class CommentsList extends StatelessWidget {
                           if (onDeleteComment != null)
                             const PopupMenuItem(
                               value: 'delete',
-                              child: Text('Radera', style: TextStyle(color: Colors.red)),
+                              child: Text(
+                                'Radera',
+                                style: TextStyle(color: Colors.red),
+                              ),
                             ),
                         ],
                       )
@@ -163,9 +175,7 @@ class CommentsList extends StatelessWidget {
         content: TextField(
           controller: controller,
           maxLines: 4,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
         actions: [
           TextButton(

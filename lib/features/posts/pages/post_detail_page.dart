@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/comments_list.dart';
+import '../../../shared/widgets/status_chip.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/rich_description.dart';
@@ -93,12 +94,12 @@ class PostDetailPage extends CompositionWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (post.pinAsGeneralInfo)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Chip(
-                          avatar: const Icon(Icons.push_pin, size: 16),
-                          label: const Text('Allmän information'),
-                          backgroundColor: Colors.orange.shade50,
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 8),
+                        child: StatusChip(
+                          icon: Icons.push_pin,
+                          label: 'Allmän information',
+                          tone: StatusTone.warning,
                         ),
                       ),
                     Text(

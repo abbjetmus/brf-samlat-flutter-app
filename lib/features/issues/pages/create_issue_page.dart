@@ -3,6 +3,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/rich_text_editor.dart';
 
 class CreateIssuePage extends CompositionWidget {
   static const String path = '/issues/create';
@@ -22,16 +23,19 @@ class CreateIssuePage extends CompositionWidget {
         : null;
 
     final (titleController, _, __) = useTextEditingController();
-    final (descriptionController, ___, ____) = useTextEditingController();
     final issueType = ref<String>(existing?.type ?? 'Felanmälan');
     final commentsAllowed = ref(existing?.commentsAllowed ?? true);
     final consentToMasterKey = ref(existing?.consentToMasterKey ?? false);
     final loading = ref(false);
     final contextRef = useContext();
 
+    // Description is rich text (HTML). Hold the current HTML and only mount the
+    // editor once the initial content is known (it can load late on deep-links).
+    var descriptionHtml = existing?.description ?? '';
+    final descriptionReady = ref(!isEdit || existing != null);
+
     if (existing != null) {
       titleController.text = existing.title;
-      descriptionController.text = existing.description;
     }
 
     onMounted(() async {
@@ -41,31 +45,32 @@ class CreateIssuePage extends CompositionWidget {
         final issue = issuesStore.currentIssue.value;
         if (issue != null && issue.id == issueId) {
           titleController.text = issue.title;
-          descriptionController.text = issue.description;
+          descriptionHtml = issue.description;
           issueType.value = issue.type ?? 'Felanmälan';
           commentsAllowed.value = issue.commentsAllowed;
           consentToMasterKey.value = issue.consentToMasterKey ?? false;
         }
+        descriptionReady.value = true;
       }
     });
 
     Future<void> saveIssue() async {
       if (titleController.text.trim().isEmpty) return;
-      if (descriptionController.text.trim().isEmpty) return;
+      if (htmlIsEmpty(descriptionHtml)) return;
 
       loading.value = true;
       final success = isEdit
           ? await issuesStore.updateIssue(
               id: issueId!,
               title: titleController.text.trim(),
-              description: descriptionController.text.trim(),
+              description: descriptionHtml,
               type: issueType.value,
               commentsAllowed: commentsAllowed.value,
               consentToMasterKey: consentToMasterKey.value,
             )
           : await issuesStore.createIssue(
               title: titleController.text.trim(),
-              description: descriptionController.text.trim(),
+              description: descriptionHtml,
               type: issueType.value,
               commentsAllowed: commentsAllowed.value,
               consentToMasterKey: consentToMasterKey.value,
@@ -118,7 +123,10 @@ class CreateIssuePage extends CompositionWidget {
                   border: OutlineInputBorder(),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'Felanmälan', child: Text('Felanmälan')),
+                  DropdownMenuItem(
+                    value: 'Felanmälan',
+                    child: Text('Felanmälan'),
+                  ),
                   DropdownMenuItem(value: 'Ärende', child: Text('Ärende')),
                 ],
                 onChanged: (value) {
@@ -134,41 +142,54 @@ class CreateIssuePage extends CompositionWidget {
                 ),
               ),
               const SizedBox(height: 16),
-            TextFormField(
-              controller: descriptionController,
-              maxLines: 8,
-              decoration: const InputDecoration(
-                labelText: 'Beskrivning',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
+              Text(
+                'Beskrivning',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).hintColor,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            SwitchListTile(
-              title: const Text('Tillåt kommentarer'),
-              value: commentsAllowed.value,
-              onChanged: (v) => commentsAllowed.value = v,
-            ),
-            SwitchListTile(
-              title: const Text('Samtycke till huvudnyckel'),
-              subtitle: const Text('Ge tillgång med huvudnyckel till bostaden'),
-              value: consentToMasterKey.value,
-              onChanged: (v) => consentToMasterKey.value = v,
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: loading.value ? null : saveIssue,
-              child: loading.value
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : Text(isEdit ? 'Spara ändringar' : 'Skapa $noun'),
-            ),
-          ],
+              const SizedBox(height: 8),
+              if (descriptionReady.value)
+                RichTextEditor(
+                  initialHtml: descriptionHtml,
+                  onChanged: (html) => descriptionHtml = html,
+                )
+              else
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              const SizedBox(height: 16),
+              SwitchListTile(
+                title: const Text('Tillåt kommentarer'),
+                value: commentsAllowed.value,
+                onChanged: (v) => commentsAllowed.value = v,
+              ),
+              SwitchListTile(
+                title: const Text('Samtycke till huvudnyckel'),
+                subtitle: const Text(
+                  'Ge tillgång med huvudnyckel till bostaden',
+                ),
+                value: consentToMasterKey.value,
+                onChanged: (v) => consentToMasterKey.value = v,
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: loading.value ? null : saveIssue,
+                child: loading.value
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(isEdit ? 'Spara ändringar' : 'Skapa $noun'),
+              ),
+            ],
+          ),
         ),
-      ),
       );
     };
   }

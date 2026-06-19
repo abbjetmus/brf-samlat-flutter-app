@@ -9,6 +9,7 @@ import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/rich_description.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/status_chip.dart';
 import 'create_issue_page.dart';
 
 class IssueDetailPage extends CompositionWidget {
@@ -109,28 +110,22 @@ class IssueDetailPage extends CompositionWidget {
                     // Type + status chips
                     Wrap(
                       spacing: 8,
+                      runSpacing: 8,
                       children: [
-                        Chip(
-                          label: Text(issue.type ?? 'Felanmälan'),
-                          backgroundColor:
-                              (issue.type ?? 'Felanmälan') == 'Ärende'
-                              ? Colors.blue.shade50
-                              : Colors.orange.shade50,
+                        StatusChip(
+                          label: issue.type ?? 'Felanmälan',
+                          tone: (issue.type ?? 'Felanmälan') == 'Ärende'
+                              ? StatusTone.info
+                              : StatusTone.warning,
                         ),
-                        Chip(
-                          avatar: Icon(
-                            issue.isResolved
-                                ? Icons.check_circle
-                                : Icons.report_problem,
-                            size: 16,
-                            color: issue.isResolved
-                                ? Colors.green
-                                : Colors.orange,
-                          ),
-                          label: Text(issue.isResolved ? 'Löst' : 'Öppen'),
-                          backgroundColor: issue.isResolved
-                              ? Colors.green.shade50
-                              : Colors.orange.shade50,
+                        StatusChip(
+                          icon: issue.isResolved
+                              ? Icons.check_circle
+                              : Icons.report_problem,
+                          label: issue.isResolved ? 'Löst' : 'Öppen',
+                          tone: issue.isResolved
+                              ? StatusTone.success
+                              : StatusTone.warning,
                         ),
                       ],
                     ),
@@ -149,10 +144,10 @@ class IssueDetailPage extends CompositionWidget {
                     ),
                     if (issue.consentToMasterKey == true) ...[
                       const SizedBox(height: 8),
-                      Chip(
-                        avatar: const Icon(Icons.key, size: 16),
-                        label: const Text('Samtycke till huvudnyckel'),
-                        backgroundColor: Colors.blue.shade50,
+                      const StatusChip(
+                        icon: Icons.key,
+                        label: 'Samtycke till huvudnyckel',
+                        tone: StatusTone.info,
                       ),
                     ],
                   ],

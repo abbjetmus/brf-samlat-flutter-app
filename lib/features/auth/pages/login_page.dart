@@ -132,19 +132,24 @@ class LoginPage extends CompositionWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         if (authError.value != null)
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            margin: const EdgeInsets.only(bottom: 16),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red),
-                            ),
-                            child: Text(
-                              authError.value!,
-                              style: const TextStyle(color: Colors.red),
-                              textAlign: TextAlign.center,
-                            ),
+                          Builder(
+                            builder: (context) {
+                              final error = Theme.of(context).colorScheme.error;
+                              return Container(
+                                padding: const EdgeInsets.all(12),
+                                margin: const EdgeInsets.only(bottom: 16),
+                                decoration: BoxDecoration(
+                                  color: error.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: error),
+                                ),
+                                child: Text(
+                                  authError.value!,
+                                  style: TextStyle(color: error),
+                                  textAlign: TextAlign.center,
+                                ),
+                              );
+                            },
                           ),
 
                         TextFormField(

@@ -86,6 +86,14 @@ class IssuesListPage extends CompositionWidget {
                                 const SizedBox(height: 4),
                             itemBuilder: (context, index) {
                               final issue = filteredIssues[index];
+                              final isDark =
+                                  Theme.of(context).brightness ==
+                                  Brightness.dark;
+                              final isErrand =
+                                  (issue.type ?? 'Felanmälan') == 'Ärende';
+                              final typeSwatch = isErrand
+                                  ? Colors.blue
+                                  : Colors.orange;
                               return Card(
                                 clipBehavior: Clip.antiAlias,
                                 child: ListTile(
@@ -110,12 +118,9 @@ class IssuesListPage extends CompositionWidget {
                                           vertical: 1,
                                         ),
                                         decoration: BoxDecoration(
-                                          color:
-                                              ((issue.type ?? 'Felanmälan') ==
-                                                          'Ärende'
-                                                      ? Colors.blue
-                                                      : Colors.orange)
-                                                  .withValues(alpha: 0.15),
+                                          color: typeSwatch.withValues(
+                                            alpha: isDark ? 0.25 : 0.15,
+                                          ),
                                           borderRadius: BorderRadius.circular(
                                             4,
                                           ),
@@ -124,11 +129,9 @@ class IssuesListPage extends CompositionWidget {
                                           issue.type ?? 'Felanmälan',
                                           style: TextStyle(
                                             fontSize: 11,
-                                            color:
-                                                (issue.type ?? 'Felanmälan') ==
-                                                    'Ärende'
-                                                ? Colors.blue.shade800
-                                                : Colors.orange.shade900,
+                                            color: isDark
+                                                ? typeSwatch.shade200
+                                                : typeSwatch.shade900,
                                           ),
                                         ),
                                       ),

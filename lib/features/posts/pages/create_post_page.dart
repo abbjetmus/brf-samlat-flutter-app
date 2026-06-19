@@ -3,6 +3,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/rich_text_editor.dart';
 
 class CreatePostPage extends CompositionWidget {
   static const String path = '/posts/create';
@@ -22,16 +23,19 @@ class CreatePostPage extends CompositionWidget {
         : null;
 
     final (titleController, _, __) = useTextEditingController();
-    final (descriptionController, ___, ____) = useTextEditingController();
     final commentsAllowed = ref(existing?.commentsAllowed ?? true);
     final pinAsGeneralInfo = ref(existing?.pinAsGeneralInfo ?? false);
     final addToCalendar = ref(existing?.addToCalendar ?? false);
     final loading = ref(false);
     final contextRef = useContext();
 
+    // Description is rich text (HTML). Hold the current HTML and only mount the
+    // editor once the initial content is known (it can load late on deep-links).
+    var descriptionHtml = existing?.description ?? '';
+    final descriptionReady = ref(!isEdit || existing != null);
+
     if (existing != null) {
       titleController.text = existing.title;
-      descriptionController.text = existing.description;
     }
 
     onMounted(() async {
@@ -41,31 +45,32 @@ class CreatePostPage extends CompositionWidget {
         final post = postsStore.currentPost.value;
         if (post != null && post.id == postId) {
           titleController.text = post.title;
-          descriptionController.text = post.description;
+          descriptionHtml = post.description;
           commentsAllowed.value = post.commentsAllowed;
           pinAsGeneralInfo.value = post.pinAsGeneralInfo;
           addToCalendar.value = post.addToCalendar;
         }
+        descriptionReady.value = true;
       }
     });
 
     Future<void> savePost() async {
       if (titleController.text.trim().isEmpty) return;
-      if (descriptionController.text.trim().isEmpty) return;
+      if (htmlIsEmpty(descriptionHtml)) return;
 
       loading.value = true;
       final success = isEdit
           ? await postsStore.updatePost(
               id: postId!,
               title: titleController.text.trim(),
-              description: descriptionController.text.trim(),
+              description: descriptionHtml,
               commentsAllowed: commentsAllowed.value,
               pinAsGeneralInfo: pinAsGeneralInfo.value,
               addToCalendar: addToCalendar.value,
             )
           : await postsStore.createPost(
               title: titleController.text.trim(),
-              description: descriptionController.text.trim(),
+              description: descriptionHtml,
               commentsAllowed: commentsAllowed.value,
               pinAsGeneralInfo: pinAsGeneralInfo.value,
               addToCalendar: addToCalendar.value,
@@ -86,7 +91,9 @@ class CreatePostPage extends CompositionWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                isEdit ? 'Kunde inte uppdatera nyhet.' : 'Kunde inte skapa nyhet.',
+                isEdit
+                    ? 'Kunde inte uppdatera nyhet.'
+                    : 'Kunde inte skapa nyhet.',
               ),
               backgroundColor: Colors.red,
             ),
@@ -110,15 +117,23 @@ class CreatePostPage extends CompositionWidget {
               ),
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: descriptionController,
-              maxLines: 8,
-              decoration: const InputDecoration(
-                labelText: 'Beskrivning',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
+            Text(
+              'Beskrivning',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).hintColor,
               ),
             ),
+            const SizedBox(height: 8),
+            if (descriptionReady.value)
+              RichTextEditor(
+                initialHtml: descriptionHtml,
+                onChanged: (html) => descriptionHtml = html,
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
             const SizedBox(height: 16),
             SwitchListTile(
               title: const Text('Tillåt kommentarer'),
@@ -142,7 +157,10 @@ class CreatePostPage extends CompositionWidget {
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : Text(isEdit ? 'Spara ändringar' : 'Skapa nyhet'),
             ),

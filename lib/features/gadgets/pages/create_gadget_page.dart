@@ -3,6 +3,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/rich_text_editor.dart';
 
 class CreateGadgetPage extends CompositionWidget {
   static const String path = '/gadgets/create';
@@ -13,7 +14,6 @@ class CreateGadgetPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final gadgetsStore = inject(gadgetsStoreKey);
     final (nameController, _, __) = useTextEditingController();
-    final (descriptionController, a1, a2) = useTextEditingController();
     final (streetController, a3, a4) = useTextEditingController();
     final (zipController, a5, a6) = useTextEditingController();
     final (localityController, a7, a8) = useTextEditingController();
@@ -22,6 +22,9 @@ class CreateGadgetPage extends CompositionWidget {
     final (slotLengthController, a13, a14) = useTextEditingController();
     final loading = ref(false);
     final contextRef = useContext();
+
+    // Description is rich text (HTML), edited via the WYSIWYG editor.
+    var descriptionHtml = '';
 
     startTimeController.text = '08:00';
     endTimeController.text = '22:00';
@@ -34,7 +37,7 @@ class CreateGadgetPage extends CompositionWidget {
       loading.value = true;
       final success = await gadgetsStore.createGadget(
         name: nameController.text.trim(),
-        description: descriptionController.text.trim(),
+        description: descriptionHtml,
         streetAddress: streetController.text.trim(),
         zipCode: zipController.text.trim(),
         locality: localityController.text.trim(),
@@ -81,14 +84,16 @@ class CreateGadgetPage extends CompositionWidget {
               ),
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: descriptionController,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                labelText: 'Beskrivning',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
+            Text(
+              'Beskrivning',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).hintColor,
               ),
+            ),
+            const SizedBox(height: 8),
+            RichTextEditor(
+              initialHtml: descriptionHtml,
+              onChanged: (html) => descriptionHtml = html,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -163,7 +168,10 @@ class CreateGadgetPage extends CompositionWidget {
                   ? const SizedBox(
                       height: 20,
                       width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Text('Skapa pryl'),
             ),
