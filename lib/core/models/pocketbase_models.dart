@@ -137,6 +137,9 @@ class AssociationsRecord {
   final String? email;
   final List<dynamic>? permissions;
 
+  /// Feature tokens this association has switched off (denylist). Empty = all on.
+  final List<String> disabledFeatures;
+
   AssociationsRecord({
     required this.id,
     this.created,
@@ -149,6 +152,7 @@ class AssociationsRecord {
     required this.locality,
     this.email,
     this.permissions,
+    this.disabledFeatures = const [],
   });
 
   factory AssociationsRecord.fromJson(Map<String, dynamic> json) {
@@ -164,6 +168,11 @@ class AssociationsRecord {
       locality: json['locality'] as String? ?? '',
       email: json['email'] as String?,
       permissions: json['permissions'] as List<dynamic>?,
+      disabledFeatures: (json['disabled_features'] is List)
+          ? (json['disabled_features'] as List)
+                .map((e) => e.toString())
+                .toList()
+          : const [],
     );
   }
 }

@@ -207,6 +207,12 @@ class CalendarPage extends CompositionWidget {
 
       return GradientScaffold(
         title: 'Kalender',
+        // Keep the calendar at full height when the keyboard opens for the
+        // create-event dialog. Resizing the body squeezes SfCalendar into a
+        // tiny height, which makes Syncfusion throw a layout assertion and
+        // crash. The dialog floats above the keyboard and scrolls its own
+        // content, so it doesn't need the page to shrink.
+        resizeToAvoidBottomInset: false,
         floatingActionButton: canCreate
             ? FloatingActionButton(
                 onPressed: showCreateEventDialog,

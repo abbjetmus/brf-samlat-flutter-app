@@ -211,6 +211,33 @@ class AuthStore {
     }
   }
 
+  /// Whether [featureToken] is switched on for the current association. A token
+  /// listed in the association's `disabled_features` is off for everyone.
+  bool isFeatureEnabled(String featureToken) {
+    final disabled = _association.value?.disabledFeatures ?? const [];
+    return !disabled.contains(featureToken);
+  }
+
+  /// Persists the association's full `disabled_features` denylist, then updates
+  /// the local association so menus react immediately.
+  Future<bool> updateDisabledFeatures(List<String> disabledFeatures) async {
+    final association = _association.value;
+    if (association == null) return false;
+    try {
+      final record = await _pb
+          .collection(Collections.associations)
+          .update(
+            association.id,
+            body: {'disabled_features': disabledFeatures},
+          );
+      _association.value = AssociationsRecord.fromJson(record.toJson());
+      return true;
+    } catch (e) {
+      debugPrint('AuthStore: Error updating disabled features: $e');
+      return false;
+    }
+  }
+
   /// Persists a single role's allowed operations for [menuName] back to the
   /// association's `permissions` field, then refreshes the local matrix.
   Future<bool> updateRolePermission(

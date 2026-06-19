@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/app_features.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/app_bottom_sheet.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
@@ -20,7 +21,8 @@ const _menuLabels = <String, String>{
   'residences': 'Bostäder',
   'parking_lots': 'Parkeringar',
   'folders_and_files': 'Dokument',
-  'board_meetings': 'Styrelsen',
+  'board': 'Styrelsen',
+  'board_meetings': 'Styrelsemöten',
   'users': 'Användare',
   'user_role_types': 'Behörigheter',
   'invoices': 'Fakturor',
@@ -38,6 +40,7 @@ class PermissionsPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final authStore = inject(authStoreKey);
     final searchQuery = ref('');
+    final savingFeatures = ref(false);
 
     onMounted(() {
       // Ensure the matrix and role names are available even on a cold start
@@ -415,47 +418,93 @@ class PermissionsPage extends CompositionWidget {
         );
       }
 
-      if (menus.isEmpty) {
-        return const GradientScaffold(
-          title: 'Behörigheter',
-          body: Center(
-            child: Padding(
-              padding: EdgeInsets.all(32),
-              child: Text(
-                'Inga behörigheter att visa ännu.',
-                textAlign: TextAlign.center,
+      // ---- Funktioner tab: feature on/off toggles for the association ----
+      Widget featuresTab() {
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          children: [
+            Text(
+              'Slå av funktioner som föreningen inte använder. '
+              'Avstängda döljs för alla.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.hintColor,
               ),
             ),
-          ),
+            const SizedBox(height: 8),
+            for (final f in toggleableFeatures)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(f.label),
+                value: authStore.isFeatureEnabled(f.token),
+                onChanged: (!canEdit || savingFeatures.value)
+                    ? null
+                    : (enabled) async {
+                        savingFeatures.value = true;
+                        final disabled = {
+                          ...?authStore.association.value?.disabledFeatures,
+                        };
+                        if (enabled) {
+                          disabled.remove(f.token);
+                        } else {
+                          disabled.add(f.token);
+                        }
+                        final ok = await authStore.updateDisabledFeatures(
+                          disabled.toList(),
+                        );
+                        savingFeatures.value = false;
+                        showResult(
+                          ok,
+                          'Funktioner uppdaterade',
+                          'Kunde inte uppdatera funktioner',
+                        );
+                      },
+              ),
+          ],
         );
       }
 
-      // Show menus in a stable, human-friendly order (known tokens first).
-      final ordered = [...menus]
-        ..sort((a, b) {
-          final ia = _menuLabels.keys.toList().indexOf(a.name);
-          final ib = _menuLabels.keys.toList().indexOf(b.name);
-          return (ia == -1 ? 999 : ia).compareTo(ib == -1 ? 999 : ib);
-        });
+      // ---- Rättigheter tab: per-role permission matrix ----
+      Widget permissionsTab() {
+        if (menus.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Text(
+                'Inga behörigheter att visa ännu.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.hintColor,
+                ),
+              ),
+            ),
+          );
+        }
 
-      // Filter by the menu label/token or any role name within it.
-      final query = searchQuery.value.trim().toLowerCase();
-      final filtered = query.isEmpty
-          ? ordered
-          : ordered.where((menu) {
-              final label = (_menuLabels[menu.name] ?? menu.name).toLowerCase();
-              if (label.contains(query) ||
-                  menu.name.toLowerCase().contains(query)) {
-                return true;
-              }
-              return menu.permissions.any(
-                (p) => roleName(p).toLowerCase().contains(query),
-              );
-            }).toList();
+        // Show menus in a stable, human-friendly order (known tokens first).
+        final ordered = [...menus]
+          ..sort((a, b) {
+            final ia = _menuLabels.keys.toList().indexOf(a.name);
+            final ib = _menuLabels.keys.toList().indexOf(b.name);
+            return (ia == -1 ? 999 : ia).compareTo(ib == -1 ? 999 : ib);
+          });
 
-      return GradientScaffold(
-        title: 'Behörigheter',
-        body: Column(
+        // Filter by the menu label/token or any role name within it.
+        final query = searchQuery.value.trim().toLowerCase();
+        final filtered = query.isEmpty
+            ? ordered
+            : ordered.where((menu) {
+                final label = (_menuLabels[menu.name] ?? menu.name)
+                    .toLowerCase();
+                if (label.contains(query) ||
+                    menu.name.toLowerCase().contains(query)) {
+                  return true;
+                }
+                return menu.permissions.any(
+                  (p) => roleName(p).toLowerCase().contains(query),
+                );
+              }).toList();
+
+        return Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -471,17 +520,16 @@ class PermissionsPage extends CompositionWidget {
                   vertical: 8,
                 ),
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
-                    child: Text(
-                      canEdit
-                          ? 'Översikt över vilka roller som får göra vad. Tryck på en roll för att ändra.'
-                          : 'Översikt över vilka roller som får göra vad i föreningen.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.hintColor,
+                  if (canEdit)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 12),
+                      child: Text(
+                        'Tryck på en roll för att ändra.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.hintColor,
+                        ),
                       ),
                     ),
-                  ),
                   if (filtered.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 32),
@@ -617,6 +665,26 @@ class PermissionsPage extends CompositionWidget {
               ),
             ),
           ],
+        );
+      }
+
+      return DefaultTabController(
+        length: 2,
+        child: GradientScaffold(
+          title: 'Behörigheter',
+          body: Column(
+            children: [
+              const TabBar(
+                tabs: [
+                  Tab(text: 'Funktioner'),
+                  Tab(text: 'Rättigheter'),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(children: [featuresTab(), permissionsTab()]),
+              ),
+            ],
+          ),
         ),
       );
     };

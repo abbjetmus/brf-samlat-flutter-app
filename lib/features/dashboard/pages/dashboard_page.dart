@@ -16,12 +16,17 @@ class _MenuItem {
   final Color color;
   final String? permissionName;
 
+  /// Feature toggle token for show/hide. Defaults to [permissionName] when null
+  /// (set explicitly when the section's feature token differs, e.g. board).
+  final String? featureName;
+
   const _MenuItem({
     required this.label,
     required this.icon,
     required this.path,
     required this.color,
     this.permissionName,
+    this.featureName,
   });
 }
 
@@ -43,15 +48,11 @@ class DashboardPage extends CompositionWidget {
     // mounts), so getGeneralInfoList() in onMounted can run before it's set and
     // return nothing. (Re)fetch the pinned general-info posts whenever the
     // association id becomes available or changes.
-    watch(
-      () => authStore.association.value?.id,
-      (assocId, _) {
-        if (assocId != null && assocId.isNotEmpty) {
-          dashboardStore.getGeneralInfoList();
-        }
-      },
-      immediate: true,
-    );
+    watch(() => authStore.association.value?.id, (assocId, _) {
+      if (assocId != null && assocId.isNotEmpty) {
+        dashboardStore.getGeneralInfoList();
+      }
+    }, immediate: true);
 
     const menuItems = [
       _MenuItem(
@@ -123,6 +124,7 @@ class DashboardPage extends CompositionWidget {
         path: '/board',
         color: Color(0xFF0EA5E9),
         permissionName: 'board_meetings',
+        featureName: 'board',
       ),
       _MenuItem(
         label: 'Användare',
@@ -166,13 +168,16 @@ class DashboardPage extends CompositionWidget {
       final notSeenCount = dashboardStore.notSeenCount.value;
       final generalInfoList = dashboardStore.generalInfoList.value;
 
-      // Filter menu items based on permissions
+      // Filter menu items: association feature toggles, then per-role read
+      // permission.
       final visibleItems = menuItems.where((item) {
-        if (item.permissionName == null) return true;
-        return authStore.hasPermission(
-          item.permissionName!,
-          CrudOperation.read,
-        );
+        final permission = item.permissionName;
+        if (permission == null) return true;
+        // Feature toggle token may differ from the permission token (e.g. board).
+        if (!authStore.isFeatureEnabled(item.featureName ?? permission)) {
+          return false;
+        }
+        return authStore.hasPermission(permission, CrudOperation.read);
       }).toList();
 
       return Scaffold(
