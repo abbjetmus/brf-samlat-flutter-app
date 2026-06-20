@@ -4,10 +4,12 @@
 # Usage: ./scripts/increment_version.sh [major|minor|patch|build]
 # Default: build (increments build number/version code)
 #
-# In this project both platforms read the version from pubspec.yaml via Flutter:
-#   - Android: android/app/build.gradle.kts uses flutter.versionCode / flutter.versionName
-#   - iOS:     ios/Runner/Info.plist uses $(FLUTTER_BUILD_NAME) / $(FLUTTER_BUILD_NUMBER)
-# So we only need to update pubspec.yaml here.
+# Android reads the version from pubspec.yaml via Flutter:
+#   - android/app/build.gradle.kts uses flutter.versionCode / flutter.versionName
+# iOS does NOT pick up bumps reliably from pubspec alone (Xcode/App Store read the
+# hardcoded MARKETING_VERSION / CURRENT_PROJECT_VERSION from project.pbxproj), so we
+# also write the version explicitly into ios/Runner/Info.plist and project.pbxproj,
+# mirroring the NatureOnTrail script.
 
 set -e
 
@@ -96,6 +98,34 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 else
     # Linux
     sed -i "s/^version: .*/version: $NEW_VERSION/" "$PUBSPEC_FILE"
+fi
+
+# Update iOS Info.plist
+INFO_PLIST="ios/Runner/Info.plist"
+if [ -f "$INFO_PLIST" ]; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        plutil -replace CFBundleShortVersionString -string "$NEW_VERSION_NAME" "$INFO_PLIST"
+        plutil -replace CFBundleVersion -string "$NEW_BUILD_NUMBER" "$INFO_PLIST"
+    else
+        # Linux
+        sed -i "/CFBundleShortVersionString/{n;s|<string>.*</string>|<string>$NEW_VERSION_NAME</string>|;}" "$INFO_PLIST"
+        sed -i "/CFBundleVersion/{n;s|<string>.*</string>|<string>$NEW_BUILD_NUMBER</string>|;}" "$INFO_PLIST"
+    fi
+    echo "✓ Version updated in $INFO_PLIST"
+fi
+
+# Update project.pbxproj
+PBXPROJ="ios/Runner.xcodeproj/project.pbxproj"
+if [ -f "$PBXPROJ" ]; then
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s/MARKETING_VERSION = .*/MARKETING_VERSION = $NEW_VERSION_NAME;/" "$PBXPROJ"
+        sed -i '' "s/CURRENT_PROJECT_VERSION = .*/CURRENT_PROJECT_VERSION = $NEW_BUILD_NUMBER;/" "$PBXPROJ"
+    else
+        sed -i "s/MARKETING_VERSION = .*/MARKETING_VERSION = $NEW_VERSION_NAME;/" "$PBXPROJ"
+        sed -i "s/CURRENT_PROJECT_VERSION = .*/CURRENT_PROJECT_VERSION = $NEW_BUILD_NUMBER;/" "$PBXPROJ"
+    fi
+    echo "✓ Version updated in $PBXPROJ"
 fi
 
 echo "✓ Version updated in $PUBSPEC_FILE"
