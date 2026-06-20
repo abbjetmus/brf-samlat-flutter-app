@@ -16,6 +16,14 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
+// Derive the app version straight from pubspec.yaml so it is the single source of
+// truth (scripts/increment_version.sh bumps pubspec; Android picks it up here).
+// This avoids stale `flutter.versionCode/Name` overrides in local.properties.
+val pubspecMatch = Regex("""(?m)^version:\s*([0-9]+\.[0-9]+\.[0-9]+)\+([0-9]+)""")
+    .find(rootProject.file("../pubspec.yaml").readText())
+val pubspecVersionName = pubspecMatch?.groupValues?.get(1) ?: flutter.versionName
+val pubspecVersionCode = pubspecMatch?.groupValues?.get(2)?.toInt() ?: flutter.versionCode
+
 android {
     namespace = "se.brfsamlat.app"
     compileSdk = flutter.compileSdkVersion
@@ -38,8 +46,8 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        versionCode = pubspecVersionCode
+        versionName = pubspecVersionName
     }
 
     signingConfigs {

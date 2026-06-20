@@ -4,8 +4,9 @@
 # Usage: ./scripts/increment_version.sh [major|minor|patch|build]
 # Default: build (increments build number/version code)
 #
-# Android reads the version from pubspec.yaml via Flutter:
-#   - android/app/build.gradle.kts uses flutter.versionCode / flutter.versionName
+# Android reads the version straight from pubspec.yaml:
+#   - android/app/build.gradle.kts parses `version:` from pubspec.yaml directly
+#     (so a pubspec bump here is enough — no stale local.properties override).
 # iOS does NOT pick up bumps reliably from pubspec alone (Xcode/App Store read the
 # hardcoded MARKETING_VERSION / CURRENT_PROJECT_VERSION from project.pbxproj), so we
 # also write the version explicitly into ios/Runner/Info.plist and project.pbxproj,
