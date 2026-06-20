@@ -123,6 +123,55 @@ class GadgetsStore {
     }
   }
 
+  Future<bool> updateGadget({
+    required String id,
+    required String name,
+    String? description,
+    required String streetAddress,
+    required String zipCode,
+    required String locality,
+    required String bookingStartTime,
+    required String bookingEndTime,
+    required int bookingSlotDurationLength,
+    required String bookingSlotDurationType,
+    double? pricePerSlot,
+    String? allowedBookingPeriodType,
+    int? allowedNumberOfBookingsPerPeriod,
+  }) async {
+    _loading.value = true;
+    try {
+      await _pb
+          .collection(Collections.gadgets)
+          .update(
+            id,
+            body: {
+              'name': name,
+              'description': description ?? '',
+              'street_address': streetAddress,
+              'zip_code': zipCode,
+              'locality': locality,
+              'booking_start_time': bookingStartTime,
+              'booking_end_time': bookingEndTime,
+              'booking_slot_duration_length': bookingSlotDurationLength,
+              'booking_slot_duration_type': bookingSlotDurationType,
+              'price_per_slot': pricePerSlot,
+              'allowed_booking_period_type': allowedBookingPeriodType ?? '',
+              'allowed_number_of_bookings_per_period':
+                  allowedNumberOfBookingsPerPeriod,
+            },
+          );
+
+      await getGadget(id);
+      await getAllGadgets();
+      return true;
+    } catch (e) {
+      debugPrint('GadgetsStore: Error updating gadget: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
   Future<bool> deleteGadget(String id) async {
     _loading.value = true;
     try {

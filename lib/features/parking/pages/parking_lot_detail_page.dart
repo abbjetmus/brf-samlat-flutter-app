@@ -20,12 +20,14 @@ class ParkingLotDetailPage extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final parkingStore = inject(parkingStoreKey);
+    final residencesStore = inject(residencesStoreKey);
     final authStore = inject(authStoreKey);
     final contextRef = useContext();
 
     onMounted(() {
       parkingStore.getParkingLot(parkingLotId);
       parkingStore.getParkingSpaces(parkingLotId);
+      residencesStore.getAllResidences();
     });
 
     // Create (space == null) or edit an existing parking space.
@@ -36,6 +38,16 @@ class ParkingLotDetailPage extends CompositionWidget {
       final isEdit = space != null;
       final nameController = TextEditingController(text: space?.name ?? '');
       bool hasCharging = space?.hasChargingStation ?? false;
+      final residences = residencesStore.residencesList.value;
+      String? residenceId =
+          (space?.residence != null && space!.residence!.isNotEmpty)
+          ? space.residence
+          : null;
+      // Drop an assigned residence that is no longer in the loaded list so the
+      // dropdown has a valid value.
+      if (residenceId != null && !residences.any((r) => r.id == residenceId)) {
+        residenceId = null;
+      }
       String? startDate =
           (space?.parkingStartDate != null && space!.parkingStartDate!.isNotEmpty)
           ? space.parkingStartDate
@@ -63,6 +75,34 @@ class ParkingLotDetailPage extends CompositionWidget {
                       labelText: 'Namn',
                       border: OutlineInputBorder(),
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String?>(
+                    initialValue: residenceId,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Tilldela bostad',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('Ingen (ledig)'),
+                      ),
+                      ...residences.map(
+                        (r) => DropdownMenuItem<String?>(
+                          value: r.id,
+                          child: Text(
+                            r.streetAddress,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setState(() => residenceId = value);
+                    },
                   ),
                   const SizedBox(height: 12),
                   SwitchListTile(
@@ -124,7 +164,7 @@ class ParkingLotDetailPage extends CompositionWidget {
           await parkingStore.updateParkingSpace(
             id: space.id,
             name: nameController.text.trim(),
-            residence: space.residence,
+            residence: residenceId,
             hasChargingStation: hasCharging,
             parkingStartDate: startDate,
             parkingLotId: parkingLotId,
@@ -133,6 +173,7 @@ class ParkingLotDetailPage extends CompositionWidget {
           await parkingStore.createParkingSpace(
             parkingLotId: parkingLotId,
             name: nameController.text.trim(),
+            residence: residenceId,
             hasChargingStation: hasCharging,
             parkingStartDate: startDate,
           );
@@ -145,7 +186,16 @@ class ParkingLotDetailPage extends CompositionWidget {
     return (context) {
       final lot = parkingStore.currentParkingLot.value;
       final spaces = parkingStore.parkingSpaces.value;
+      final residences = residencesStore.residencesList.value;
       final loading = parkingStore.loading.value;
+
+      String? residenceLabel(String? id) {
+        if (id == null || id.isEmpty) return null;
+        for (final r in residences) {
+          if (r.id == id) return r.streetAddress;
+        }
+        return null;
+      }
       final canCreate = authStore.hasPermission(
         'parking_spaces',
         CrudOperation.create,
@@ -305,7 +355,10 @@ class ParkingLotDetailPage extends CompositionWidget {
                                         space.residence != null &&
                                                 space.residence!.isNotEmpty
                                             ? Text(
-                                                'Bostad tilldelad',
+                                                residenceLabel(
+                                                      space.residence,
+                                                    ) ??
+                                                    'Bostad tilldelad',
                                                 style: TextStyle(
                                                   color: Colors.grey[600],
                                                   fontSize: 12,

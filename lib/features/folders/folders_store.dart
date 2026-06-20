@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
+import 'package:http/http.dart' as http;
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import '../../core/models/pocketbase_models.dart';
 import '../auth/auth_store.dart' as auth;
@@ -96,6 +97,46 @@ class FoldersStore {
       return true;
     } catch (e) {
       debugPrint('FoldersStore: Error creating folder: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
+  /// Appends [files] to the [folderId] record's `files` field (PocketBase
+  /// `files+` modifier), then refreshes the current folder so the new files
+  /// show up. Mirrors the web admin's upload flow.
+  Future<bool> uploadFiles(List<http.MultipartFile> files, String folderId) async {
+    if (files.isEmpty) return false;
+    _loading.value = true;
+    try {
+      await _pb.collection(Collections.foldersAndFiles).update(
+        folderId,
+        files: files,
+      );
+      await getFolder(folderId);
+      return true;
+    } catch (e) {
+      debugPrint('FoldersStore: Error uploading files: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
+  /// Removes a single file (by its stored filename) from the [folderId]
+  /// record's `files` field, then refreshes the current folder.
+  Future<bool> removeFile(String folderId, String fileName) async {
+    _loading.value = true;
+    try {
+      await _pb.collection(Collections.foldersAndFiles).update(
+        folderId,
+        body: {'files-': [fileName]},
+      );
+      await getFolder(folderId);
+      return true;
+    } catch (e) {
+      debugPrint('FoldersStore: Error removing file: $e');
       return false;
     } finally {
       _loading.value = false;

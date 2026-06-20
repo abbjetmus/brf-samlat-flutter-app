@@ -102,7 +102,9 @@ final router = GoRouter(
     ),
     GoRoute(
       path: CreateIssuePage.path,
-      builder: (context, state) => const CreateIssuePage(),
+      builder: (context, state) => CreateIssuePage(
+        residenceId: state.uri.queryParameters['residenceId'],
+      ),
     ),
     GoRoute(
       path: '${CreateIssuePage.editPath}/:id',
@@ -130,6 +132,11 @@ final router = GoRouter(
       path: CreatePlacePage.path,
       builder: (context, state) => const CreatePlacePage(),
     ),
+    GoRoute(
+      path: '${CreatePlacePage.editPath}/:id',
+      builder: (context, state) =>
+          CreatePlacePage(placeId: state.pathParameters['id']!),
+    ),
     // Gadgets
     GoRoute(
       path: GadgetsListPage.path,
@@ -144,6 +151,11 @@ final router = GoRouter(
     GoRoute(
       path: CreateGadgetPage.path,
       builder: (context, state) => const CreateGadgetPage(),
+    ),
+    GoRoute(
+      path: '${CreateGadgetPage.editPath}/:id',
+      builder: (context, state) =>
+          CreateGadgetPage(gadgetId: state.pathParameters['id']!),
     ),
     // Residences
     GoRoute(

@@ -2,7 +2,7 @@ name: brf_samlat_flutter_app
 description: "BRF Samlat - Bostadsrättsföreningens digitala plattform"
 publish_to: 'none'
 
-version: 1.0.28+28
+version: 1.0.29+29
 
 environment:
   sdk: ^3.9.0

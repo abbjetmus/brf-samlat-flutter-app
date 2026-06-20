@@ -127,6 +127,59 @@ class PlacesStore {
     }
   }
 
+  Future<bool> updatePlace({
+    required String id,
+    required String name,
+    String? description,
+    required String streetAddress,
+    required String zipCode,
+    required String locality,
+    String? placeType,
+    required String bookingStartTime,
+    required String bookingEndTime,
+    required int bookingSlotDurationLength,
+    required String bookingSlotDurationType,
+    int? maxRoomCapacity,
+    double? pricePerSlot,
+    String? allowedBookingPeriodType,
+    int? allowedNumberOfBookingsPerPeriod,
+  }) async {
+    _loading.value = true;
+    try {
+      await _pb
+          .collection(Collections.places)
+          .update(
+            id,
+            body: {
+              'name': name,
+              'description': description ?? '',
+              'street_address': streetAddress,
+              'zip_code': zipCode,
+              'locality': locality,
+              'place_type': placeType ?? '',
+              'booking_start_time': bookingStartTime,
+              'booking_end_time': bookingEndTime,
+              'booking_slot_duration_length': bookingSlotDurationLength,
+              'booking_slot_duration_type': bookingSlotDurationType,
+              'max_room_capacity': maxRoomCapacity,
+              'price_per_slot': pricePerSlot,
+              'allowed_booking_period_type': allowedBookingPeriodType ?? '',
+              'allowed_number_of_bookings_per_period':
+                  allowedNumberOfBookingsPerPeriod,
+            },
+          );
+
+      await getPlace(id);
+      await getAllPlaces();
+      return true;
+    } catch (e) {
+      debugPrint('PlacesStore: Error updating place: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
   Future<bool> deletePlace(String id) async {
     _loading.value = true;
     try {

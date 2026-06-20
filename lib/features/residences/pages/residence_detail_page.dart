@@ -8,6 +8,7 @@ import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../issues/pages/issue_detail_page.dart';
+import '../../issues/pages/create_issue_page.dart';
 import 'create_residence_page.dart';
 
 class ResidenceDetailPage extends CompositionWidget {
@@ -42,6 +43,10 @@ class ResidenceDetailPage extends CompositionWidget {
       final canDelete = authStore.hasPermission(
         'residences',
         CrudOperation.delete,
+      );
+      final canCreateIssue = authStore.hasPermission(
+        'issues',
+        CrudOperation.create,
       );
 
       if (loading && residence == null) {
@@ -169,50 +174,80 @@ class ResidenceDetailPage extends CompositionWidget {
                     ),
 
                     // Issues tab
-                    issues.isEmpty
-                        ? const Center(
-                            child: Text('Inga ärenden för denna bostad.'),
-                          )
-                        : ListView.separated(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            itemCount: issues.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(height: 4),
-                            itemBuilder: (context, index) {
-                              final issue = issues[index];
-                              return Card(
-                                clipBehavior: Clip.antiAlias,
-                                child: ListTile(
-                                  onTap: () => context.push(
-                                    '${IssueDetailPage.path}/${issue.id}',
-                                  ),
-                                  leading: Icon(
-                                    issue.isResolved
-                                        ? Icons.check_circle
-                                        : Icons.error_outline,
-                                    color: issue.isResolved
-                                        ? Colors.green
-                                        : Colors.orange,
-                                  ),
-                                  title: Text(
-                                    issue.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  subtitle: Text(
-                                    issue.isResolved ? 'Löst' : 'Olöst',
-                                    style: TextStyle(
-                                      color: issue.isResolved
-                                          ? Colors.green
-                                          : Colors.orange,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                  trailing: const Icon(Icons.chevron_right),
-                                ),
-                              );
-                            },
+                    Column(
+                      children: [
+                        if (canCreateIssue)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: FilledButton.icon(
+                                onPressed: () async {
+                                  await context.push(
+                                    '${CreateIssuePage.path}'
+                                    '?residenceId=${residence.id}',
+                                  );
+                                  await residencesStore.getResidenceIssues(
+                                    residenceId,
+                                  );
+                                },
+                                icon: const Icon(Icons.add),
+                                label: const Text('Skapa ny'),
+                              ),
+                            ),
                           ),
+                        Expanded(
+                          child: issues.isEmpty
+                              ? const Center(
+                                  child: Text('Inga ärenden för denna bostad.'),
+                                )
+                              : ListView.separated(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  itemCount: issues.length,
+                                  separatorBuilder: (_, _) =>
+                                      const SizedBox(height: 4),
+                                  itemBuilder: (context, index) {
+                                    final issue = issues[index];
+                                    return Card(
+                                      clipBehavior: Clip.antiAlias,
+                                      child: ListTile(
+                                        onTap: () => context.push(
+                                          '${IssueDetailPage.path}/${issue.id}',
+                                        ),
+                                        leading: Icon(
+                                          issue.isResolved
+                                              ? Icons.check_circle
+                                              : Icons.error_outline,
+                                          color: issue.isResolved
+                                              ? Colors.green
+                                              : Colors.orange,
+                                        ),
+                                        title: Text(
+                                          issue.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        subtitle: Text(
+                                          issue.isResolved ? 'Löst' : 'Olöst',
+                                          style: TextStyle(
+                                            color: issue.isResolved
+                                                ? Colors.green
+                                                : Colors.orange,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        trailing: const Icon(
+                                          Icons.chevron_right,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),

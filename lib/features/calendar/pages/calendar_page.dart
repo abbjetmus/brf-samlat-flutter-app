@@ -3,7 +3,6 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
-import '../../../core/models/pocketbase_models.dart';
 import '../../../shared/widgets/app_bottom_sheet.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
@@ -19,7 +18,7 @@ class CalendarPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final calendarStore = inject(calendarStoreKey);
     final authStore = inject(authStoreKey);
-    final currentView = ref(CalendarView.month);
+    final viewMode = ref(_CalendarViewMode.month);
     // Drive view changes through a controller so SfCalendar reliably switches
     // between Dag/Vecka/Månad (changing only the `view` property is flaky).
     final calendarController = CalendarController()..view = CalendarView.month;
@@ -194,7 +193,7 @@ class CalendarPage extends CompositionWidget {
     }
 
     return (context) {
-      final events = calendarStore.events.value;
+      final items = calendarStore.items.value;
       final loading = calendarStore.loading.value;
       final canCreate = authStore.hasPermission(
         'calendar_events',
@@ -223,31 +222,57 @@ class CalendarPage extends CompositionWidget {
           children: [
             // View selector
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: SegmentedButton<CalendarView>(
-                segments: const [
-                  ButtonSegment(value: CalendarView.day, label: Text('Dag')),
-                  ButtonSegment(value: CalendarView.week, label: Text('Vecka')),
-                  ButtonSegment(
-                    value: CalendarView.month,
-                    label: Text('Månad'),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<_CalendarViewMode>(
+                  showSelectedIcon: false,
+                  style: SegmentedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                   ),
-                ],
-                selected: {currentView.value},
-                onSelectionChanged: (views) {
-                  currentView.value = views.first;
-                  calendarController.view = views.first;
-                },
+                  segments: const [
+                    ButtonSegment(
+                      value: _CalendarViewMode.day,
+                      label: Text('Dag'),
+                    ),
+                    ButtonSegment(
+                      value: _CalendarViewMode.week,
+                      label: Text('Vecka'),
+                    ),
+                    ButtonSegment(
+                      value: _CalendarViewMode.month,
+                      label: Text('Månad'),
+                    ),
+                    ButtonSegment(
+                      value: _CalendarViewMode.list,
+                      label: Text('Lista'),
+                    ),
+                  ],
+                  selected: {viewMode.value},
+                  onSelectionChanged: (modes) {
+                    final mode = modes.first;
+                    viewMode.value = mode;
+                    final view = _toCalendarView(mode);
+                    if (view != null) calendarController.view = view;
+                  },
+                ),
               ),
             ),
 
-            // Calendar
+            // Calendar or list
             Expanded(
-              child: loading && events.isEmpty
+              child: loading && items.isEmpty
                   ? const Center(child: CircularProgressIndicator())
+                  : viewMode.value == _CalendarViewMode.list
+                  ? _EventListView(
+                      items: items,
+                      calendarStore: calendarStore,
+                      canDelete: canDelete,
+                    )
                   : SfCalendar(
                       controller: calendarController,
-                      dataSource: _EventDataSource(events),
+                      dataSource: _EventDataSource(items),
                       firstDayOfWeek: 1,
                       showNavigationArrow: true,
                       monthViewSettings: const MonthViewSettings(
@@ -265,10 +290,10 @@ class CalendarPage extends CompositionWidget {
                             details.appointments!.isNotEmpty) {
                           final appointment =
                               details.appointments!.first as Appointment;
-                          final event = appointment.id as CalendarEventsRecord;
+                          final item = appointment.id as CalendarItem;
                           _showEventDetails(
                             context,
-                            event,
+                            item,
                             calendarStore,
                             canDelete,
                           );
@@ -285,7 +310,7 @@ class CalendarPage extends CompositionWidget {
 
 void _showEventDetails(
   BuildContext context,
-  CalendarEventsRecord event,
+  CalendarItem event,
   CalendarStore calendarStore,
   bool canDelete,
 ) {
@@ -301,7 +326,7 @@ void _showEventDetails(
               width: 16,
               height: 16,
               decoration: BoxDecoration(
-                color: CalendarStore.parseColor(event.color),
+                color: event.color,
                 shape: BoxShape.circle,
               ),
             ),
@@ -315,7 +340,8 @@ void _showEventDetails(
                 ),
               ),
             ),
-            if (canDelete)
+            // Posts are managed under Inlägg and can't be deleted from here.
+            if (canDelete && !event.isPost)
               EntityActionMenu(
                 actions: [
                   EntityAction.delete(() async {
@@ -326,10 +352,27 @@ void _showEventDetails(
               ),
           ],
         ),
-        if (event.description != null &&
-            event.description!.trim().isNotEmpty) ...[
+        if (event.isPost) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: event.color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              'Inlägg',
+              style: TextStyle(
+                color: event.color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+        if (event.description.trim().isNotEmpty) ...[
           const SizedBox(height: 12),
-          RichDescription(html: event.description!),
+          RichDescription(html: event.description),
         ],
         const SizedBox(height: 12),
         Row(
@@ -348,38 +391,96 @@ void _showEventDetails(
   );
 }
 
-String _formatEventTime(CalendarEventsRecord event) {
-  try {
-    final start = DateTime.parse(event.startAt).toLocal();
-    final end = DateTime.parse(event.endAt).toLocal();
-    final startStr =
-        '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')} ${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
-    final endStr =
-        '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
-    return '$startStr - $endStr';
-  } catch (_) {
-    return '${event.startAt} - ${event.endAt}';
+String _formatEventTime(CalendarItem event) {
+  final start = event.start;
+  final end = event.end;
+  final startStr =
+      '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')} ${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+  final endStr =
+      '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+  return '$startStr - $endStr';
+}
+
+/// The selectable views. The first three map to Syncfusion calendar views;
+/// [list] renders a plain scrollable list of events instead of a calendar.
+enum _CalendarViewMode { day, week, month, list }
+
+CalendarView? _toCalendarView(_CalendarViewMode mode) {
+  switch (mode) {
+    case _CalendarViewMode.day:
+      return CalendarView.day;
+    case _CalendarViewMode.week:
+      return CalendarView.week;
+    case _CalendarViewMode.month:
+      return CalendarView.month;
+    case _CalendarViewMode.list:
+      return null;
+  }
+}
+
+/// A simple chronological list of all events, used by the "Lista" view mode.
+class _EventListView extends StatelessWidget {
+  const _EventListView({
+    required this.items,
+    required this.calendarStore,
+    required this.canDelete,
+  });
+
+  final List<CalendarItem> items;
+  final CalendarStore calendarStore;
+  final bool canDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return const Center(child: Text('Inga händelser.'));
+    }
+
+    final sorted = [...items]..sort((a, b) => a.start.compareTo(b.start));
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      itemCount: sorted.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final event = sorted[index];
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          child: ListTile(
+            leading: Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                color: event.color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            title: Text(
+              event.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(_formatEventTime(event)),
+            trailing: event.isPost
+                ? const Icon(Icons.article_outlined, size: 18)
+                : const Icon(Icons.chevron_right),
+            onTap: () =>
+                _showEventDetails(context, event, calendarStore, canDelete),
+          ),
+        );
+      },
+    );
   }
 }
 
 class _EventDataSource extends CalendarDataSource {
-  _EventDataSource(List<CalendarEventsRecord> events) {
-    appointments = events.map((e) {
-      DateTime startTime;
-      DateTime endTime;
-      try {
-        startTime = DateTime.parse(e.startAt).toLocal();
-        endTime = DateTime.parse(e.endAt).toLocal();
-      } catch (_) {
-        startTime = DateTime.now();
-        endTime = DateTime.now().add(const Duration(hours: 1));
-      }
-
+  _EventDataSource(List<CalendarItem> items) {
+    appointments = items.map((e) {
       return Appointment(
-        startTime: startTime,
-        endTime: endTime,
+        startTime: e.start,
+        endTime: e.end,
         subject: e.title,
-        color: CalendarStore.parseColor(e.color),
+        color: e.color,
         notes: e.description,
         id: e,
       );

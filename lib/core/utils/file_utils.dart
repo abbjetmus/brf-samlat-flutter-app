@@ -95,3 +95,7 @@ FileInfo parseFilename(String filename) {
 String byteToMegabyte(int bytes) {
   return (bytes / (1024 * 1024)).toStringAsFixed(2);
 }
+
+/// Max upload size per file, in bytes (8 MiB). Mirrors the PocketBase
+/// `folders_and_files.files` field `maxSize`; keep the two in sync.
+const int kMaxUploadBytes = 8 * 1024 * 1024;

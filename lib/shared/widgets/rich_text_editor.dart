@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:flutter_quill_delta_from_html/flutter_quill_delta_from_html.dart';
 import 'package:vsc_quill_delta_to_html/vsc_quill_delta_to_html.dart';
@@ -22,7 +23,7 @@ bool htmlIsEmpty(String html) {
 /// A WYSIWYG rich-text field (bold, italic, lists, links, headings) that reads
 /// and writes HTML, so users edit formatted text instead of raw tags. Reports
 /// the current HTML through [onChanged]; embed inside a scroll view.
-class RichTextEditor extends StatefulWidget {
+class RichTextEditor extends CompositionWidget {
   const RichTextEditor({
     super.key,
     required this.initialHtml,
@@ -37,18 +38,15 @@ class RichTextEditor extends StatefulWidget {
   final double minHeight;
 
   @override
-  State<RichTextEditor> createState() => _RichTextEditorState();
-}
+  Widget Function(BuildContext) setup() {
+    final props = widget();
+    final theme = useTheme();
+    // FocusNode and ScrollController are auto-disposed on unmount.
+    final focusRef = useFocusNode();
+    final scrollRef = useScrollController();
 
-class _RichTextEditorState extends State<RichTextEditor> {
-  late final QuillController _controller;
-  final _focusNode = FocusNode();
-  final _scrollController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    final initial = widget.initialHtml.trim();
+    // QuillController has no composable, so create and tear it down by hand.
+    final initial = props.value.initialHtml.trim();
     Document document;
     if (initial.isEmpty) {
       document = Document();
@@ -60,71 +58,63 @@ class _RichTextEditorState extends State<RichTextEditor> {
         document = Document()..insert(0, initial);
       }
     }
-    _controller = QuillController(
+    final controller = QuillController(
       document: document,
       selection: const TextSelection.collapsed(offset: 0),
     );
-    _controller.addListener(_handleChange);
-  }
 
-  void _handleChange() {
-    widget.onChanged(quillDocumentToHtml(_controller.document));
-  }
+    void handleChange() {
+      props.value.onChanged(quillDocumentToHtml(controller.document));
+    }
 
-  @override
-  void dispose() {
-    _controller.removeListener(_handleChange);
-    _controller.dispose();
-    _focusNode.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
+    controller.addListener(handleChange);
+    onUnmounted(() {
+      controller.removeListener(handleChange);
+      controller.dispose();
+    });
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        QuillSimpleToolbar(
-          controller: _controller,
-          config: const QuillSimpleToolbarConfig(
-            multiRowsDisplay: false,
-            showFontFamily: false,
-            showFontSize: false,
-            showBackgroundColorButton: false,
-            showColorButton: false,
-            showCodeBlock: false,
-            showInlineCode: false,
-            showSubscript: false,
-            showSuperscript: false,
-            showSearchButton: false,
-            showClearFormat: false,
-            showIndent: false,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          constraints: BoxConstraints(minHeight: widget.minHeight),
-          decoration: BoxDecoration(
-            border: Border.all(color: theme.colorScheme.outline),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: QuillEditor.basic(
-            controller: _controller,
-            focusNode: _focusNode,
-            scrollController: _scrollController,
-            config: QuillEditorConfig(
-              // The page already scrolls; let the editor grow with its content.
-              scrollable: false,
-              expands: false,
-              placeholder: widget.placeholder,
-              padding: EdgeInsets.zero,
+    return (context) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            QuillSimpleToolbar(
+              controller: controller,
+              config: const QuillSimpleToolbarConfig(
+                multiRowsDisplay: false,
+                showFontFamily: false,
+                showFontSize: false,
+                showBackgroundColorButton: false,
+                showColorButton: false,
+                showCodeBlock: false,
+                showInlineCode: false,
+                showSubscript: false,
+                showSuperscript: false,
+                showSearchButton: false,
+                showClearFormat: false,
+                showIndent: false,
+              ),
             ),
-          ),
-        ),
-      ],
-    );
+            const SizedBox(height: 8),
+            Container(
+              constraints: BoxConstraints(minHeight: props.value.minHeight),
+              decoration: BoxDecoration(
+                border: Border.all(color: theme.value.colorScheme.outline),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: QuillEditor.basic(
+                controller: controller,
+                focusNode: focusRef.value,
+                scrollController: scrollRef.value,
+                config: QuillEditorConfig(
+                  // The page already scrolls; let the editor grow with content.
+                  scrollable: false,
+                  expands: false,
+                  placeholder: props.value.placeholder,
+                  padding: EdgeInsets.zero,
+                ),
+              ),
+            ),
+          ],
+        );
   }
 }

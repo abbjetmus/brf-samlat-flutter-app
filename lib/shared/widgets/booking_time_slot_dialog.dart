@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_compositions/flutter_compositions.dart';
 
 /// Result returned by [showBookingTimeSlotDialog] when the user confirms a
 /// booking. Times are in local time; convert with `.toUtc()` before sending.
@@ -63,7 +64,7 @@ class _Slot {
   String get display => '$start - $end';
 }
 
-class _BookingTimeSlotDialog extends StatefulWidget {
+class _BookingTimeSlotDialog extends CompositionWidget {
   final String bookingStartTime;
   final String bookingEndTime;
   final int slotDurationLength;
@@ -81,306 +82,293 @@ class _BookingTimeSlotDialog extends StatefulWidget {
   });
 
   @override
-  State<_BookingTimeSlotDialog> createState() => _BookingTimeSlotDialogState();
-}
+  Widget Function(BuildContext) setup() {
+    final props = widget();
+    final theme = useTheme();
+    final (titleController, _, _) = useTextEditingController();
 
-class _BookingTimeSlotDialogState extends State<_BookingTimeSlotDialog> {
-  final _titleController = TextEditingController();
-  late DateTime _selectedDate;
-  String? _selectedSlot; // display string e.g. "08:00 - 09:00"
-  bool _isBlock = false;
-
-  bool get _isDays => widget.slotDurationType == 'Dagar';
-
-  @override
-  void initState() {
-    super.initState();
     final now = DateTime.now();
-    _selectedDate = DateTime(now.year, now.month, now.day);
-  }
+    final selectedDate = ref(DateTime(now.year, now.month, now.day));
+    final selectedSlot = ref<String?>(null); // display e.g. "08:00 - 09:00"
+    final isBlock = ref(false);
 
-  @override
-  void dispose() {
-    _titleController.dispose();
-    super.dispose();
-  }
+    bool isDays() => props.value.slotDurationType == 'Dagar';
 
-  // --- Slot generation (mirrors TimeSlotSelector.vue) ---
+    // --- Slot generation (mirrors TimeSlotSelector.vue) ---
 
-  int get _durationInMinutes => widget.slotDurationType == 'Timmar'
-      ? widget.slotDurationLength * 60
-      : widget.slotDurationLength;
+    int durationInMinutes() => props.value.slotDurationType == 'Timmar'
+        ? props.value.slotDurationLength * 60
+        : props.value.slotDurationLength;
 
-  List<_Slot> _generateSlots() {
-    final slots = <_Slot>[];
-    final duration = _durationInMinutes;
-    if (duration <= 0) return slots;
-
-    final startParts = widget.bookingStartTime.split(':');
-    final endParts = widget.bookingEndTime.split(':');
-    if (startParts.length != 2 || endParts.length != 2) return slots;
-
-    final startTotal =
-        (int.tryParse(startParts[0]) ?? 0) * 60 +
-        (int.tryParse(startParts[1]) ?? 0);
-    final endTotal =
-        (int.tryParse(endParts[0]) ?? 0) * 60 +
-        (int.tryParse(endParts[1]) ?? 0);
-
-    final totalSlots = ((endTotal - startTotal) / duration).floor();
-
-    for (var i = 0; i < totalSlots; i++) {
-      final startMin = startTotal + (i * duration);
-      final endMin = startMin + duration;
-      final start = _formatMinutes(startMin);
-      var end = _formatMinutes(endMin);
-      if (end == '00:00') end = '24:00';
-      slots.add(_Slot(start, end));
+    String formatMinutes(int totalMinutes) {
+      final h = (totalMinutes ~/ 60) % 24;
+      final m = totalMinutes % 60;
+      return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
     }
-    return slots;
-  }
 
-  String _formatMinutes(int totalMinutes) {
-    final h = (totalMinutes ~/ 60) % 24;
-    final m = totalMinutes % 60;
-    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
-  }
+    List<_Slot> generateSlots() {
+      final slots = <_Slot>[];
+      final duration = durationInMinutes();
+      if (duration <= 0) return slots;
 
-  String _hhmm(DateTime d) =>
-      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+      final startParts = props.value.bookingStartTime.split(':');
+      final endParts = props.value.bookingEndTime.split(':');
+      if (startParts.length != 2 || endParts.length != 2) return slots;
 
-  String _ymd(DateTime d) =>
-      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      final startTotal =
+          (int.tryParse(startParts[0]) ?? 0) * 60 +
+          (int.tryParse(startParts[1]) ?? 0);
+      final endTotal =
+          (int.tryParse(endParts[0]) ?? 0) * 60 +
+          (int.tryParse(endParts[1]) ?? 0);
 
-  /// Slots already booked on the selected date, as display strings.
-  Set<String> get _takenSlots {
-    final result = <String>{};
-    for (final b in widget.existingBookings) {
-      final start = b.start.toLocal();
-      if (_ymd(start) == _ymd(_selectedDate)) {
-        result.add('${_hhmm(start)} - ${_hhmm(b.end.toLocal())}');
+      final totalSlots = ((endTotal - startTotal) / duration).floor();
+
+      for (var i = 0; i < totalSlots; i++) {
+        final startMin = startTotal + (i * duration);
+        final endMin = startMin + duration;
+        final start = formatMinutes(startMin);
+        var end = formatMinutes(endMin);
+        if (end == '00:00') end = '24:00';
+        slots.add(_Slot(start, end));
       }
+      return slots;
     }
-    return result;
-  }
 
-  /// Dates that already have a (day) booking — used to block day selection.
-  bool _isDayTaken(DateTime day) {
-    return widget.existingBookings.any(
-      (b) => _ymd(b.start.toLocal()) == _ymd(day),
-    );
-  }
+    String hhmm(DateTime d) =>
+        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
-  bool _isSlotInPast(_Slot slot) {
-    final today = DateTime.now();
-    final isToday = _ymd(_selectedDate) == _ymd(today);
-    if (!isToday) return false;
-    return _combine(_selectedDate, slot.end).isBefore(DateTime.now());
-  }
+    String ymd(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
-  DateTime _combine(DateTime date, String hhmm) {
-    if (hhmm == '24:00') {
-      return DateTime(date.year, date.month, date.day).add(
-        const Duration(days: 1),
+    DateTime combine(DateTime date, String time) {
+      if (time == '24:00') {
+        return DateTime(date.year, date.month, date.day).add(
+          const Duration(days: 1),
+        );
+      }
+      final parts = time.split(':');
+      return DateTime(
+        date.year,
+        date.month,
+        date.day,
+        int.tryParse(parts[0]) ?? 0,
+        int.tryParse(parts[1]) ?? 0,
       );
     }
-    final parts = hhmm.split(':');
-    return DateTime(
-      date.year,
-      date.month,
-      date.day,
-      int.tryParse(parts[0]) ?? 0,
-      int.tryParse(parts[1]) ?? 0,
-    );
-  }
 
-  void _onConfirm() {
-    final isBlock = widget.isAdmin && _isBlock;
-    final title = _titleController.text.trim();
+    /// Slots already booked on the selected date, as display strings.
+    Set<String> takenSlots() {
+      final result = <String>{};
+      for (final b in props.value.existingBookings) {
+        final start = b.start.toLocal();
+        if (ymd(start) == ymd(selectedDate.value)) {
+          result.add('${hhmm(start)} - ${hhmm(b.end.toLocal())}');
+        }
+      }
+      return result;
+    }
 
-    if (_isDays) {
-      final start = _combine(_selectedDate, widget.bookingStartTime);
-      final end = _combine(
-        _selectedDate.add(Duration(days: widget.slotDurationLength)),
-        widget.bookingEndTime,
+    /// Dates that already have a (day) booking — used to block day selection.
+    bool isDayTaken(DateTime day) {
+      return props.value.existingBookings.any(
+        (b) => ymd(b.start.toLocal()) == ymd(day),
       );
+    }
+
+    bool isSlotInPast(_Slot slot) {
+      final today = DateTime.now();
+      final isToday = ymd(selectedDate.value) == ymd(today);
+      if (!isToday) return false;
+      return combine(selectedDate.value, slot.end).isBefore(DateTime.now());
+    }
+
+    void onConfirm(BuildContext context) {
+      final blocked = props.value.isAdmin && isBlock.value;
+      final title = titleController.text.trim();
+
+      if (isDays()) {
+        final start = combine(selectedDate.value, props.value.bookingStartTime);
+        final end = combine(
+          selectedDate.value.add(Duration(days: props.value.slotDurationLength)),
+          props.value.bookingEndTime,
+        );
+        Navigator.of(context).pop(
+          BookingDialogResult(
+            startAt: start,
+            endAt: end,
+            title: title,
+            isAllDay: true,
+            isBlock: blocked,
+          ),
+        );
+        return;
+      }
+
+      final slot = generateSlots().firstWhere(
+        (s) => s.display == selectedSlot.value,
+        orElse: () => const _Slot('', ''),
+      );
+      if (slot.start.isEmpty) return;
+
       Navigator.of(context).pop(
         BookingDialogResult(
-          startAt: start,
-          endAt: end,
+          startAt: combine(selectedDate.value, slot.start),
+          endAt: combine(selectedDate.value, slot.end),
           title: title,
-          isAllDay: true,
-          isBlock: isBlock,
+          isAllDay: false,
+          isBlock: blocked,
         ),
       );
-      return;
     }
 
-    final slot = _generateSlots().firstWhere(
-      (s) => s.display == _selectedSlot,
-      orElse: () => const _Slot('', ''),
-    );
-    if (slot.start.isEmpty) return;
+    Widget buildDaysSummary(ThemeData themeData) {
+      final checkIn = combine(selectedDate.value, props.value.bookingStartTime);
+      final checkOut = combine(
+        selectedDate.value.add(Duration(days: props.value.slotDurationLength)),
+        props.value.bookingEndTime,
+      );
 
-    Navigator.of(context).pop(
-      BookingDialogResult(
-        startAt: _combine(_selectedDate, slot.start),
-        endAt: _combine(_selectedDate, slot.end),
-        title: title,
-        isAllDay: false,
-        isBlock: isBlock,
-      ),
-    );
-  }
+      if (isDayTaken(selectedDate.value)) {
+        return Text(
+          'Detta datum är redan bokat.',
+          style: TextStyle(color: themeData.colorScheme.error),
+        );
+      }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final canConfirm = _isDays
-        ? !_isDayTaken(_selectedDate)
-        : _selectedSlot != null;
+      String fmt(DateTime d) =>
+          '${ymd(d)} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
 
-    return AlertDialog(
-      title: const Text('Ny bokning'),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Titel (valfritt)',
-                  border: OutlineInputBorder(),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Bokningstid',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text('Incheckning: ${fmt(checkIn)}'),
+          Text('Utcheckning: ${fmt(checkOut)}'),
+        ],
+      );
+    }
+
+    Widget buildSlotPicker(ThemeData themeData) {
+      final slots = generateSlots();
+      final taken = takenSlots();
+
+      if (slots.isEmpty) {
+        return const Text('Inga tillgängliga tider.');
+      }
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Välj tid', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: slots.map((slot) {
+              final isTaken = taken.contains(slot.display);
+              final isPast = isSlotInPast(slot);
+              final isDisabled = isTaken || isPast;
+              final isSelected = selectedSlot.value == slot.display;
+
+              Color? bg;
+              Color? fg;
+              if (isSelected) {
+                bg = const Color(0xFF2ed188);
+                fg = Colors.white;
+              } else if (isTaken) {
+                bg = const Color(0xFFfecaca);
+                fg = Colors.black;
+              } else if (isPast) {
+                bg = const Color(0xFFe5e7eb);
+                fg = const Color(0xFF9ca3af);
+              }
+
+              return ChoiceChip(
+                label: Text(slot.display),
+                selected: isSelected,
+                backgroundColor: bg,
+                selectedColor: const Color(0xFF2ed188),
+                labelStyle: fg != null ? TextStyle(color: fg) : null,
+                onSelected: isDisabled
+                    ? null
+                    : (_) => selectedSlot.value = slot.display,
+              );
+            }).toList(),
+          ),
+        ],
+      );
+    }
+
+    return (context) {
+      final themeData = theme.value;
+      final canConfirm = isDays()
+          ? !isDayTaken(selectedDate.value)
+          : selectedSlot.value != null;
+
+      return AlertDialog(
+        title: const Text('Ny bokning'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Titel (valfritt)',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text('Välj datum för bokningen'),
-              const SizedBox(height: 8),
-              CalendarDatePicker(
-                initialDate: _selectedDate,
-                firstDate: DateTime(
-                  DateTime.now().year,
-                  DateTime.now().month,
-                  DateTime.now().day,
-                ),
-                lastDate: DateTime(DateTime.now().year + 5),
-                onDateChanged: (d) {
-                  setState(() {
-                    _selectedDate = DateTime(d.year, d.month, d.day);
-                    _selectedSlot = null;
-                  });
-                },
-              ),
-              const SizedBox(height: 8),
-              if (_isDays)
-                _buildDaysSummary(theme)
-              else
-                _buildSlotPicker(theme),
-              if (widget.isAdmin) ...[
+                const SizedBox(height: 16),
+                const Text('Välj datum för bokningen'),
                 const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Blockera i kalendern'),
-                  value: _isBlock,
-                  onChanged: (v) => setState(() => _isBlock = v),
+                CalendarDatePicker(
+                  initialDate: selectedDate.value,
+                  firstDate: DateTime(
+                    DateTime.now().year,
+                    DateTime.now().month,
+                    DateTime.now().day,
+                  ),
+                  lastDate: DateTime(DateTime.now().year + 5),
+                  onDateChanged: (d) {
+                    selectedDate.value = DateTime(d.year, d.month, d.day);
+                    selectedSlot.value = null;
+                  },
                 ),
+                const SizedBox(height: 8),
+                if (isDays())
+                  buildDaysSummary(themeData)
+                else
+                  buildSlotPicker(themeData),
+                if (props.value.isAdmin) ...[
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Blockera i kalendern'),
+                    value: isBlock.value,
+                    onChanged: (v) => isBlock.value = v,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Avbryt'),
-        ),
-        FilledButton(
-          onPressed: canConfirm ? _onConfirm : null,
-          child: Text(_isBlock ? 'Blockera' : 'Boka'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDaysSummary(ThemeData theme) {
-    final checkIn = _combine(_selectedDate, widget.bookingStartTime);
-    final checkOut = _combine(
-      _selectedDate.add(Duration(days: widget.slotDurationLength)),
-      widget.bookingEndTime,
-    );
-
-    if (_isDayTaken(_selectedDate)) {
-      return Text(
-        'Detta datum är redan bokat.',
-        style: TextStyle(color: theme.colorScheme.error),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Avbryt'),
+          ),
+          FilledButton(
+            onPressed: canConfirm ? () => onConfirm(context) : null,
+            child: Text(isBlock.value ? 'Blockera' : 'Boka'),
+          ),
+        ],
       );
-    }
-
-    String fmt(DateTime d) =>
-        '${_ymd(d)} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Bokningstid', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text('Incheckning: ${fmt(checkIn)}'),
-        Text('Utcheckning: ${fmt(checkOut)}'),
-      ],
-    );
-  }
-
-  Widget _buildSlotPicker(ThemeData theme) {
-    final slots = _generateSlots();
-    final taken = _takenSlots;
-
-    if (slots.isEmpty) {
-      return const Text('Inga tillgängliga tider.');
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Välj tid', style: TextStyle(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: slots.map((slot) {
-            final isTaken = taken.contains(slot.display);
-            final isPast = _isSlotInPast(slot);
-            final isDisabled = isTaken || isPast;
-            final isSelected = _selectedSlot == slot.display;
-
-            Color? bg;
-            Color? fg;
-            if (isSelected) {
-              bg = const Color(0xFF2ed188);
-              fg = Colors.white;
-            } else if (isTaken) {
-              bg = const Color(0xFFfecaca);
-              fg = Colors.black;
-            } else if (isPast) {
-              bg = const Color(0xFFe5e7eb);
-              fg = const Color(0xFF9ca3af);
-            }
-
-            return ChoiceChip(
-              label: Text(slot.display),
-              selected: isSelected,
-              backgroundColor: bg,
-              selectedColor: const Color(0xFF2ed188),
-              labelStyle: fg != null ? TextStyle(color: fg) : null,
-              onSelected: isDisabled
-                  ? null
-                  : (_) => setState(() => _selectedSlot = slot.display),
-            );
-          }).toList(),
-        ),
-      ],
-    );
+    };
   }
 }

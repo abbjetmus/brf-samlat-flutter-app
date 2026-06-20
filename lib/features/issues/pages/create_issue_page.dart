@@ -12,7 +12,11 @@ class CreateIssuePage extends CompositionWidget {
   /// When non-null the page edits the existing issue instead of creating one.
   final String? issueId;
 
-  const CreateIssuePage({super.key, this.issueId});
+  /// When non-null a newly created issue is tied to this residence instead of
+  /// the current user's own residence (e.g. created from a residence's page).
+  final String? residenceId;
+
+  const CreateIssuePage({super.key, this.issueId, this.residenceId});
 
   @override
   Widget Function(BuildContext) setup() {
@@ -74,6 +78,7 @@ class CreateIssuePage extends CompositionWidget {
               type: issueType.value,
               commentsAllowed: commentsAllowed.value,
               consentToMasterKey: consentToMasterKey.value,
+              residenceId: residenceId,
             );
       loading.value = false;
 

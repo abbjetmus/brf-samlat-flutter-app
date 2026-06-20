@@ -105,12 +105,16 @@ class IssuesStore {
     bool commentsAllowed = true,
     bool consentToMasterKey = false,
     List<File>? attachments,
+    String? residenceId,
   }) async {
     _loading.value = true;
     try {
       final assocId = _authStore.association.value?.id ?? '';
       final userId = _authStore.currentUser.value?.id ?? '';
-      final residenceId = _authStore.residence.value?.id;
+      // Explicit residence (e.g. creating from a residence's detail page) wins
+      // over the current user's own residence.
+      final resolvedResidenceId =
+          residenceId ?? _authStore.residence.value?.id;
 
       final body = <String, dynamic>{
         'title': title,
@@ -124,7 +128,7 @@ class IssuesStore {
       };
 
       if (assignedTo != null) body['assigned_to'] = assignedTo;
-      if (residenceId != null) body['residence'] = residenceId;
+      if (resolvedResidenceId != null) body['residence'] = resolvedResidenceId;
 
       final files = <http.MultipartFile>[];
       if (attachments != null) {

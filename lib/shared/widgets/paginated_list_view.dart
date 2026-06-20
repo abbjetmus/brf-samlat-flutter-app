@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_compositions/flutter_compositions.dart';
 
 /// A scrollable list that loads more items as the user nears the bottom
 /// (infinite scroll), with an optional pull-to-refresh.
@@ -7,7 +8,7 @@ import 'package:flutter/material.dart';
 /// via [itemCount] + [itemBuilder]. Wire [hasMore]/[loadingMore]/[onLoadMore] to
 /// a `Paginated` cursor in the store; a trailing spinner is shown automatically
 /// while more pages exist or are loading.
-class PaginatedListView extends StatefulWidget {
+class PaginatedListView extends CompositionWidget {
   const PaginatedListView({
     super.key,
     required this.itemCount,
@@ -40,72 +41,61 @@ class PaginatedListView extends StatefulWidget {
   final double scrollThreshold;
 
   @override
-  State<PaginatedListView> createState() => _PaginatedListViewState();
-}
+  Widget Function(BuildContext) setup() {
+    final props = widget();
+    final scrollRef = useScrollController();
 
-class _PaginatedListViewState extends State<PaginatedListView> {
-  final _controller = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _controller.removeListener(_onScroll);
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (!_controller.hasClients) return;
-    final pos = _controller.position;
-    if (pos.pixels >= pos.maxScrollExtent - widget.scrollThreshold &&
-        widget.hasMore &&
-        !widget.loadingMore) {
-      widget.onLoadMore();
+    void onScroll() {
+      final controller = scrollRef.value;
+      if (!controller.hasClients) return;
+      final pos = controller.position;
+      final p = props.value;
+      if (pos.pixels >= pos.maxScrollExtent - p.scrollThreshold &&
+          p.hasMore &&
+          !p.loadingMore) {
+        p.onLoadMore();
+      }
     }
-  }
 
-  Widget _trailing() => const Padding(
-    padding: EdgeInsets.symmetric(vertical: 16),
-    child: Center(child: CircularProgressIndicator()),
-  );
+    // The controller is created synchronously by useScrollController and
+    // auto-disposed on unmount (which also drops this listener).
+    scrollRef.value.addListener(onScroll);
 
-  @override
-  Widget build(BuildContext context) {
-    final showTrailing = widget.hasMore || widget.loadingMore;
-    final count = widget.itemCount + (showTrailing ? 1 : 0);
-    final physics = const AlwaysScrollableScrollPhysics();
+    Widget trailing() => const Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Center(child: CircularProgressIndicator()),
+        );
 
-    final sep = widget.separatorBuilder;
-    final Widget list = sep == null
-        ? ListView.builder(
-            controller: _controller,
-            physics: physics,
-            padding: widget.padding,
-            itemCount: count,
-            itemBuilder: (ctx, i) => i >= widget.itemCount
-                ? _trailing()
-                : widget.itemBuilder(ctx, i),
-          )
-        : ListView.separated(
-            controller: _controller,
-            physics: physics,
-            padding: widget.padding,
-            itemCount: count,
-            // No separator between the last real item and the trailing spinner.
-            separatorBuilder: (ctx, i) => i >= widget.itemCount - 1
-                ? const SizedBox.shrink()
-                : sep(ctx, i),
-            itemBuilder: (ctx, i) => i >= widget.itemCount
-                ? _trailing()
-                : widget.itemBuilder(ctx, i),
-          );
+    return (context) {
+      final p = props.value;
+      final showTrailing = p.hasMore || p.loadingMore;
+      final count = p.itemCount + (showTrailing ? 1 : 0);
+      const physics = AlwaysScrollableScrollPhysics();
 
-    if (widget.onRefresh == null) return list;
-    return RefreshIndicator(onRefresh: widget.onRefresh!, child: list);
+      final sep = p.separatorBuilder;
+      final Widget list = sep == null
+          ? ListView.builder(
+              controller: scrollRef.value,
+              physics: physics,
+              padding: p.padding,
+              itemCount: count,
+              itemBuilder: (ctx, i) =>
+                  i >= p.itemCount ? trailing() : p.itemBuilder(ctx, i),
+            )
+          : ListView.separated(
+              controller: scrollRef.value,
+              physics: physics,
+              padding: p.padding,
+              itemCount: count,
+              // No separator between the last real item and the trailing spinner.
+              separatorBuilder: (ctx, i) =>
+                  i >= p.itemCount - 1 ? const SizedBox.shrink() : sep(ctx, i),
+              itemBuilder: (ctx, i) =>
+                  i >= p.itemCount ? trailing() : p.itemBuilder(ctx, i),
+            );
+
+      if (p.onRefresh == null) return list;
+      return RefreshIndicator(onRefresh: p.onRefresh!, child: list);
+    };
   }
 }

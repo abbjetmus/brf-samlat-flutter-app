@@ -5,14 +5,27 @@ import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/rich_text_editor.dart';
 
+const _slotDurationTypes = ['Minuter', 'Timmar', 'Dagar'];
+const _bookingPeriodTypes = ['Dag', 'Vecka', 'Månad', 'År'];
+
 class CreateGadgetPage extends CompositionWidget {
   static const String path = '/gadgets/create';
+  static const String editPath = '/gadgets/edit';
 
-  const CreateGadgetPage({super.key});
+  /// When non-null the page edits the existing gadget instead of creating one.
+  final String? gadgetId;
+
+  const CreateGadgetPage({super.key, this.gadgetId});
 
   @override
   Widget Function(BuildContext) setup() {
     final gadgetsStore = inject(gadgetsStoreKey);
+    final isEdit = gadgetId != null;
+    final existing =
+        (isEdit && gadgetsStore.currentGadget.value?.id == gadgetId)
+        ? gadgetsStore.currentGadget.value
+        : null;
+
     final (nameController, _, __) = useTextEditingController();
     final (streetController, a3, a4) = useTextEditingController();
     final (zipController, a5, a6) = useTextEditingController();
@@ -20,32 +33,102 @@ class CreateGadgetPage extends CompositionWidget {
     final (startTimeController, a9, a10) = useTextEditingController();
     final (endTimeController, a11, a12) = useTextEditingController();
     final (slotLengthController, a13, a14) = useTextEditingController();
+    final (priceController, a15, a16) = useTextEditingController();
+    final (allowedCountController, a17, a18) = useTextEditingController();
     final loading = ref(false);
     final contextRef = useContext();
 
+    final slotDurationType = ref<String>(
+      existing?.bookingSlotDurationType.isNotEmpty == true
+          ? existing!.bookingSlotDurationType
+          : 'Timmar',
+    );
+    final allowedPeriodType = ref<String?>(existing?.allowedBookingPeriodType);
+
     // Description is rich text (HTML), edited via the WYSIWYG editor.
-    var descriptionHtml = '';
+    var descriptionHtml = existing?.description ?? '';
+    final descriptionReady = ref(!isEdit || existing != null);
 
-    startTimeController.text = '08:00';
-    endTimeController.text = '22:00';
-    slotLengthController.text = '1';
+    void populateFrom(dynamic gadget) {
+      nameController.text = gadget.name;
+      streetController.text = gadget.streetAddress;
+      zipController.text = gadget.zipCode;
+      localityController.text = gadget.locality;
+      startTimeController.text = gadget.bookingStartTime;
+      endTimeController.text = gadget.bookingEndTime;
+      slotLengthController.text = gadget.bookingSlotDurationLength.toString();
+      priceController.text = gadget.pricePerSlot != null
+          ? (gadget.pricePerSlot as double).toStringAsFixed(0)
+          : '';
+      allowedCountController.text =
+          gadget.allowedNumberOfBookingsPerPeriod?.toString() ?? '';
+      slotDurationType.value =
+          (gadget.bookingSlotDurationType as String).isNotEmpty
+          ? gadget.bookingSlotDurationType
+          : 'Timmar';
+      allowedPeriodType.value = gadget.allowedBookingPeriodType;
+      descriptionHtml = gadget.description ?? '';
+    }
 
-    Future<void> createGadget() async {
+    if (existing != null) {
+      populateFrom(existing);
+    } else if (!isEdit) {
+      startTimeController.text = '08:00';
+      endTimeController.text = '22:00';
+      slotLengthController.text = '1';
+    }
+
+    onMounted(() async {
+      if (isEdit && existing == null) {
+        await gadgetsStore.getGadget(gadgetId!);
+        final gadget = gadgetsStore.currentGadget.value;
+        if (gadget != null && gadget.id == gadgetId) {
+          populateFrom(gadget);
+        }
+        descriptionReady.value = true;
+      }
+    });
+
+    Future<void> save() async {
       if (nameController.text.trim().isEmpty) return;
       if (streetController.text.trim().isEmpty) return;
 
+      final price = double.tryParse(priceController.text.replaceAll(',', '.'));
+      final allowedCount = int.tryParse(allowedCountController.text);
+
       loading.value = true;
-      final success = await gadgetsStore.createGadget(
-        name: nameController.text.trim(),
-        description: descriptionHtml,
-        streetAddress: streetController.text.trim(),
-        zipCode: zipController.text.trim(),
-        locality: localityController.text.trim(),
-        bookingStartTime: startTimeController.text.trim(),
-        bookingEndTime: endTimeController.text.trim(),
-        bookingSlotDurationLength: int.tryParse(slotLengthController.text) ?? 1,
-        bookingSlotDurationType: 'Timmar',
-      );
+      final success = isEdit
+          ? await gadgetsStore.updateGadget(
+              id: gadgetId!,
+              name: nameController.text.trim(),
+              description: descriptionHtml,
+              streetAddress: streetController.text.trim(),
+              zipCode: zipController.text.trim(),
+              locality: localityController.text.trim(),
+              bookingStartTime: startTimeController.text.trim(),
+              bookingEndTime: endTimeController.text.trim(),
+              bookingSlotDurationLength:
+                  int.tryParse(slotLengthController.text) ?? 1,
+              bookingSlotDurationType: slotDurationType.value,
+              pricePerSlot: price,
+              allowedBookingPeriodType: allowedPeriodType.value,
+              allowedNumberOfBookingsPerPeriod: allowedCount,
+            )
+          : await gadgetsStore.createGadget(
+              name: nameController.text.trim(),
+              description: descriptionHtml,
+              streetAddress: streetController.text.trim(),
+              zipCode: zipController.text.trim(),
+              locality: localityController.text.trim(),
+              bookingStartTime: startTimeController.text.trim(),
+              bookingEndTime: endTimeController.text.trim(),
+              bookingSlotDurationLength:
+                  int.tryParse(slotLengthController.text) ?? 1,
+              bookingSlotDurationType: slotDurationType.value,
+              pricePerSlot: price,
+              allowedBookingPeriodType: allowedPeriodType.value,
+              allowedNumberOfBookingsPerPeriod: allowedCount,
+            );
       loading.value = false;
 
       final context = contextRef.value;
@@ -54,14 +137,18 @@ class CreateGadgetPage extends CompositionWidget {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Pryl skapad!'),
+              content: Text(isEdit ? 'Pryl uppdaterad!' : 'Pryl skapad!'),
               backgroundColor: AppTheme.primaryColor,
             ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Kunde inte skapa pryl.'),
+            SnackBar(
+              content: Text(
+                isEdit
+                    ? 'Kunde inte uppdatera pryl.'
+                    : 'Kunde inte skapa pryl.',
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -70,7 +157,7 @@ class CreateGadgetPage extends CompositionWidget {
     }
 
     return (context) => GradientScaffold(
-      title: 'Skapa pryl',
+      title: isEdit ? 'Redigera pryl' : 'Skapa pryl',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -91,9 +178,50 @@ class CreateGadgetPage extends CompositionWidget {
               ),
             ),
             const SizedBox(height: 8),
-            RichTextEditor(
-              initialHtml: descriptionHtml,
-              onChanged: (html) => descriptionHtml = html,
+            if (descriptionReady.value)
+              RichTextEditor(
+                initialHtml: descriptionHtml,
+                onChanged: (html) => descriptionHtml = html,
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: slotDurationType.value,
+              decoration: const InputDecoration(
+                labelText: 'Bokningstyp',
+                border: OutlineInputBorder(),
+              ),
+              items: <String>{..._slotDurationTypes, slotDurationType.value}
+                  .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) slotDurationType.value = value;
+              },
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: slotLengthController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Antal per bokning',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: priceController,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Pris per bokning (kr)',
+                helperText: 'Lämna blank om gratis',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -153,17 +281,36 @@ class CreateGadgetPage extends CompositionWidget {
               ],
             ),
             const SizedBox(height: 16),
+            DropdownButtonFormField<String?>(
+              initialValue: allowedPeriodType.value,
+              decoration: const InputDecoration(
+                labelText: 'Typ av begränsningsperiod',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text('Ingen begränsning'),
+                ),
+                ...<String>{
+                  ..._bookingPeriodTypes,
+                  if (allowedPeriodType.value != null) allowedPeriodType.value!,
+                }.map((t) => DropdownMenuItem<String?>(value: t, child: Text(t))),
+              ],
+              onChanged: (value) => allowedPeriodType.value = value,
+            ),
+            const SizedBox(height: 16),
             TextFormField(
-              controller: slotLengthController,
+              controller: allowedCountController,
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(
-                labelText: 'Bokningsslot (timmar)',
+                labelText: 'Antal tillåtna bokningar per period',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 24),
             FilledButton(
-              onPressed: loading.value ? null : createGadget,
+              onPressed: loading.value ? null : save,
               child: loading.value
                   ? const SizedBox(
                       height: 20,
@@ -173,7 +320,7 @@ class CreateGadgetPage extends CompositionWidget {
                         color: Colors.white,
                       ),
                     )
-                  : const Text('Skapa pryl'),
+                  : Text(isEdit ? 'Spara ändringar' : 'Skapa pryl'),
             ),
           ],
         ),
