@@ -55,7 +55,10 @@ class FoldersPage extends CompositionWidget {
     Future<void> showCreateFolderDialog(BuildContext context) async {
       final name = await showDialog<String>(
         context: context,
-        builder: (context) => const _NewFolderDialog(),
+        builder: (context) => const _FolderNameDialog(
+          title: 'Ny mapp',
+          confirmLabel: 'Skapa',
+        ),
       );
 
       if (name != null && name.isNotEmpty) {
@@ -63,6 +66,24 @@ class FoldersPage extends CompositionWidget {
         if (parentId != null) {
           await foldersStore.createFolder(name: name, parentId: parentId);
         }
+      }
+    }
+
+    Future<void> showRenameFolderDialog(
+      BuildContext context,
+      FoldersAndFilesRecord folder,
+    ) async {
+      final name = await showDialog<String>(
+        context: context,
+        builder: (context) => _FolderNameDialog(
+          title: 'Byt namn på mapp',
+          confirmLabel: 'Spara',
+          initialName: folder.name,
+        ),
+      );
+
+      if (name != null && name.isNotEmpty && name != folder.name) {
+        await foldersStore.renameFolder(folder, name);
       }
     }
 
@@ -135,12 +156,13 @@ class FoldersPage extends CompositionWidget {
       final isAtRoot = currentFolder?.id == rootFolder?.id;
       final files = currentFolder?.files ?? const <String>[];
       final canCreate = authStore.hasPermission('folders_and_files', CrudOperation.create);
+      final canUpdate = authStore.hasPermission('folders_and_files', CrudOperation.update);
       final canDelete = authStore.hasPermission('folders_and_files', CrudOperation.delete);
 
       final isEmpty = children.isEmpty && files.isEmpty;
 
       return GradientScaffold(
-        title: isAtRoot ? 'Dokument & Filer' : (currentFolder?.name ?? 'Dokument & Filer'),
+        title: isAtRoot ? 'Mappar & Filer' : (currentFolder?.name ?? 'Mappar & Filer'),
         showBack: isAtRoot ? null : false,
         actions: [
           if (!isAtRoot)
@@ -188,8 +210,10 @@ class FoldersPage extends CompositionWidget {
                           for (final folder in children)
                             _FolderTile(
                               folder: folder,
+                              canUpdate: canUpdate,
                               canDelete: canDelete,
                               onTap: () => navigateToFolder(folder.id),
+                              onRename: () => showRenameFolderDialog(context, folder),
                               onDelete: () async {
                                 final confirmed = await showConfirmDialog(
                                   context,
@@ -241,18 +265,26 @@ class FoldersPage extends CompositionWidget {
 /// controller manually right after `showDialog` returns crashes while the
 /// close animation is still running ("A TextEditingController was used after
 /// being disposed.").
-class _NewFolderDialog extends CompositionWidget {
-  const _NewFolderDialog();
+class _FolderNameDialog extends CompositionWidget {
+  const _FolderNameDialog({
+    required this.title,
+    required this.confirmLabel,
+    this.initialName,
+  });
+
+  final String title;
+  final String confirmLabel;
+  final String? initialName;
 
   @override
   Widget Function(BuildContext) setup() {
-    final (controller, _, _) = useTextEditingController();
+    final (controller, _, _) = useTextEditingController(text: initialName ?? '');
 
     void submit(BuildContext context) =>
         Navigator.of(context).pop(controller.text.trim());
 
     return (context) => AlertDialog(
-          title: const Text('Ny mapp'),
+          title: Text(title),
           content: TextField(
             controller: controller,
             autofocus: true,
@@ -269,7 +301,7 @@ class _NewFolderDialog extends CompositionWidget {
             ),
             FilledButton(
               onPressed: () => submit(context),
-              child: const Text('Skapa'),
+              child: Text(confirmLabel),
             ),
           ],
         );
@@ -299,19 +331,27 @@ class _SectionLabel extends StatelessWidget {
 
 class _FolderTile extends StatelessWidget {
   final FoldersAndFilesRecord folder;
+  final bool canUpdate;
   final bool canDelete;
   final VoidCallback onTap;
+  final VoidCallback onRename;
   final Future<void> Function() onDelete;
 
   const _FolderTile({
     required this.folder,
+    required this.canUpdate,
     required this.canDelete,
     required this.onTap,
+    required this.onRename,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
+    final actions = [
+      if (canUpdate) EntityAction.update(onRename),
+      if (canDelete) EntityAction.delete(() => onDelete()),
+    ];
     return Card(
       clipBehavior: Clip.antiAlias,
       child: ListTile(
@@ -321,10 +361,8 @@ class _FolderTile extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        trailing: canDelete
-            ? EntityActionMenu(
-                actions: [EntityAction.delete(() => onDelete())],
-              )
+        trailing: actions.isNotEmpty
+            ? EntityActionMenu(actions: actions)
             : const Icon(Icons.chevron_right),
         onTap: onTap,
       ),

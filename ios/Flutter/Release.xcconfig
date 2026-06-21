@@ -1,2 +1,7 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
 #include "Generated.xcconfig"
+
+// Push notifications + Universal Links capabilities for the Runner app target.
+// (Profile config also inherits from this file.) RunnerTests uses its own
+// Pods-RunnerTests xcconfigs, so it is unaffected.
+CODE_SIGN_ENTITLEMENTS=Runner/Runner.entitlements

@@ -5,6 +5,7 @@ import '../../../core/di/injection_keys.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../account/pages/account_page.dart';
 import '../../auth/pages/login_page.dart';
+import '../notification_settings_store.dart';
 
 class SettingsPage extends CompositionWidget {
   static const String path = '/settings';
@@ -15,7 +16,12 @@ class SettingsPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final authStore = inject(authStoreKey);
     final themeStore = inject(themeStoreKey);
+    final pocketBase = inject(pocketBaseKey);
     final contextRef = useContext();
+
+    final notificationSettings =
+        NotificationSettingsStore(pocketBase, authStore);
+    onMounted(notificationSettings.load);
 
     void handleSignOut() {
       showDialog(
@@ -73,6 +79,47 @@ class SettingsPage extends CompositionWidget {
               onSelectionChanged: (selection) =>
                   themeStore.setThemeMode(selection.first),
             ),
+          ),
+          const Divider(height: 32),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Text('Notiser', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.article_outlined),
+            title: const Text('Inlägg'),
+            subtitle: const Text('Notis när ett nytt inlägg publiceras'),
+            value: notificationSettings.posts.value,
+            onChanged: notificationSettings.loading.value
+                ? null
+                : notificationSettings.setPosts,
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.mode_comment_outlined),
+            title: const Text('Kommentarer'),
+            subtitle: const Text('Kommentarer på inlägg och ärenden'),
+            value: notificationSettings.comments.value,
+            onChanged: notificationSettings.loading.value
+                ? null
+                : notificationSettings.setComments,
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.report_problem_outlined),
+            title: const Text('Ärenden'),
+            subtitle: const Text('Nya och uppdaterade ärenden'),
+            value: notificationSettings.issues.value,
+            onChanged: notificationSettings.loading.value
+                ? null
+                : notificationSettings.setIssues,
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.event_outlined),
+            title: const Text('Kalender & fakturor'),
+            subtitle: const Text('Kalenderhändelser och nya fakturor'),
+            value: notificationSettings.calendar.value,
+            onChanged: notificationSettings.loading.value
+                ? null
+                : notificationSettings.setCalendar,
           ),
           const Divider(height: 32),
           ListTile(

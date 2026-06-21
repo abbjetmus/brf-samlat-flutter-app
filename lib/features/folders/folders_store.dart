@@ -143,6 +143,34 @@ class FoldersStore {
     }
   }
 
+  /// Renames the [folder], updating both its `name` and the last segment of its
+  /// `path` (which mirrors the name, as in [createFolder]), then refreshes the
+  /// current folder's children so the new name shows up.
+  Future<bool> renameFolder(FoldersAndFilesRecord folder, String newName) async {
+    _loading.value = true;
+    try {
+      final oldPath = folder.path;
+      final slash = oldPath.lastIndexOf('/');
+      final newPath = slash == -1 ? newName : '${oldPath.substring(0, slash)}/$newName';
+
+      await _pb.collection(Collections.foldersAndFiles).update(folder.id, body: {
+        'name': newName,
+        'path': newPath,
+      });
+
+      final parentId = _currentFolder.value?.id;
+      if (parentId != null) {
+        await getChildren(parentId);
+      }
+      return true;
+    } catch (e) {
+      debugPrint('FoldersStore: Error renaming folder: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
   Future<bool> deleteFolder(String id) async {
     _loading.value = true;
     try {

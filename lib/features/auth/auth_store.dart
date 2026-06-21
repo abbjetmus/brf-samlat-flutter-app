@@ -391,10 +391,12 @@ class AuthStore {
   Future<bool> updateUserName(String name) async {
     if (_currentUser.value == null) return false;
     try {
-      await _pb
+      final record = await _pb
           .collection(Collections.users)
           .update(_currentUser.value!.id, body: {'name': name});
-      _currentUser.value = _currentUser.value!.copyWith(name: name);
+      // Persist the fresh record back into the auth store so the change
+      // survives an app restart (the onChange listener updates _currentUser).
+      _pb.authStore.save(_pb.authStore.token, record);
       return true;
     } catch (e) {
       debugPrint('AuthStore: Error updating name: $e');
@@ -405,10 +407,10 @@ class AuthStore {
   Future<bool> updateUserEmail(String email) async {
     if (_currentUser.value == null) return false;
     try {
-      await _pb
+      final record = await _pb
           .collection(Collections.users)
           .update(_currentUser.value!.id, body: {'email': email});
-      _currentUser.value = _currentUser.value!.copyWith(email: email);
+      _pb.authStore.save(_pb.authStore.token, record);
       return true;
     } catch (e) {
       debugPrint('AuthStore: Error updating email: $e');
@@ -464,9 +466,7 @@ class AuthStore {
       final updated = await _pb
           .collection(Collections.users)
           .getOne(_currentUser.value!.id);
-      _currentUser.value = _currentUser.value!.copyWith(
-        avatar: updated.data['avatar'] as String?,
-      );
+      _pb.authStore.save(_pb.authStore.token, updated);
       return true;
     } catch (e) {
       debugPrint('AuthStore: Error updating image: $e');

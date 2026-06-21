@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/paginated_list_view.dart';
 import 'form_detail_page.dart';
@@ -51,15 +52,23 @@ class FormsListPage extends CompositionWidget {
                             as String? ??
                         'Formulär';
                   }
+                  final answers = response.answers;
+                  final answered = answers != null && answers.isNotEmpty;
                   return Card(
                     clipBehavior: Clip.antiAlias,
                     child: ListTile(
-                      leading: const Icon(Icons.assignment_outlined),
+                      leading: Icon(
+                        answered
+                            ? Icons.check_circle_outline
+                            : Icons.assignment_outlined,
+                        color: answered ? AppTheme.primaryColor : null,
+                      ),
                       title: Text(
                         formName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      subtitle: Text(answered ? 'Besvarad' : 'Väntar på svar'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () =>
                           context.push('${FormDetailPage.path}/${response.id}'),

@@ -158,9 +158,17 @@ class NotificationService {
     }
   }
 
-  void _navigateTo(String path) {
+  void _navigateTo(String link) {
     if (_router == null) return;
     try {
+      // Notification payloads carry full universal-link URLs
+      // (https://brfsamlat.se/app/posts/detail/X) as well as bare in-app
+      // paths. go_router needs a path, so strip scheme/host when present.
+      // The "/app" prefix is removed by the router's redirect (authGuard).
+      final uri = Uri.parse(link);
+      final path = uri.hasScheme
+          ? (uri.hasQuery ? '${uri.path}?${uri.query}' : uri.path)
+          : link;
       _router!.go(path);
     } catch (e) {
       debugPrint('NotificationService: Navigation error: $e');

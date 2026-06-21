@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- APNs environment. The app target uses AUTOMATIC signing, so Xcode
+	     manages this value itself: it stays "development" for debug builds and
+	     is swapped to "production" automatically when archiving for TestFlight /
+	     App Store. Do NOT change it by hand — the key just needs to be present
+	     to enable the Push Notifications capability. -->
+	<key>aps-environment</key>
+	<string>development</string>
+	<!-- Universal Links: domains served by the Nuxt app (brfsamlat.se).
+	     The AASA file lives at https://brfsamlat.se/.well-known/apple-app-site-association -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:brfsamlat.se</string>
+		<string>applinks:www.brfsamlat.se</string>
+	</array>
+</dict>
+</plist>
