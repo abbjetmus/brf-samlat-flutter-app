@@ -110,17 +110,29 @@ class BoardStore {
     }
   }
 
+  /// Loads the templates available when creating a meeting: the association's
+  /// own templates plus the shared system templates (mirrors the web app's
+  /// `allBoardMeetingTemplates`).
   Future<bool> getTemplates() async {
     try {
       final assocId = _authStore.association.value?.id ?? '';
       if (assocId.isEmpty) return false;
 
-      final records = await _pb
-          .collection(Collections.boardMeetingTemplates)
-          .getList(page: 1, perPage: 100, filter: 'association="$assocId"');
-      _templates.value = records.items
-          .map((r) => BoardMeetingTemplatesRecord.fromJson(r.toJson()))
-          .toList();
+      final results = await Future.wait([
+        _pb
+            .collection(Collections.boardMeetingTemplates)
+            .getList(page: 1, perPage: 100, filter: 'association="$assocId"'),
+        _pb
+            .collection(Collections.systemBoardMeetingTemplates)
+            .getList(page: 1, perPage: 100),
+      ]);
+
+      _templates.value = [
+        for (final res in results)
+          ...res.items.map(
+            (r) => BoardMeetingTemplatesRecord.fromJson(r.toJson()),
+          ),
+      ];
       return true;
     } catch (e) {
       debugPrint('BoardStore: Error fetching templates: $e');
@@ -135,6 +147,7 @@ class BoardStore {
     required String zipCode,
     required String locality,
     required String meetingProtocolId,
+    required List<dynamic> meetingProtocol,
     List<dynamic>? meetingAgenda,
     bool addToCalendar = false,
   }) async {
@@ -150,6 +163,7 @@ class BoardStore {
         'zip_code': zipCode,
         'locality': locality,
         'meeting_protocol_id': meetingProtocolId,
+        'meeting_protocol': meetingProtocol,
         'add_to_calendar': addToCalendar,
       };
 

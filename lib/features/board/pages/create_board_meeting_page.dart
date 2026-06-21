@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
+import '../../../core/models/pocketbase_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 
@@ -15,12 +16,21 @@ class CreateBoardMeetingPage extends CompositionWidget {
     final (streetAddressController, _, __) = useTextEditingController();
     final (zipCodeController, a1, a2) = useTextEditingController();
     final (localityController, a3, a4) = useTextEditingController();
-    final (protocolIdController, a5, a6) = useTextEditingController();
     final startDate = ref<DateTime?>(null);
     final endDate = ref<DateTime?>(null);
+    // The chosen meeting template ("Mötesmall"): its id is stored as the
+    // meeting's `meeting_protocol_id` and its `meeting_protocol` JSON is copied
+    // onto the meeting (a required field server-side).
+    final selectedTemplate = ref<BoardMeetingTemplatesRecord?>(null);
+    final templates = boardStore.templates;
     final addToCalendar = ref(false);
     final loading = ref(false);
     final contextRef = useContext();
+
+    // Load the available templates once when the page opens.
+    onMounted(() {
+      boardStore.getTemplates();
+    });
 
     Future<void> pickDateTime(BuildContext context, Ref<DateTime?> target) async {
       final date = await showDatePicker(
@@ -54,7 +64,8 @@ class CreateBoardMeetingPage extends CompositionWidget {
       if (streetAddressController.text.trim().isEmpty) return;
       if (zipCodeController.text.trim().isEmpty) return;
       if (localityController.text.trim().isEmpty) return;
-      if (protocolIdController.text.trim().isEmpty) return;
+      final template = selectedTemplate.value;
+      if (template == null) return;
 
       loading.value = true;
       final success = await boardStore.createBoardMeeting(
@@ -63,7 +74,8 @@ class CreateBoardMeetingPage extends CompositionWidget {
         streetAddress: streetAddressController.text.trim(),
         zipCode: zipCodeController.text.trim(),
         locality: localityController.text.trim(),
-        meetingProtocolId: protocolIdController.text.trim(),
+        meetingProtocolId: template.id,
+        meetingProtocol: template.meetingProtocol ?? const [],
         addToCalendar: addToCalendar.value,
       );
       loading.value = false;
@@ -155,13 +167,24 @@ class CreateBoardMeetingPage extends CompositionWidget {
             ),
             const SizedBox(height: 16),
 
-            // Meeting protocol ID
-            TextFormField(
-              controller: protocolIdController,
+            // Meeting template — supplies the required meeting protocol.
+            DropdownButtonFormField<BoardMeetingTemplatesRecord>(
+              initialValue: selectedTemplate.value,
+              isExpanded: true,
               decoration: const InputDecoration(
-                labelText: 'Protokoll-ID',
+                labelText: 'Mötesmall',
                 border: OutlineInputBorder(),
               ),
+              hint: Text(
+                templates.value.isEmpty
+                    ? 'Inga mallar tillgängliga'
+                    : 'Välj mötesmall',
+              ),
+              items: [
+                for (final t in templates.value)
+                  DropdownMenuItem(value: t, child: Text(t.name)),
+              ],
+              onChanged: (t) => selectedTemplate.value = t,
             ),
             const SizedBox(height: 16),
 
