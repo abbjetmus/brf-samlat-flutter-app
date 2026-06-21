@@ -82,18 +82,24 @@ class AppGradientHeader extends StatelessWidget {
   /// back button if [Navigator] can pop the current route.
   final bool? showBack;
 
+  /// Custom handler for the left back button. When set, tapping back runs this
+  /// instead of popping the route — used for in-page navigation (e.g. moving up
+  /// a folder hierarchy without changing the route).
+  final VoidCallback? onBack;
+
   const AppGradientHeader({
     super.key,
     required this.title,
     this.subtitle,
     this.actions = const [],
     this.showBack,
+    this.onBack,
   });
 
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
-    final canPop = showBack ?? Navigator.of(context).canPop();
+    final canPop = showBack ?? onBack != null || Navigator.of(context).canPop();
 
     return Container(
       width: double.infinity,
@@ -108,13 +114,14 @@ class AppGradientHeader extends StatelessWidget {
           if (canPop) ...[
             HeaderIconButton(
               icon: Icons.arrow_back,
-              onPressed: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  Navigator.of(context).maybePop();
-                }
-              },
+              onPressed: onBack ??
+                  () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      Navigator.of(context).maybePop();
+                    }
+                  },
             ),
             const SizedBox(width: 8),
           ],
@@ -181,6 +188,7 @@ class GradientScaffold extends StatelessWidget {
   final Widget? floatingActionButton;
   final Widget? bottomNavigationBar;
   final bool? showBack;
+  final VoidCallback? onBack;
   final bool resizeToAvoidBottomInset;
 
   const GradientScaffold({
@@ -192,6 +200,7 @@ class GradientScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.bottomNavigationBar,
     this.showBack,
+    this.onBack,
     this.resizeToAvoidBottomInset = true,
   });
 
@@ -208,6 +217,7 @@ class GradientScaffold extends StatelessWidget {
             subtitle: subtitle,
             actions: actions,
             showBack: showBack,
+            onBack: onBack,
           ),
           // Bottom SafeArea so page content (lists, last cards, etc.) never sits
           // under the Android system nav bar. Top is handled by the header.

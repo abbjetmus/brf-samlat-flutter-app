@@ -163,14 +163,11 @@ class FoldersPage extends CompositionWidget {
 
       return GradientScaffold(
         title: isAtRoot ? 'Mappar & Filer' : (currentFolder?.name ?? 'Mappar & Filer'),
-        showBack: isAtRoot ? null : false,
-        actions: [
-          if (!isAtRoot)
-            HeaderIconButton(
-              icon: Icons.arrow_back,
-              onPressed: navigateBack,
-            ),
-        ],
+        // In subfolders the back button navigates up the hierarchy (in-page),
+        // so route it through the header's left back button via [onBack]. At
+        // root, fall back to normal route back-detection.
+        showBack: isAtRoot ? null : true,
+        onBack: isAtRoot ? null : navigateBack,
         floatingActionButton: canCreate
             ? Column(
                 mainAxisSize: MainAxisSize.min,
