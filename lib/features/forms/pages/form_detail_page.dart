@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../widgets/form_field_checkbox.dart';
+import '../widgets/form_field_date.dart';
+import '../widgets/form_field_radio.dart';
+import '../widgets/form_field_text.dart';
+import '../widgets/form_field_time.dart';
 
 class FormDetailPage extends CompositionWidget {
   static const String path = '/forms/detail';
@@ -15,43 +19,61 @@ class FormDetailPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final formsStore = inject(formsStoreKey);
     final contextRef = useContext();
-    final answers = ref<Map<String, dynamic>>({});
+
+    // Plain answer collector. Each field owns its own display state (zmartrest
+    // native-form pattern) and reports here via onChanged, so we mutate this
+    // map in place and never need to rebuild the page for a selection to show.
+    final answers = <String, dynamic>{};
+
+    final loading = ref<bool>(true);
+    final notFound = ref<bool>(false);
     final saving = ref<bool>(false);
-    // Becomes true after a failed save attempt so required fields show errors.
-    final showErrors = ref<bool>(false);
+    // Flips true after a failed save attempt; passed to fields so required
+    // ones surface their error, and cleared again as the user fills them in.
+    final validate = ref<bool>(false);
+    final formName = ref<String>('Formulär');
+    final questions = ref<List<Map<String, dynamic>>>([]);
 
     onMounted(() async {
       await formsStore.getUserFormResponses();
       final response = formsStore.userFormResponses.value
           .where((r) => r.id == formResponseId)
           .firstOrNull;
-      if (response?.answers != null) {
-        answers.value = Map<String, dynamic>.from(response!.answers!);
+
+      if (response == null) {
+        notFound.value = true;
+        loading.value = false;
+        return;
       }
+
+      if (response.answers != null) {
+        answers.addAll(Map<String, dynamic>.from(response.answers!));
+      }
+
+      // The expanded form may arrive as a Map or a single-item List.
+      final expandForm = response.expand?['form'];
+      Map<String, dynamic>? formData;
+      if (expandForm is Map<String, dynamic>) {
+        formData = expandForm;
+      } else if (expandForm is List && expandForm.isNotEmpty) {
+        formData = expandForm.first as Map<String, dynamic>;
+      }
+      if (formData != null) {
+        formName.value = formData['name'] as String? ?? 'Formulär';
+        questions.value =
+            (formData['form_questions'] as List<dynamic>? ?? [])
+                .whereType<Map<String, dynamic>>()
+                .toList();
+      }
+
+      loading.value = false;
     });
 
     // --- Helpers -------------------------------------------------------------
 
-    void setAnswer(String key, dynamic value) {
-      final updated = Map<String, dynamic>.from(answers.value);
-      updated[key] = value;
-      answers.value = updated;
-    }
-
-    void setCheckboxOption(String key, String optionId, bool checked) {
-      final updated = Map<String, dynamic>.from(answers.value);
-      final group = Map<String, dynamic>.from(
-        (updated[key] as Map?)?.cast<String, dynamic>() ?? {},
-      );
-      group[optionId] = checked;
-      updated[key] = group;
-      answers.value = updated;
-    }
-
-    bool isItemAnswered(Map<String, dynamic> item) {
-      final component = item['component'] as String?;
-      final value = answers.value[item['id']];
-      switch (component) {
+    bool isAnswered(Map<String, dynamic> question) {
+      final value = answers[question['id']];
+      switch (question['component'] as String?) {
         case 'forms-radio':
           return value != null && value.toString().isNotEmpty;
         case 'forms-checkbox':
@@ -66,54 +88,54 @@ class FormDetailPage extends CompositionWidget {
       }
     }
 
-    String two(int n) => n.toString().padLeft(2, '0');
-
-    // --- UI builders ---------------------------------------------------------
-
-    Widget buildField(
-      Map<String, dynamic> item,
-      int index,
-      BuildContext context,
-    ) {
-      final component = item['component'] as String?;
-      final id = item['id'] as String? ?? 'q_$index';
-      final label = item['text'] as String? ?? 'Fråga ${index + 1}';
-      final required = item['required'] == true;
-      final options =
-          (item['schema'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
-      final showError = showErrors.value && required && !isItemAnswered(item);
-
-      final labelWidget = Text.rich(
-        TextSpan(
-          text: label,
-          children: required
-              ? const [
-                  TextSpan(
-                    text: ' *',
-                    style: TextStyle(color: Color(0xFFEF4444)),
-                  ),
-                ]
-              : null,
-        ),
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-      );
-
-      Widget withError(Widget child) {
-        if (!showError) return child;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            child,
-            const Padding(
-              padding: EdgeInsets.only(top: 4, left: 4),
-              child: Text(
-                'Obligatoriskt fält',
-                style: TextStyle(color: Color(0xFFEF4444), fontSize: 12),
-              ),
+    List<({String id, String text})> optionsOf(Map<String, dynamic> question) {
+      return (question['schema'] as List<dynamic>? ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (o) => (
+              id: o['id'] as String? ?? '',
+              text: o['text'] as String? ?? '',
             ),
-          ],
-        );
+          )
+          .toList();
+    }
+
+    void snack(String message) {
+      final ctx = contextRef.value;
+      if (ctx != null && ctx.mounted) {
+        ScaffoldMessenger.of(
+          ctx,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
+    }
+
+    Future<void> save() async {
+      final missing = questions.value
+          .where((q) => q['required'] == true && !isAnswered(q))
+          .toList();
+      if (missing.isNotEmpty) {
+        validate.value = true;
+        snack('Fyll i alla obligatoriska fält.');
+        return;
+      }
+
+      saving.value = true;
+      final success = await formsStore.updateFormResponse(
+        id: formResponseId,
+        answers: answers,
+      );
+      saving.value = false;
+      snack(success ? 'Svar sparade.' : 'Kunde inte spara svar.');
+    }
+
+    // --- Field builder -------------------------------------------------------
+
+    Widget buildField(Map<String, dynamic> question, int index) {
+      final component = question['component'] as String?;
+      final id = question['id'] as String? ?? 'q_$index';
+      final label = question['text'] as String? ?? 'Fråga ${index + 1}';
+      final required = question['required'] == true;
+      final shouldValidate = validate.value;
 
       switch (component) {
         case 'forms-title':
@@ -130,298 +152,121 @@ class FormDetailPage extends CompositionWidget {
 
         case 'forms-input':
         case 'forms-textarea':
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              labelWidget,
-              const SizedBox(height: 8),
-              TextFormField(
-                initialValue: answers.value[id]?.toString() ?? '',
-                decoration: InputDecoration(
-                  hintText: 'Skriv ditt svar...',
-                  border: const OutlineInputBorder(),
-                  errorText: showError ? 'Obligatoriskt fält' : null,
-                ),
-                maxLines: component == 'forms-textarea' ? 4 : 1,
-                onChanged: (value) => setAnswer(id, value),
-              ),
-            ],
+          return FormFieldText(
+            title: label,
+            required: required,
+            multiline: component == 'forms-textarea',
+            initialValue: answers[id] as String?,
+            validate: shouldValidate,
+            onChanged: (value) => answers[id] = value,
+          );
+
+        case 'forms-radio':
+          return FormFieldRadio(
+            title: label,
+            required: required,
+            options: optionsOf(question),
+            initialValue: answers[id] as String?,
+            validate: shouldValidate,
+            onChanged: (value) => answers[id] = value,
+          );
+
+        case 'forms-checkbox':
+          final raw = answers[id];
+          return FormFieldCheckbox(
+            title: label,
+            required: required,
+            options: optionsOf(question),
+            initialValue: raw is Map
+                ? raw.map((k, v) => MapEntry(k.toString(), v == true))
+                : null,
+            validate: shouldValidate,
+            onChanged: (value) => answers[id] = value,
           );
 
         case 'forms-date':
-          {
-            final value = answers.value[id] as String?;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                labelWidget,
-                const SizedBox(height: 8),
-                withError(
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.calendar_today_outlined),
-                    label: Text(
-                      value == null || value.isEmpty ? 'Välj datum' : value,
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      alignment: Alignment.centerLeft,
-                      minimumSize: const Size.fromHeight(52),
-                    ),
-                    onPressed: () async {
-                      final initial = DateTime.tryParse(value ?? '') ??
-                          DateTime.now();
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: initial,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                        locale: const Locale('sv', 'SE'),
-                      );
-                      if (picked != null) {
-                        setAnswer(
-                          id,
-                          '${picked.year}-${two(picked.month)}-${two(picked.day)}',
-                        );
-                      }
-                    },
-                  ),
-                ),
-              ],
-            );
-          }
+          return FormFieldDate(
+            title: label,
+            required: required,
+            initialValue: answers[id] as String?,
+            validate: shouldValidate,
+            onChanged: (value) => answers[id] = value,
+          );
 
         case 'forms-time':
-          {
-            final value = answers.value[id] as String?;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                labelWidget,
-                const SizedBox(height: 8),
-                withError(
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.access_time_outlined),
-                    label: Text(
-                      value == null || value.isEmpty ? 'Välj tid' : value,
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      alignment: Alignment.centerLeft,
-                      minimumSize: const Size.fromHeight(52),
-                    ),
-                    onPressed: () async {
-                      final parts = (value ?? '').split(':');
-                      final initial = TimeOfDay(
-                        hour: int.tryParse(parts.elementAtOrNull(0) ?? '') ?? 12,
-                        minute:
-                            int.tryParse(parts.elementAtOrNull(1) ?? '') ?? 0,
-                      );
-                      final picked = await showTimePicker(
-                        context: context,
-                        initialTime: initial,
-                      );
-                      if (picked != null) {
-                        setAnswer(id, '${two(picked.hour)}:${two(picked.minute)}');
-                      }
-                    },
-                  ),
-                ),
-              ],
-            );
-          }
-
-        case 'forms-radio':
-          {
-            final selected = answers.value[id] as String?;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                labelWidget,
-                const SizedBox(height: 4),
-                RadioGroup<String>(
-                  groupValue: selected,
-                  onChanged: (v) => setAnswer(id, v),
-                  child: Column(
-                    children: options
-                        .map(
-                          (opt) => RadioListTile<String>(
-                            contentPadding: EdgeInsets.zero,
-                            dense: true,
-                            title: Text(opt['text'] as String? ?? ''),
-                            value: opt['id'] as String? ?? '',
-                            activeColor: AppTheme.primaryColor,
-                          ),
-                        )
-                        .toList(),
-                  ),
-                ),
-                if (showError)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 2, left: 4),
-                    child: Text(
-                      'Obligatoriskt fält',
-                      style: TextStyle(color: Color(0xFFEF4444), fontSize: 12),
-                    ),
-                  ),
-              ],
-            );
-          }
-
-        case 'forms-checkbox':
-          {
-            final group =
-                (answers.value[id] as Map?)?.cast<String, dynamic>() ?? {};
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                labelWidget,
-                const SizedBox(height: 4),
-                ...options.map(
-                  (opt) {
-                    final optId = opt['id'] as String? ?? '';
-                    return CheckboxListTile(
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                      controlAffinity: ListTileControlAffinity.leading,
-                      title: Text(opt['text'] as String? ?? ''),
-                      value: group[optId] == true,
-                      activeColor: AppTheme.primaryColor,
-                      onChanged: (v) =>
-                          setCheckboxOption(id, optId, v ?? false),
-                    );
-                  },
-                ),
-                if (showError)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 2, left: 4),
-                    child: Text(
-                      'Välj minst ett alternativ',
-                      style: TextStyle(color: Color(0xFFEF4444), fontSize: 12),
-                    ),
-                  ),
-              ],
-            );
-          }
+          return FormFieldTime(
+            title: label,
+            required: required,
+            initialValue: answers[id] as String?,
+            validate: shouldValidate,
+            onChanged: (value) => answers[id] = value,
+          );
 
         default:
           // Unknown component: fall back to a plain text field so nothing is lost.
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              labelWidget,
-              const SizedBox(height: 8),
-              TextFormField(
-                initialValue: answers.value[id]?.toString() ?? '',
-                decoration: const InputDecoration(
-                  hintText: 'Skriv ditt svar...',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-                onChanged: (value) => setAnswer(id, value),
-              ),
-            ],
+          return FormFieldText(
+            title: label,
+            required: required,
+            multiline: true,
+            initialValue: answers[id] as String?,
+            validate: shouldValidate,
+            onChanged: (value) => answers[id] = value,
           );
       }
     }
 
     return (context) {
-      final responses = formsStore.userFormResponses.value;
-      final loading = formsStore.loading.value;
-      final response = responses.where((r) => r.id == formResponseId).firstOrNull;
-
-      if (loading && response == null) {
+      if (loading.value) {
         return const GradientScaffold(
           title: 'Formulär',
           body: Center(child: CircularProgressIndicator()),
         );
       }
 
-      if (response == null) {
+      if (notFound.value) {
         return const GradientScaffold(
           title: 'Formulär',
           body: Center(child: Text('Formulär hittades inte.')),
         );
       }
 
-      // Extract form data from expand
-      final expandForm = response.expand?['form'];
-      String formName = 'Formulär';
-      List<dynamic> questions = [];
-      if (expandForm is Map<String, dynamic>) {
-        formName = expandForm['name'] as String? ?? 'Formulär';
-        questions = expandForm['form_questions'] as List<dynamic>? ?? [];
-      } else if (expandForm is List && expandForm.isNotEmpty) {
-        final formData = expandForm.first as Map<String, dynamic>;
-        formName = formData['name'] as String? ?? 'Formulär';
-        questions = formData['form_questions'] as List<dynamic>? ?? [];
+      final items = questions.value;
+
+      // Build fields eagerly so each field widget mounts once with its seeded
+      // initialValue. Reading validate.value here subscribes the page to it, so
+      // a failed save re-renders and pushes the error flag down to the fields.
+      final fields = <Widget>[];
+      for (var index = 0; index < items.length; index++) {
+        if (index > 0) fields.add(const SizedBox(height: 16));
+        fields.add(buildField(items[index], index));
       }
 
-      Future<void> save() async {
-        final missing = questions
-            .whereType<Map<String, dynamic>>()
-            .where((q) => q['required'] == true && !isItemAnswered(q))
-            .toList();
-        if (missing.isNotEmpty) {
-          showErrors.value = true;
-          final ctx = contextRef.value;
-          if (ctx != null && ctx.mounted) {
-            ScaffoldMessenger.of(ctx).showSnackBar(
-              const SnackBar(content: Text('Fyll i alla obligatoriska fält.')),
-            );
-          }
-          return;
-        }
-
-        saving.value = true;
-        final success = await formsStore.updateFormResponse(
-          id: formResponseId,
-          answers: answers.value,
-        );
-        saving.value = false;
-        final ctx = contextRef.value;
-        if (ctx != null && ctx.mounted) {
-          ScaffoldMessenger.of(ctx).showSnackBar(
-            SnackBar(
-              content: Text(success ? 'Svar sparade.' : 'Kunde inte spara svar.'),
-            ),
-          );
-        }
-      }
+      // "Svara" button at the bottom of the form.
+      fields.add(const SizedBox(height: 24));
+      fields.add(
+        SizedBox(
+          height: 52,
+          child: ElevatedButton(
+            onPressed: saving.value ? null : save,
+            child: saving.value
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Svara'),
+          ),
+        ),
+      );
 
       return GradientScaffold(
-        title: formName,
-        actions: [
-          if (saving.value)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              ),
-            )
-          else
-            HeaderIconButton(
-              icon: Icons.save,
-              tooltip: 'Spara',
-              onPressed: save,
-            ),
-        ],
-        body: questions.isEmpty
+        title: formName.value,
+        body: items.isEmpty
             ? const Center(child: Text('Inga frågor.'))
-            : ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: questions.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 16),
-                itemBuilder: (context, index) {
-                  final question = questions[index];
-                  if (question is! Map<String, dynamic>) {
-                    return Text(question.toString());
-                  }
-                  return buildField(question, index, context);
-                },
-              ),
+            : ListView(padding: const EdgeInsets.all(16), children: fields),
       );
     };
   }
