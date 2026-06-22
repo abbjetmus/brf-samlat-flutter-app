@@ -123,7 +123,9 @@ class DashboardPage extends CompositionWidget {
         icon: Icons.groups_outlined,
         path: '/board',
         color: Color(0xFF0EA5E9),
-        permissionName: 'board_meetings',
+        // Members with `board` read see the roster; meetings/protocols are gated
+        // separately inside the page by `board_meetings`.
+        permissionName: 'board',
         featureName: 'board',
       ),
       _MenuItem(

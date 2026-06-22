@@ -29,7 +29,11 @@ class BoardDetailsPage extends CompositionWidget {
 
     onMounted(() {
       boardStore.getBoardMembers();
-      boardStore.getAllBoardMeetings();
+      // Only fetch meetings if allowed — members with `board` read see the roster
+      // but not meetings (the API now enforces board_meetings read too).
+      if (authStore.hasPermission('board_meetings', CrudOperation.read)) {
+        boardStore.getAllBoardMeetings();
+      }
     });
 
     // Comma-separated display names of a member's assigned association roles.
@@ -182,8 +186,14 @@ class BoardDetailsPage extends CompositionWidget {
       final hasMore = boardStore.hasMore.value;
 
       final canManageMembers = authStore.hasPermission(
-        'board_meetings',
+        'board',
         CrudOperation.update,
+      );
+      // Meetings & protocols are a separate permission; members with only `board`
+      // read see the roster but not the Möten tab.
+      final canReadMeetings = authStore.hasPermission(
+        'board_meetings',
+        CrudOperation.read,
       );
       final canCreateMeeting = authStore.hasPermission(
         'board_meetings',
@@ -324,7 +334,7 @@ class BoardDetailsPage extends CompositionWidget {
       }
 
       return DefaultTabController(
-        length: 2,
+        length: canReadMeetings ? 2 : 1,
         child: Builder(
           builder: (context) {
             final tabController = DefaultTabController.of(context);
@@ -339,7 +349,9 @@ class BoardDetailsPage extends CompositionWidget {
                       child: const Icon(Icons.person_add),
                     );
                   }
-                  if (tabController.index == 1 && canCreateMeeting) {
+                  if (canReadMeetings &&
+                      tabController.index == 1 &&
+                      canCreateMeeting) {
                     return FloatingActionButton(
                       onPressed: () =>
                           context.push(CreateBoardMeetingPage.path),
@@ -351,15 +363,18 @@ class BoardDetailsPage extends CompositionWidget {
               ),
               body: Column(
                 children: [
-                  const TabBar(
+                  TabBar(
                     tabs: [
-                      Tab(text: 'Medlemmar'),
-                      Tab(text: 'Möten'),
+                      const Tab(text: 'Medlemmar'),
+                      if (canReadMeetings) const Tab(text: 'Möten'),
                     ],
                   ),
                   Expanded(
                     child: TabBarView(
-                      children: [membersTab(), meetingsTab()],
+                      children: [
+                        membersTab(),
+                        if (canReadMeetings) meetingsTab(),
+                      ],
                     ),
                   ),
                 ],
