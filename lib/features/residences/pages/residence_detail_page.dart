@@ -44,8 +44,12 @@ class ResidenceDetailPage extends CompositionWidget {
         'residences',
         CrudOperation.delete,
       );
+      // Residence issues are scoped to the residence's own tenants: only the
+      // assigned residents (and admins) may even see the "Ärenden" tab. Creating
+      // is admin-only by default (residence_issues create — members are read-only).
+      final currentUserId = authStore.currentUser.value?.id;
       final canCreateIssue = authStore.hasPermission(
-        'issues',
+        'residence_issues',
         CrudOperation.create,
       );
 
@@ -63,8 +67,21 @@ class ResidenceDetailPage extends CompositionWidget {
         );
       }
 
+      // The "Ärenden" tab is residence-scoped: only the residence's assigned
+      // tenants (with residence_issues read) and admins may see it. Driven by the
+      // permission so granting residents more rights later just works.
+      final isResident =
+          currentUserId != null && residence.users.contains(currentUserId);
+      final canSeeIssues =
+          authStore.isAdmin.value ||
+          (isResident &&
+              authStore.hasPermission(
+                'residence_issues',
+                CrudOperation.read,
+              ));
+
       return DefaultTabController(
-        length: 2,
+        length: canSeeIssues ? 2 : 1,
         child: GradientScaffold(
           title: residence.streetAddress,
           actions: [
@@ -100,10 +117,10 @@ class ResidenceDetailPage extends CompositionWidget {
           ],
           body: Column(
             children: [
-              const TabBar(
+              TabBar(
                 tabs: [
-                  Tab(text: 'Information'),
-                  Tab(text: 'Ärenden'),
+                  const Tab(text: 'Information'),
+                  if (canSeeIssues) const Tab(text: 'Ärenden'),
                 ],
               ),
               Expanded(
@@ -173,10 +190,11 @@ class ResidenceDetailPage extends CompositionWidget {
                       ),
                     ),
 
-                    // Issues tab
-                    Column(
-                      children: [
-                        if (canCreateIssue)
+                    // Issues tab (only present when the user may see it)
+                    if (canSeeIssues)
+                      Column(
+                        children: [
+                          if (canCreateIssue)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                             child: Align(
