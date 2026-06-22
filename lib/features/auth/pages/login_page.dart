@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
-import 'register_page.dart';
 import 'forgot_password_page.dart';
 import '../../dashboard/pages/dashboard_page.dart';
 
@@ -100,7 +99,7 @@ class LoginPage extends CompositionWidget {
                       ],
                     ),
                     child: const Icon(
-                      Icons.apartment_rounded,
+                      Icons.home_work,
                       size: 48,
                       color: Colors.white,
                     ),
@@ -215,17 +214,6 @@ class LoginPage extends CompositionWidget {
                             onPressed: () =>
                                 context.push(ForgotPasswordPage.path),
                             child: const Text('Glömt lösenord?'),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        Center(
-                          child: TextButton(
-                            onPressed: () => context.push(RegisterPage.path),
-                            child: const Text(
-                              'Registrera med inbjudan',
-                              style: TextStyle(fontSize: 16),
-                            ),
                           ),
                         ),
                       ],

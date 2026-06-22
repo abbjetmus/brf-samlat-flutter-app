@@ -70,7 +70,7 @@ class DashboardPage extends CompositionWidget {
         permissionName: 'chat',
       ),
       _MenuItem(
-        label: 'Felanmälan',
+        label: 'Ärenden &\nFelanmälan',
         icon: Icons.report_problem_outlined,
         path: '/issues',
         color: Color(0xFFF59E0B),
@@ -400,11 +400,11 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 17,
         fontWeight: FontWeight.w700,
         letterSpacing: -0.2,
-        color: AppTheme.ink,
+        color: Theme.of(context).colorScheme.onSurface,
       ),
     );
   }
@@ -471,16 +471,18 @@ class _MenuCard extends StatelessWidget {
                 child: Icon(item.icon, color: item.color, size: 26),
               ),
               const SizedBox(height: 10),
-              Text(
-                item.label,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                  height: 1.15,
-                  color: theme.colorScheme.onSurface,
+              Flexible(
+                child: Text(
+                  item.label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    height: 1.15,
+                    color: theme.colorScheme.onSurface,
+                  ),
                 ),
               ),
             ],
