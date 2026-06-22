@@ -341,7 +341,11 @@ class ParkingLotDetailPage extends CompositionWidget {
                                   child: ListTile(
                                     onTap: canUpdateSpace
                                         ? () => showSpaceDialog(space: space)
-                                        : null,
+                                        : () => _showSpaceDetails(
+                                            context,
+                                            space,
+                                            residenceLabel(space.residence),
+                                          ),
                                     leading: Icon(
                                       space.hasChargingStation
                                           ? Icons.ev_station
@@ -447,6 +451,65 @@ Widget _infoRow(IconData icon, String text) {
         const SizedBox(width: 12),
         Expanded(child: Text(text)),
       ],
+    ),
+  );
+}
+
+/// Read-only details for a parking space, shown to users without edit rights so
+/// they can still view the space information.
+void _showSpaceDetails(
+  BuildContext context,
+  ParkingSpacesRecord space,
+  String? residenceLabel,
+) {
+  final hasResidence = space.residence != null && space.residence!.isNotEmpty;
+  showModalBottomSheet(
+    context: context,
+    builder: (context) => Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                space.hasChargingStation
+                    ? Icons.ev_station
+                    : Icons.local_parking,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  space.name,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _infoRow(
+            Icons.home_outlined,
+            hasResidence
+                ? (residenceLabel ?? 'Bostad tilldelad')
+                : 'Ledig',
+          ),
+          _infoRow(
+            space.hasChargingStation ? Icons.ev_station : Icons.power_off,
+            space.hasChargingStation ? 'Laddstation' : 'Ingen laddstation',
+          ),
+          if (space.parkingStartDate != null &&
+              space.parkingStartDate!.isNotEmpty)
+            _infoRow(
+              Icons.event,
+              'Startdatum: ${space.parkingStartDate!.split('T').first}',
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
     ),
   );
 }
