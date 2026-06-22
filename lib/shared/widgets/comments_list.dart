@@ -23,7 +23,8 @@ class CommentItem {
 class CommentsList extends StatelessWidget {
   final List<CommentItem> comments;
   final String? currentUserId;
-  final Future<void> Function(String comment) onAddComment;
+  /// When null the user may not add comments and the "Kommentera" button hides.
+  final Future<void> Function(String comment)? onAddComment;
   final Future<void> Function(String id, String comment)? onEditComment;
   final Future<void> Function(String id)? onDeleteComment;
 
@@ -31,7 +32,7 @@ class CommentsList extends StatelessWidget {
     super.key,
     required this.comments,
     this.currentUserId,
-    required this.onAddComment,
+    this.onAddComment,
     this.onEditComment,
     this.onDeleteComment,
   });
@@ -41,20 +42,21 @@ class CommentsList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Add comment button
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: FilledButton.icon(
-            onPressed: () => _showAddCommentDialog(context),
-            icon: const Icon(Icons.add_comment_outlined, size: 18),
-            label: const Text('Kommentera'),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              visualDensity: VisualDensity.compact,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        // Add comment button (hidden when the user may not comment)
+        if (onAddComment != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: FilledButton.icon(
+              onPressed: () => _showAddCommentDialog(context),
+              icon: const Icon(Icons.add_comment_outlined, size: 18),
+              label: const Text('Kommentera'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
             ),
           ),
-        ),
 
         if (comments.isEmpty)
           const Padding(
@@ -155,7 +157,7 @@ class CommentsList extends StatelessWidget {
           FilledButton(
             onPressed: () {
               if (controller.text.trim().isNotEmpty) {
-                onAddComment(controller.text.trim());
+                onAddComment?.call(controller.text.trim());
                 Navigator.of(context).pop();
               }
             },

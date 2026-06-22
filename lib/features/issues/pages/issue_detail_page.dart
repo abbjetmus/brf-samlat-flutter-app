@@ -37,6 +37,9 @@ class IssueDetailPage extends CompositionWidget {
       final currentUserId = authStore.currentUser.value?.id;
       final canEdit = authStore.hasPermission('issues', CrudOperation.update);
       final canDelete = authStore.hasPermission('issues', CrudOperation.delete);
+      // Commenting writes an issue_comment, which the backend gates on issues
+      // create — so read-only members can view comments but not add them.
+      final canComment = authStore.hasPermission('issues', CrudOperation.create);
 
       if (loading && issue == null) {
         return const GradientScaffold(
@@ -213,8 +216,9 @@ class IssueDetailPage extends CompositionWidget {
                     );
                   }).toList(),
                   currentUserId: currentUserId,
-                  onAddComment: (comment) =>
-                      issuesStore.addComment(issueId, comment),
+                  onAddComment: canComment
+                      ? (comment) => issuesStore.addComment(issueId, comment)
+                      : null,
                   onEditComment: canEdit
                       ? (id, comment) =>
                             issuesStore.updateComment(id, comment, issueId)

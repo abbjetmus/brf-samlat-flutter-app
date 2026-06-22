@@ -23,6 +23,7 @@ class LoginPage extends CompositionWidget {
     final loading = ref(false);
     final authError = ref<String?>(null);
     final contextRef = useContext();
+    final theme = useTheme();
 
     String? validateEmail(String? value) {
       if (value == null || value.isEmpty) return 'E-post krävs';
@@ -105,13 +106,13 @@ class LoginPage extends CompositionWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'BRF Samlat',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
-                      color: AppTheme.ink,
+                      color: theme.value.colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -119,7 +120,7 @@ class LoginPage extends CompositionWidget {
                     'Föreningen samlad på ett ställe',
                     style: TextStyle(
                       fontSize: 15,
-                      color: AppTheme.inkMuted,
+                      color: theme.value.colorScheme.onSurfaceVariant,
                     ),
                   ),
                   const SizedBox(height: 40),

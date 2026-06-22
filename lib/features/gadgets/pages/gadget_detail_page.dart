@@ -84,6 +84,8 @@ class GadgetDetailPage extends CompositionWidget {
         'gadgets',
         CrudOperation.delete,
       );
+      final currentUserId = authStore.currentUser.value?.id;
+      final isAdmin = authStore.isAdmin.value;
 
       if (loading && gadget == null) {
         return const GradientScaffold(
@@ -235,6 +237,8 @@ class GadgetDetailPage extends CompositionWidget {
                                   bookings: bookings,
                                   gadgetsStore: gadgetsStore,
                                   gadgetId: gadgetId,
+                                  currentUserId: currentUserId,
+                                  isAdmin: isAdmin,
                                 )
                               : SfCalendar(
                                   view:
@@ -270,6 +274,8 @@ class GadgetDetailPage extends CompositionWidget {
                                         booking,
                                         gadgetsStore,
                                         gadgetId,
+                                        currentUserId,
+                                        isAdmin,
                                       );
                                     }
                                   },
@@ -306,7 +312,12 @@ void _showBookingDetails(
   GadgetBookingsRecord booking,
   GadgetsStore gadgetsStore,
   String gadgetId,
+  String? currentUserId,
+  bool isAdmin,
 ) {
+  // Members may only cancel their own bookings; admins may cancel any.
+  final canDeleteBooking =
+      isAdmin || (booking.user != null && booking.user == currentUserId);
   showModalBottomSheet(
     context: context,
     builder: (context) => Padding(
@@ -337,14 +348,15 @@ void _showBookingDetails(
                   ),
                 ),
               ),
-              EntityActionMenu(
-                actions: [
-                  EntityAction.delete(() async {
-                    await gadgetsStore.deleteBooking(booking.id, gadgetId);
-                    if (context.mounted) Navigator.of(context).pop();
-                  }),
-                ],
-              ),
+              if (canDeleteBooking)
+                EntityActionMenu(
+                  actions: [
+                    EntityAction.delete(() async {
+                      await gadgetsStore.deleteBooking(booking.id, gadgetId);
+                      if (context.mounted) Navigator.of(context).pop();
+                    }),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -412,11 +424,15 @@ class _BookingListView extends StatelessWidget {
     required this.bookings,
     required this.gadgetsStore,
     required this.gadgetId,
+    required this.currentUserId,
+    required this.isAdmin,
   });
 
   final List<GadgetBookingsRecord> bookings;
   final GadgetsStore gadgetsStore;
   final String gadgetId;
+  final String? currentUserId;
+  final bool isAdmin;
 
   DateTime _start(GadgetBookingsRecord b) {
     try {
@@ -460,8 +476,14 @@ class _BookingListView extends StatelessWidget {
             ),
             subtitle: Text(_formatBookingTime(booking)),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () =>
-                _showBookingDetails(context, booking, gadgetsStore, gadgetId),
+            onTap: () => _showBookingDetails(
+              context,
+              booking,
+              gadgetsStore,
+              gadgetId,
+              currentUserId,
+              isAdmin,
+            ),
           ),
         );
       },
