@@ -183,53 +183,56 @@ class DashboardPage extends CompositionWidget {
       }).toList();
 
       return Scaffold(
-        body: SingleChildScrollView(
-          padding: EdgeInsets.zero,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _HeroHeader(
-                userName: user?.name ?? '',
-                associationName: association?.name,
-                notSeenCount: notSeenCount,
-                onNotifications: () =>
-                    _showNotificationsDialog(context, dashboardStore),
-                onSettings: () => context.push(SettingsPage.path),
-              ),
-              Padding(
-                // Add the Android system nav-bar inset so the last cards don't
-                // sit under the bottom bar.
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  24,
-                  20,
-                  28 + MediaQuery.of(context).padding.bottom,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _MenuGrid(
-                      items: visibleItems,
-                      onTap: (item) => context.push(item.path),
-                    ),
-                    if (generalInfoList.isNotEmpty) ...[
-                      const SizedBox(height: 28),
-                      const _SectionTitle('Allmän information'),
-                      const SizedBox(height: 14),
-                      ...generalInfoList.map(
-                        (post) => _InfoCard(
-                          title: post.title,
-                          subtitle: AppDateUtils.formatDate(post.created),
-                          onTap: () =>
-                              context.push('${PostDetailPage.path}/${post.id}'),
-                        ),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Fixed header — stays in place while the content below scrolls.
+            _HeroHeader(
+              userName: user?.name ?? '',
+              associationName: association?.name,
+              notSeenCount: notSeenCount,
+              onNotifications: () =>
+                  _showNotificationsDialog(context, dashboardStore),
+              onSettings: () => context.push(SettingsPage.path),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: EdgeInsets.zero,
+                child: Padding(
+                  // Add the Android system nav-bar inset so the last cards don't
+                  // sit under the bottom bar.
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    24,
+                    20,
+                    28 + MediaQuery.of(context).padding.bottom,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _MenuGrid(
+                        items: visibleItems,
+                        onTap: (item) => context.push(item.path),
                       ),
+                      if (generalInfoList.isNotEmpty) ...[
+                        const SizedBox(height: 28),
+                        const _SectionTitle('Allmän information'),
+                        const SizedBox(height: 14),
+                        ...generalInfoList.map(
+                          (post) => _InfoCard(
+                            title: post.title,
+                            subtitle: AppDateUtils.formatDate(post.created),
+                            onTap: () => context
+                                .push('${PostDetailPage.path}/${post.id}'),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     };
