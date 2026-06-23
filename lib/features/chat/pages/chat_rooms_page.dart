@@ -19,6 +19,7 @@ class ChatRoomsPage extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final chatStore = inject(chatStoreKey);
+    final authStore = inject(authStoreKey);
 
     onMounted(() {
       chatStore.getRooms();
@@ -28,6 +29,104 @@ class ChatRoomsPage extends CompositionWidget {
     onUnmounted(() {
       chatStore.unsubscribeAll();
     });
+
+    void showRoomOptions(BuildContext context, ChatRoomsRecord room) {
+      final currentUserId = authStore.currentUser.value?.id;
+      final isCreator = room.createdBy == currentUserId;
+      final title = chatStore.roomTitle(room);
+
+      showModalBottomSheet(
+        context: context,
+        builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.open_in_new_outlined),
+                title: const Text('Öppna'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  context.push('${ChatRoomPage.path}/${room.id}', extra: title);
+                },
+              ),
+              if (room.isGroup)
+                ListTile(
+                  leading: const Icon(Icons.exit_to_app_outlined),
+                  title: const Text('Lämna chatt'),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (dlg) => AlertDialog(
+                        title: const Text('Lämna chatt'),
+                        content: Text('Vill du lämna "$title"?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dlg, false),
+                            child: const Text('Avbryt'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(dlg, true),
+                            child: const Text('Lämna'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true) {
+                      await chatStore.leaveRoom(room.id);
+                    }
+                  },
+                ),
+              if (isCreator)
+                ListTile(
+                  leading: Icon(
+                    Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  title: Text(
+                    'Radera chatt',
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (dlg) => AlertDialog(
+                        title: const Text('Radera chatt'),
+                        content: Text('Vill du permanent radera "$title"?'),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dlg, false),
+                            child: const Text('Avbryt'),
+                          ),
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Theme.of(dlg).colorScheme.error,
+                            ),
+                            onPressed: () => Navigator.pop(dlg, true),
+                            child: const Text('Radera'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed == true) {
+                      await chatStore.deleteRoom(room.id);
+                    }
+                  },
+                ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return (context) {
       final rooms = chatStore.rooms.value;
@@ -77,6 +176,7 @@ class ChatRoomsPage extends CompositionWidget {
                             '${ChatRoomPage.path}/${room.id}',
                             extra: title,
                           ),
+                          onLongPress: () => showRoomOptions(context, room),
                         );
                       },
                     ),

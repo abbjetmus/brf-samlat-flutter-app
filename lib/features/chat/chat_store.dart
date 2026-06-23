@@ -268,6 +268,7 @@ class ChatStore {
     String roomId,
     String content, {
     List<File>? imageFiles,
+    String? replyToId,
   }) async {
     final me = _myId;
     if (me == null) return false;
@@ -285,21 +286,33 @@ class ChatStore {
           );
         }
       }
+      final body = <String, dynamic>{
+        'room': roomId,
+        'sender': me,
+        'content': content,
+        'deleted': false,
+        'edited': false,
+      };
+      if (replyToId != null) body['reply_to'] = replyToId;
       await _pb
           .collection(Collections.chatMessages)
-          .create(
-            body: {
-              'room': roomId,
-              'sender': me,
-              'content': content,
-              'deleted': false,
-              'edited': false,
-            },
-            files: files,
-          );
+          .create(body: body, files: files, expand: 'sender,reply_to');
       return true;
     } catch (e) {
       debugPrint('ChatStore: Error sending message: $e');
+      return false;
+    }
+  }
+
+  Future<bool> editMessage(String messageId, String content) async {
+    try {
+      await _pb.collection(Collections.chatMessages).update(
+        messageId,
+        body: {'content': content, 'edited': true},
+      );
+      return true;
+    } catch (e) {
+      debugPrint('ChatStore: Error editing message: $e');
       return false;
     }
   }
@@ -312,6 +325,67 @@ class ChatStore {
       return true;
     } catch (e) {
       debugPrint('ChatStore: Error deleting message: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateRoom(String roomId, {String? name}) async {
+    try {
+      final body = <String, dynamic>{};
+      if (name != null) body['name'] = name;
+      await _pb
+          .collection(Collections.chatRooms)
+          .update(roomId, body: body, expand: 'members');
+      return true;
+    } catch (e) {
+      debugPrint('ChatStore: Error updating room: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteRoom(String roomId) async {
+    try {
+      await _pb.collection(Collections.chatRooms).delete(roomId);
+      _rooms.value = _rooms.value.where((r) => r.id != roomId).toList();
+      return true;
+    } catch (e) {
+      debugPrint('ChatStore: Error deleting room: $e');
+      return false;
+    }
+  }
+
+  Future<bool> leaveRoom(String roomId) async {
+    final me = _myId;
+    if (me == null) return false;
+    try {
+      final room = _rooms.value.where((r) => r.id == roomId).firstOrNull;
+      if (room == null) return false;
+      final newMembers = room.members.where((id) => id != me).toList();
+      await _pb.collection(Collections.chatRooms).update(
+        roomId,
+        body: {'members': newMembers},
+      );
+      _rooms.value = _rooms.value.where((r) => r.id != roomId).toList();
+      return true;
+    } catch (e) {
+      debugPrint('ChatStore: Error leaving room: $e');
+      return false;
+    }
+  }
+
+  Future<bool> addMembers(String roomId, List<String> userIds) async {
+    try {
+      final room = _rooms.value.where((r) => r.id == roomId).firstOrNull;
+      if (room == null) return false;
+      final updated = {...room.members, ...userIds}.toList();
+      await _pb.collection(Collections.chatRooms).update(
+        roomId,
+        body: {'members': updated},
+        expand: 'members',
+      );
+      return true;
+    } catch (e) {
+      debugPrint('ChatStore: Error adding members: $e');
       return false;
     }
   }
