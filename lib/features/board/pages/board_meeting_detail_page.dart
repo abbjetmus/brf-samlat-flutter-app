@@ -8,6 +8,7 @@ import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/rich_description.dart';
+import '../board_meeting_pdf.dart';
 
 class BoardMeetingDetailPage extends CompositionWidget {
   static const String path = '/board/detail';
@@ -57,9 +58,19 @@ class BoardMeetingDetailPage extends CompositionWidget {
       return GradientScaffold(
         title: 'Styrelsemöte',
         actions: [
-          if (canDelete)
-            EntityActionMenu.header(
-              actions: [
+          EntityActionMenu.header(
+            actions: [
+              EntityAction(
+                icon: Icons.picture_as_pdf_outlined,
+                label: 'Generera PDF',
+                onSelected: () {
+                  BoardMeetingPdf.shareProtocol(
+                    meeting,
+                    associationName: authStore.association.value?.name,
+                  );
+                },
+              ),
+              if (canDelete)
                 EntityAction.delete(() async {
                   final confirmed = await showConfirmDialog(
                     context,
@@ -77,8 +88,8 @@ class BoardMeetingDetailPage extends CompositionWidget {
                     }
                   }
                 }),
-              ],
-            ),
+            ],
+          ),
         ],
         body: SingleChildScrollView(
           child: Column(
