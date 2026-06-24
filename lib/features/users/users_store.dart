@@ -95,6 +95,37 @@ class UsersStore {
     }
   }
 
+  Future<bool> sendInvitation({
+    required String name,
+    required String email,
+    String? phone,
+    required String userRoleType,
+  }) async {
+    _loading.value = true;
+    try {
+      final assocId = _authStore.association.value?.id ?? '';
+      final assocType = _authStore.association.value?.associationType ?? 'BRF';
+      if (assocId.isEmpty) return false;
+
+      await _pb.collection(Collections.userInvitations).create(body: {
+        'name': name,
+        'email': email,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+        'association': assocId,
+        'association_type': assocType,
+        'user_role_type': userRoleType,
+        'invitation_status': 'Skickad',
+      });
+      await getInvitations();
+      return true;
+    } catch (e) {
+      debugPrint('UsersStore: Error sending invitation: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
   Future<bool> deleteInvitation(String id) async {
     _loading.value = true;
     try {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
+import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/paginated_list_view.dart';
 import '../../../shared/widgets/search_field.dart';
@@ -15,11 +16,122 @@ class UsersListPage extends CompositionWidget {
     final usersStore = inject(usersStoreKey);
     final authStore = inject(authStoreKey);
     final searchQuery = ref('');
+    final contextRef = useContext();
 
     onMounted(() {
       usersStore.getUsers();
       usersStore.getInvitations();
     });
+
+    Future<void> showInviteDialog() async {
+      final context = contextRef.value;
+      if (context == null) return;
+
+      final nameController = TextEditingController();
+      final emailController = TextEditingController();
+      final phoneController = TextEditingController();
+      String? selectedRoleTypeId;
+
+      final roleTypes = authStore.userRoleTypes.value;
+
+      final result = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (ctx, setState) => AlertDialog(
+            title: const Text('Bjud in användare'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Namn',
+                      border: OutlineInputBorder(),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'E-post',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: phoneController,
+                    decoration: const InputDecoration(
+                      labelText: 'Telefon (valfritt)',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 12),
+                  if (roleTypes.isNotEmpty)
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedRoleTypeId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Roll',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: roleTypes
+                          .map(
+                            (r) => DropdownMenuItem(
+                              value: r.id,
+                              child: Text(r.name),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (v) => setState(() => selectedRoleTypeId = v),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Avbryt'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Bjud in'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      final name = nameController.text.trim();
+      final email = emailController.text.trim();
+      final phone = phoneController.text.trim();
+      nameController.dispose();
+      emailController.dispose();
+      phoneController.dispose();
+
+      if (result != true || name.isEmpty || email.isEmpty) return;
+
+      final roleTypeId =
+          selectedRoleTypeId ?? (roleTypes.isNotEmpty ? roleTypes.first.id : '');
+
+      final success = await usersStore.sendInvitation(
+        name: name,
+        email: email,
+        phone: phone.isEmpty ? null : phone,
+        userRoleType: roleTypeId,
+      );
+
+      final ctx = contextRef.value;
+      if (ctx == null || !ctx.mounted) return;
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Inbjudan skickad.' : 'Kunde inte skicka inbjudan.'),
+        ),
+      );
+    }
 
     return (context) {
       final users = usersStore.users.value;
@@ -29,6 +141,7 @@ class UsersListPage extends CompositionWidget {
       final loadingMore = usersStore.loadingMore.value;
       final hasMore = usersStore.hasMore.value;
       final userRoleTypes = authStore.userRoleTypes.value;
+      final isAdmin = authStore.isAdmin.value;
 
       String getRoleTypeName(String roleTypeId) {
         final roleType = userRoleTypes
@@ -61,6 +174,12 @@ class UsersListPage extends CompositionWidget {
         length: 2,
         child: GradientScaffold(
           title: 'Användare',
+          floatingActionButton: isAdmin
+              ? FloatingActionButton(
+                  onPressed: showInviteDialog,
+                  child: const Icon(Icons.person_add_outlined),
+                )
+              : null,
           body: Column(
             children: [
               Padding(
@@ -182,6 +301,17 @@ class UsersListPage extends CompositionWidget {
                                         ),
                                       ],
                                     ),
+                                    trailing: isAdmin
+                                        ? EntityActionMenu(
+                                            actions: [
+                                              EntityAction.delete(() async {
+                                                await usersStore.deleteInvitation(
+                                                  invitation.id,
+                                                );
+                                              }),
+                                            ],
+                                          )
+                                        : null,
                                   ),
                                 );
                               },
