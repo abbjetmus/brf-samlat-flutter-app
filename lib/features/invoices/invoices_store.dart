@@ -36,11 +36,13 @@ class InvoicesStore {
   late final Paginated<InvoicesRecord> _invoices;
   final _currentInvoice = ref<InvoicesRecord?>(null);
   final _invoiceTemplate = ref<InvoiceTemplatesRecord?>(null);
+  final _currentResidence = ref<ResidencesRecord?>(null);
   final _loading = ref<bool>(false);
 
   Ref<List<InvoicesRecord>> get invoices => _invoices.items;
   Ref<InvoicesRecord?> get currentInvoice => _currentInvoice;
   Ref<InvoiceTemplatesRecord?> get invoiceTemplate => _invoiceTemplate;
+  Ref<ResidencesRecord?> get currentResidence => _currentResidence;
   Ref<bool> get loading => _loading;
   Ref<bool> get listLoading => _invoices.loading;
   Ref<bool> get loadingMore => _invoices.loadingMore;
@@ -51,9 +53,17 @@ class InvoicesStore {
 
   Future<bool> getInvoice(String id) async {
     _loading.value = true;
+    _currentResidence.value = null;
     try {
       final record = await _pb.collection(Collections.invoices).getOne(id);
       _currentInvoice.value = InvoicesRecord.fromJson(record.toJson());
+      final residenceId = _currentInvoice.value?.residence ?? '';
+      if (residenceId.isNotEmpty) {
+        final res = await _pb
+            .collection(Collections.residences)
+            .getOne(residenceId);
+        _currentResidence.value = ResidencesRecord.fromJson(res.toJson());
+      }
       return true;
     } catch (e) {
       debugPrint('InvoicesStore: Error fetching invoice: $e');
