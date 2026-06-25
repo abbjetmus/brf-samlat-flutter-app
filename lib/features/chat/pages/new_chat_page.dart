@@ -25,8 +25,12 @@ class NewChatPage extends CompositionWidget {
     final query = ref<String>('');
     final creating = ref<bool>(false);
 
-    onMounted(() {
-      usersStore.getUsers();
+    // Full association list so every member is shown up front; the search box
+    // only filters this list client-side.
+    final allUsers = ref<List<UsersRecord>>([]);
+
+    onMounted(() async {
+      allUsers.value = await usersStore.getAllAssociationUsers();
     });
 
     Future<void> create(BuildContext context) async {
@@ -44,7 +48,7 @@ class NewChatPage extends CompositionWidget {
       if (roomId == null || !context.mounted) return;
       final title = group
           ? groupName.value.trim()
-          : (usersStore.users.value
+          : (allUsers.value
                   .where((u) => u.id == ids.first)
                   .firstOrNull
                   ?.name ??
@@ -55,7 +59,7 @@ class NewChatPage extends CompositionWidget {
     return (context) {
       final meId = authStore.currentUser.value?.id;
       final q = query.value.toLowerCase();
-      final users = usersStore.users.value
+      final users = allUsers.value
           .where((u) => u.id != meId)
           .where((u) =>
               q.isEmpty ||

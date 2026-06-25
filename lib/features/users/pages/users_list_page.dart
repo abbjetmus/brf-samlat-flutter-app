@@ -30,9 +30,15 @@ class UsersListPage extends CompositionWidget {
       final nameController = TextEditingController();
       final emailController = TextEditingController();
       final phoneController = TextEditingController();
-      String? selectedRoleTypeId;
 
       final roleTypes = authStore.userRoleTypes.value;
+
+      // Default to the "user" role when present (its displayName, e.g.
+      // "Användare", comes from the user_role_types collection).
+      String? selectedRoleTypeId = roleTypes
+          .where((r) => r.name == 'user')
+          .map((r) => r.id)
+          .firstOrNull;
 
       final result = await showDialog<bool>(
         context: context,
@@ -82,7 +88,11 @@ class UsersListPage extends CompositionWidget {
                           .map(
                             (r) => DropdownMenuItem(
                               value: r.id,
-                              child: Text(r.name),
+                              child: Text(
+                                r.displayName.isNotEmpty
+                                    ? r.displayName
+                                    : r.name,
+                              ),
                             ),
                           )
                           .toList(),
