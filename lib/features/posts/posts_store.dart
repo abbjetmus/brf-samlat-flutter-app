@@ -89,6 +89,7 @@ class PostsStore {
     bool commentsAllowed = true,
     bool pinAsGeneralInfo = false,
     bool addToCalendar = false,
+    bool sendPushNotification = false,
     String? startAt,
     String? endAt,
     List<File>? attachments,
@@ -106,6 +107,7 @@ class PostsStore {
         'comments_allowed': commentsAllowed,
         'pin_as_general_info': pinAsGeneralInfo,
         'add_to_calendar': addToCalendar,
+        'send_push_notification': sendPushNotification,
       };
 
       if (startAt != null) body['start_at'] = startAt;
@@ -144,6 +146,7 @@ class PostsStore {
     bool? commentsAllowed,
     bool? pinAsGeneralInfo,
     bool? addToCalendar,
+    bool? sendPushNotification,
     String? startAt,
     String? endAt,
   }) async {
@@ -158,6 +161,8 @@ class PostsStore {
       if (pinAsGeneralInfo != null)
         body['pin_as_general_info'] = pinAsGeneralInfo;
       if (addToCalendar != null) body['add_to_calendar'] = addToCalendar;
+      if (sendPushNotification != null)
+        body['send_push_notification'] = sendPushNotification;
       if (startAt != null) body['start_at'] = startAt;
       if (endAt != null) body['end_at'] = endAt;
 

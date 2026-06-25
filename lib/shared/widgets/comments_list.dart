@@ -45,12 +45,13 @@ class CommentsList extends StatelessWidget {
         // Add comment button (hidden when the user may not comment)
         if (onAddComment != null)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: FilledButton.icon(
               onPressed: () => _showAddCommentDialog(context),
               icon: const Icon(Icons.add_comment_outlined, size: 18),
               label: const Text('Kommentera'),
               style: FilledButton.styleFrom(
+                minimumSize: const Size(0, 40),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 visualDensity: VisualDensity.compact,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -69,6 +70,7 @@ class CommentsList extends StatelessWidget {
         else
           ListView.separated(
             shrinkWrap: true,
+            padding: EdgeInsets.zero,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: comments.length,
             separatorBuilder: (_, _) => const Divider(height: 1),
@@ -77,57 +79,89 @@ class CommentsList extends StatelessWidget {
               final isOwn =
                   currentUserId != null && comment.userId == currentUserId;
 
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: AppTheme.primaryColor,
-                  child: Text(
-                    (comment.userName ?? '?')[0].toUpperCase(),
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                ),
-                title: Row(
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      comment.userName ?? 'Okänd',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: AppTheme.primaryColor,
+                      child: Text(
+                        (comment.userName ?? '?')[0].toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Text(
-                      AppDateUtils.timeAgo(comment.created),
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  comment.userName ?? 'Okänd',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                AppDateUtils.timeAgo(comment.created),
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            comment.comment,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
                     ),
+                    if (isOwn)
+                      SizedBox(
+                        height: 32,
+                        width: 32,
+                        child: PopupMenuButton<String>(
+                          padding: EdgeInsets.zero,
+                          onSelected: (value) {
+                            if (value == 'edit') {
+                              _showEditCommentDialog(context, comment);
+                            } else if (value == 'delete') {
+                              onDeleteComment?.call(comment.id);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            if (onEditComment != null)
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Text('Redigera'),
+                              ),
+                            if (onDeleteComment != null)
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: Text(
+                                  'Radera',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
-                subtitle: Text(comment.comment),
-                trailing: isOwn
-                    ? PopupMenuButton<String>(
-                        onSelected: (value) {
-                          if (value == 'edit') {
-                            _showEditCommentDialog(context, comment);
-                          } else if (value == 'delete') {
-                            onDeleteComment?.call(comment.id);
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          if (onEditComment != null)
-                            const PopupMenuItem(
-                              value: 'edit',
-                              child: Text('Redigera'),
-                            ),
-                          if (onDeleteComment != null)
-                            const PopupMenuItem(
-                              value: 'delete',
-                              child: Text(
-                                'Radera',
-                                style: TextStyle(color: Colors.red),
-                              ),
-                            ),
-                        ],
-                      )
-                    : null,
               );
             },
           ),

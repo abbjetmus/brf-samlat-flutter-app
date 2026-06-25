@@ -61,7 +61,7 @@ class PlacesStore {
     try {
       final records = await _pb
           .collection(Collections.placeBookings)
-          .getFullList(filter: 'place="$placeId"', expand: 'residence');
+          .getFullList(filter: 'place="$placeId"', expand: 'residence,user');
       _bookings.value = records
           .map((r) => PlaceBookingsRecord.fromJson(r.toJson()))
           .toList();

@@ -5,6 +5,7 @@ import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../core/models/pocketbase_models.dart';
+import '../../../shared/widgets/app_bottom_sheet.dart';
 import '../../../shared/widgets/booking_time_slot_dialog.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
@@ -25,12 +26,17 @@ class PlaceDetailPage extends CompositionWidget {
     final placesStore = inject(placesStoreKey);
     final authStore = inject(authStoreKey);
     final viewMode = ref(_BookingViewMode.week);
+    // Drive view changes through a controller so SfCalendar reliably switches
+    // between Dag/Vecka/Månad (changing only the `view` property is flaky).
+    final calendarController = CalendarController()..view = CalendarView.week;
     final contextRef = useContext();
 
     onMounted(() {
       placesStore.getPlace(placeId);
       placesStore.getBookings(placeId);
     });
+
+    onUnmounted(calendarController.dispose);
 
     Future<void> showAddBookingDialog() async {
       final context = contextRef.value;
@@ -50,10 +56,15 @@ class PlaceDetailPage extends CompositionWidget {
               (b) => ExistingBooking(
                 DateTime.parse(b.startAt),
                 DateTime.parse(b.endAt),
+                residence: b.residence,
+                isBlock: b.isBlock,
               ),
             )
             .toList(),
         isAdmin: authStore.isAdmin.value,
+        myResidenceId: authStore.residence.value?.id,
+        bookingPeriodType: place.allowedBookingPeriodType,
+        maxBookingsPerPeriod: place.allowedNumberOfBookingsPerPeriod,
       );
 
       if (result != null) {
@@ -228,7 +239,12 @@ class PlaceDetailPage extends CompositionWidget {
                               ],
                               selected: {viewMode.value},
                               onSelectionChanged: (modes) {
-                                viewMode.value = modes.first;
+                                final mode = modes.first;
+                                viewMode.value = mode;
+                                final view = _toCalendarView(mode);
+                                if (view != null) {
+                                  calendarController.view = view;
+                                }
                               },
                             ),
                           ),
@@ -243,9 +259,7 @@ class PlaceDetailPage extends CompositionWidget {
                                   isAdmin: isAdmin,
                                 )
                               : SfCalendar(
-                                  view:
-                                      _toCalendarView(viewMode.value) ??
-                                      CalendarView.week,
+                                  controller: calendarController,
                                   dataSource: _BookingDataSource(
                                     bookings,
                                     place.bookingSlotDurationType == 'Dagar',
@@ -320,53 +334,74 @@ void _showBookingDetails(
   // Members may only cancel their own bookings; admins may cancel any.
   final canDeleteBooking =
       isAdmin || (booking.user != null && booking.user == currentUserId);
-  showModalBottomSheet(
+  showAppBottomSheet(
     context: context,
-    builder: (context) => Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: PlacesStore.parseBookingColor(booking.isBlock),
-                  shape: BoxShape.circle,
+    builder: (context) => Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: PlacesStore.parseBookingColor(booking.isBlock),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                booking.isBlock
+                    ? 'Inte bokningsbar'
+                    : (booking.title ?? 'Bokning'),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  booking.isBlock
-                      ? 'Inte bokningsbar'
-                      : (booking.title ?? 'Bokning'),
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+            ),
+            if (canDeleteBooking)
+              EntityActionMenu(
+                actions: [
+                  EntityAction.delete(() async {
+                    await placesStore.deleteBooking(booking.id, placeId);
+                    if (context.mounted) Navigator.of(context).pop();
+                  }),
+                ],
               ),
-              if (canDeleteBooking)
-                EntityActionMenu(
-                  actions: [
-                    EntityAction.delete(() async {
-                      await placesStore.deleteBooking(booking.id, placeId);
-                      if (context.mounted) Navigator.of(context).pop();
-                    }),
-                  ],
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _bookingTimeRow(booking),
-          const SizedBox(height: 16),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _bookingTimeRow(booking),
+        // Who booked. Hidden for blocks ("Inte bokningsbar"), which are
+        // admin-created and not tied to a member/residence.
+        if (!booking.isBlock) ...[
+          if (booking.residenceLabel != null &&
+              booking.residenceLabel!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _bookingInfoRow(Icons.home_outlined, booking.residenceLabel!),
+          ],
+          if (booking.userName != null && booking.userName!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _bookingInfoRow(Icons.person_outline, booking.userName!),
+          ],
         ],
-      ),
+      ],
     ),
+  );
+}
+
+Widget _bookingInfoRow(IconData icon, String text) {
+  return Row(
+    children: [
+      Icon(icon, size: 16, color: Colors.grey),
+      const SizedBox(width: 4),
+      Expanded(
+        child: Text(text, style: TextStyle(color: Colors.grey[600])),
+      ),
+    ],
   );
 }
 
@@ -458,26 +493,18 @@ class _BookingListView extends StatelessWidget {
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final booking = sorted[index];
+        final showResidence =
+            !booking.isBlock &&
+            booking.residenceLabel != null &&
+            booking.residenceLabel!.isNotEmpty;
+        final showUser =
+            !booking.isBlock &&
+            booking.userName != null &&
+            booking.userName!.isNotEmpty;
         return Card(
           clipBehavior: Clip.antiAlias,
-          child: ListTile(
-            leading: Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: PlacesStore.parseBookingColor(booking.isBlock),
-                shape: BoxShape.circle,
-              ),
-            ),
-            title: Text(
-              booking.isBlock
-                  ? 'Inte bokningsbar'
-                  : (booking.title ?? 'Bokning'),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(_formatBookingTime(booking)),
-            trailing: const Icon(Icons.chevron_right),
+          margin: EdgeInsets.zero,
+          child: InkWell(
             onTap: () => _showBookingDetails(
               context,
               booking,
@@ -485,6 +512,60 @@ class _BookingListView extends StatelessWidget {
               placeId,
               currentUserId,
               isAdmin,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: PlacesStore.parseBookingColor(booking.isBlock),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          booking.isBlock
+                              ? 'Inte bokningsbar'
+                              : (booking.title ?? 'Bokning'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        _bookingInfoRow(
+                          Icons.schedule,
+                          _formatBookingTime(booking),
+                        ),
+                        if (showResidence) ...[
+                          const SizedBox(height: 2),
+                          _bookingInfoRow(
+                            Icons.home_outlined,
+                            booking.residenceLabel!,
+                          ),
+                        ],
+                        if (showUser) ...[
+                          const SizedBox(height: 2),
+                          _bookingInfoRow(
+                            Icons.person_outline,
+                            booking.userName!,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.chevron_right),
+                ],
+              ),
             ),
           ),
         );

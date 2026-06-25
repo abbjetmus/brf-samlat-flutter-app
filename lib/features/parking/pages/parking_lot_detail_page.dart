@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/models/pocketbase_models.dart';
 import '../../../core/utils/permissions_utils.dart';
+import '../../../shared/widgets/app_bottom_sheet.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/rich_description.dart';
@@ -463,53 +464,47 @@ void _showSpaceDetails(
   String? residenceLabel,
 ) {
   final hasResidence = space.residence != null && space.residence!.isNotEmpty;
-  showModalBottomSheet(
+  showAppBottomSheet(
     context: context,
-    builder: (context) => Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                space.hasChargingStation
-                    ? Icons.ev_station
-                    : Icons.local_parking,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  space.name,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+    builder: (context) => Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              space.hasChargingStation
+                  ? Icons.ev_station
+                  : Icons.local_parking,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                space.name,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _infoRow(
-            Icons.home_outlined,
-            hasResidence
-                ? (residenceLabel ?? 'Bostad tilldelad')
-                : 'Ledig',
-          ),
-          _infoRow(
-            space.hasChargingStation ? Icons.ev_station : Icons.power_off,
-            space.hasChargingStation ? 'Laddstation' : 'Ingen laddstation',
-          ),
-          if (space.parkingStartDate != null &&
-              space.parkingStartDate!.isNotEmpty)
-            _infoRow(
-              Icons.event,
-              'Startdatum: ${space.parkingStartDate!.split('T').first}',
             ),
-          const SizedBox(height: 8),
-        ],
-      ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _infoRow(
+          Icons.home_outlined,
+          hasResidence ? (residenceLabel ?? 'Bostad tilldelad') : 'Ledig',
+        ),
+        _infoRow(
+          space.hasChargingStation ? Icons.ev_station : Icons.power_off,
+          space.hasChargingStation ? 'Laddstation' : 'Ingen laddstation',
+        ),
+        if (space.parkingStartDate != null &&
+            space.parkingStartDate!.isNotEmpty)
+          _infoRow(
+            Icons.event,
+            'Startdatum: ${space.parkingStartDate!.split('T').first}',
+          ),
+      ],
     ),
   );
 }

@@ -24,7 +24,7 @@ class CreatePostPage extends CompositionWidget {
 
     final (titleController, _, __) = useTextEditingController();
     final commentsAllowed = ref(existing?.commentsAllowed ?? true);
-    final pinAsGeneralInfo = ref(existing?.pinAsGeneralInfo ?? false);
+    final sendPushNotification = ref(existing?.sendPushNotification ?? false);
     final addToCalendar = ref(existing?.addToCalendar ?? false);
     final loading = ref(false);
     final contextRef = useContext();
@@ -57,7 +57,7 @@ class CreatePostPage extends CompositionWidget {
           titleController.text = post.title;
           descriptionHtml = post.description;
           commentsAllowed.value = post.commentsAllowed;
-          pinAsGeneralInfo.value = post.pinAsGeneralInfo;
+          sendPushNotification.value = post.sendPushNotification ?? false;
           addToCalendar.value = post.addToCalendar;
           startDate.value = parseStored(post.startAt);
           endDate.value = parseStored(post.endAt);
@@ -141,7 +141,7 @@ class CreatePostPage extends CompositionWidget {
               title: titleController.text.trim(),
               description: descriptionHtml,
               commentsAllowed: commentsAllowed.value,
-              pinAsGeneralInfo: pinAsGeneralInfo.value,
+              sendPushNotification: sendPushNotification.value,
               addToCalendar: addToCalendar.value,
               startAt: startIso,
               endAt: endIso,
@@ -150,7 +150,7 @@ class CreatePostPage extends CompositionWidget {
               title: titleController.text.trim(),
               description: descriptionHtml,
               commentsAllowed: commentsAllowed.value,
-              pinAsGeneralInfo: pinAsGeneralInfo.value,
+              sendPushNotification: sendPushNotification.value,
               addToCalendar: addToCalendar.value,
               startAt: startIso,
               endAt: endIso,
@@ -163,7 +163,7 @@ class CreatePostPage extends CompositionWidget {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(isEdit ? 'Nyhet uppdaterad!' : 'Nyhet skapad!'),
+              content: Text(isEdit ? 'Inlägg uppdaterat!' : 'Inlägg skapat!'),
               backgroundColor: AppTheme.primaryColor,
             ),
           );
@@ -172,8 +172,8 @@ class CreatePostPage extends CompositionWidget {
             SnackBar(
               content: Text(
                 isEdit
-                    ? 'Kunde inte uppdatera nyhet.'
-                    : 'Kunde inte skapa nyhet.',
+                    ? 'Kunde inte uppdatera inlägg.'
+                    : 'Kunde inte skapa inlägg.',
               ),
               backgroundColor: Colors.red,
             ),
@@ -183,7 +183,7 @@ class CreatePostPage extends CompositionWidget {
     }
 
     return (context) => GradientScaffold(
-      title: isEdit ? 'Redigera nyhet' : 'Skapa nyhet',
+      title: isEdit ? 'Redigera inlägg' : 'Skapa inlägg',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -221,9 +221,9 @@ class CreatePostPage extends CompositionWidget {
               onChanged: (v) => commentsAllowed.value = v,
             ),
             SwitchListTile(
-              title: const Text('Fäst som allmän information'),
-              value: pinAsGeneralInfo.value,
-              onChanged: (v) => pinAsGeneralInfo.value = v,
+              title: const Text('Skicka push-notifikation till medlemmar'),
+              value: sendPushNotification.value,
+              onChanged: (v) => sendPushNotification.value = v,
             ),
             SwitchListTile(
               title: const Text('Lägg till i kalender'),
@@ -295,7 +295,7 @@ class CreatePostPage extends CompositionWidget {
                         color: Colors.white,
                       ),
                     )
-                  : Text(isEdit ? 'Spara ändringar' : 'Skapa nyhet'),
+                  : Text(isEdit ? 'Spara ändringar' : 'Skapa inlägg'),
             ),
           ],
         ),

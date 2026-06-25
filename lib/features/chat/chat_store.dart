@@ -115,11 +115,14 @@ class ChatStore {
   }
 
   int unreadCount(String roomId) {
+    final last = _lastMessages.value[roomId];
+    if (last == null) return 0;
+    // A message I sent myself is never unread for me — don't badge it even
+    // before the read receipt round-trips.
+    if (last.sender == _myId) return 0;
     final receipt = _readReceipts.value
         .where((r) => r.room == roomId)
         .firstOrNull;
-    final last = _lastMessages.value[roomId];
-    if (last == null) return 0;
     if (receipt == null || receipt.lastReadMessage == null) return 1;
     return receipt.lastReadMessage == last.id ? 0 : 1;
   }
@@ -174,7 +177,12 @@ class ChatStore {
             expand: 'members',
           );
       final room = ChatRoomsRecord.fromJson(record.toJson());
-      _rooms.value = [room, ..._rooms.value];
+      // The rooms realtime subscription (subscribeRooms) may already have
+      // inserted this room from its own 'create' event; only prepend if absent
+      // so the new conversation doesn't show up twice in the list.
+      if (!_rooms.value.any((r) => r.id == room.id)) {
+        _rooms.value = [room, ..._rooms.value];
+      }
       for (final u in room.memberUsers) {
         _userCache[u.id] = u;
       }

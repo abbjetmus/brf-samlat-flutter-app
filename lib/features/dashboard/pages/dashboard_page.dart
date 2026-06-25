@@ -56,7 +56,7 @@ class DashboardPage extends CompositionWidget {
 
     const menuItems = [
       _MenuItem(
-        label: 'Nyheter',
+        label: 'Inlägg',
         icon: Icons.article_outlined,
         path: '/posts',
         color: Color(0xFF3B82F6),

@@ -19,11 +19,25 @@ class BookingDialogResult {
   });
 }
 
-/// An existing booking, used to mark slots / days as taken.
+/// An existing booking, used to mark slots / days as taken and to count a
+/// residence's bookings within the allowed booking period.
 class ExistingBooking {
   final DateTime start;
   final DateTime end;
-  const ExistingBooking(this.start, this.end);
+
+  /// The residence that owns this booking; used for the per-residence period
+  /// limit (two members of the same residence share one quota).
+  final String residence;
+
+  /// Admin "blocked" slots don't count toward a residence's booking quota.
+  final bool isBlock;
+
+  const ExistingBooking(
+    this.start,
+    this.end, {
+    this.residence = '',
+    this.isBlock = false,
+  });
 }
 
 /// Shows the booking dialog whose time picker mirrors the web app
@@ -42,6 +56,15 @@ Future<BookingDialogResult?> showBookingTimeSlotDialog({
   required String slotDurationType,
   List<ExistingBooking> existingBookings = const [],
   bool isAdmin = false,
+  /// The current user's residence id. A member must have a residence to book
+  /// (null/empty disables non-block bookings). Admins can still create blocks.
+  String? myResidenceId,
+  /// Period over which [maxBookingsPerPeriod] applies: 'Dag', 'Vecka', 'Månad'
+  /// or 'År'. Null/empty means no period limit.
+  String? bookingPeriodType,
+  /// Max bookings a residence may hold within one [bookingPeriodType]. Null/<=0
+  /// means no limit.
+  int? maxBookingsPerPeriod,
 }) {
   return showDialog<BookingDialogResult>(
     context: context,
@@ -52,6 +75,9 @@ Future<BookingDialogResult?> showBookingTimeSlotDialog({
       slotDurationType: slotDurationType,
       existingBookings: existingBookings,
       isAdmin: isAdmin,
+      myResidenceId: myResidenceId,
+      bookingPeriodType: bookingPeriodType,
+      maxBookingsPerPeriod: maxBookingsPerPeriod,
     ),
   );
 }
@@ -71,6 +97,9 @@ class _BookingTimeSlotDialog extends CompositionWidget {
   final String slotDurationType;
   final List<ExistingBooking> existingBookings;
   final bool isAdmin;
+  final String? myResidenceId;
+  final String? bookingPeriodType;
+  final int? maxBookingsPerPeriod;
 
   const _BookingTimeSlotDialog({
     required this.bookingStartTime,
@@ -79,6 +108,9 @@ class _BookingTimeSlotDialog extends CompositionWidget {
     required this.slotDurationType,
     required this.existingBookings,
     required this.isAdmin,
+    required this.myResidenceId,
+    required this.bookingPeriodType,
+    required this.maxBookingsPerPeriod,
   });
 
   @override
@@ -181,6 +213,63 @@ class _BookingTimeSlotDialog extends CompositionWidget {
       final isToday = ymd(selectedDate.value) == ymd(today);
       if (!isToday) return false;
       return combine(selectedDate.value, slot.end).isBefore(DateTime.now());
+    }
+
+    /// [start, end] of the booking period containing [d], per the place's
+    /// period rule. Mirrors PlaceBookingDialog.vue's `periodBounds`.
+    (DateTime, DateTime)? periodBounds(DateTime d) {
+      final day = DateTime(d.year, d.month, d.day);
+      DateTime endOfDay(DateTime x) =>
+          DateTime(x.year, x.month, x.day, 23, 59, 59, 999);
+      switch (props.value.bookingPeriodType) {
+        case 'Dag':
+          return (day, endOfDay(day));
+        case 'Vecka':
+          // Monday-based week. DateTime.weekday: Mon=1 … Sun=7.
+          final monday = day.subtract(Duration(days: day.weekday - 1));
+          final sunday = monday.add(const Duration(days: 6));
+          return (monday, endOfDay(sunday));
+        case 'Månad':
+          return (
+            DateTime(day.year, day.month, 1),
+            endOfDay(DateTime(day.year, day.month + 1, 0)),
+          );
+        case 'År':
+          return (
+            DateTime(day.year, 1, 1),
+            endOfDay(DateTime(day.year, 12, 31)),
+          );
+        default:
+          return null;
+      }
+    }
+
+    /// A member must have a residence to make a (non-block) booking.
+    bool missingResidence() {
+      if (props.value.isAdmin && isBlock.value) return false;
+      final res = props.value.myResidenceId;
+      return res == null || res.isEmpty;
+    }
+
+    /// True when the user's residence has already used its quota for the period
+    /// containing the selected date. Blocks don't count and aren't limited.
+    bool reachedPeriodLimit() {
+      if (props.value.isAdmin && isBlock.value) return false;
+      final max = props.value.maxBookingsPerPeriod;
+      final periodType = props.value.bookingPeriodType;
+      final res = props.value.myResidenceId;
+      if (periodType == null || periodType.isEmpty) return false;
+      if (max == null || max <= 0) return false;
+      if (res == null || res.isEmpty) return false;
+      final bounds = periodBounds(selectedDate.value);
+      if (bounds == null) return false;
+      final (start, end) = bounds;
+      final count = props.value.existingBookings.where((b) {
+        if (b.isBlock || b.residence != res) return false;
+        final t = b.start.toLocal();
+        return !t.isBefore(start) && !t.isAfter(end);
+      }).length;
+      return count >= max;
     }
 
     void onConfirm(BuildContext context) {
@@ -304,9 +393,28 @@ class _BookingTimeSlotDialog extends CompositionWidget {
 
     return (context) {
       final themeData = theme.value;
-      final canConfirm = isDays()
+      final slotChosen = isDays()
           ? !isDayTaken(selectedDate.value)
           : selectedSlot.value != null;
+      final noResidence = missingResidence();
+      final limitReached = reachedPeriodLimit();
+      final canConfirm = slotChosen && !noResidence && !limitReached;
+
+      String? bookingBlockedMessage;
+      if (noResidence) {
+        bookingBlockedMessage =
+            'Du måste ha en bostad kopplad till ditt konto för att boka.';
+      } else if (limitReached) {
+        final period = switch (props.value.bookingPeriodType) {
+          'Dag' => 'denna dag',
+          'Vecka' => 'denna vecka',
+          'Månad' => 'denna månad',
+          'År' => 'detta år',
+          _ => 'denna period',
+        };
+        bookingBlockedMessage =
+            'Din bostad har redan nått max antal bokningar för $period.';
+      }
 
       return AlertDialog(
         title: const Text('Ny bokning'),
@@ -345,6 +453,35 @@ class _BookingTimeSlotDialog extends CompositionWidget {
                   buildDaysSummary(themeData)
                 else
                   buildSlotPicker(themeData),
+                if (bookingBlockedMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: themeData.colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.info_outline,
+                          size: 18,
+                          color: themeData.colorScheme.onErrorContainer,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            bookingBlockedMessage,
+                            style: TextStyle(
+                              color: themeData.colorScheme.onErrorContainer,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 if (props.value.isAdmin) ...[
                   const SizedBox(height: 8),
                   SwitchListTile(

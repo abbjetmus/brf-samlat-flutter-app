@@ -45,7 +45,7 @@ class PostsListPage extends CompositionWidget {
                 .toList();
 
       return GradientScaffold(
-        title: 'Nyheter',
+        title: 'Inlägg',
         floatingActionButton: canCreate
             ? FloatingActionButton(
                 onPressed: () => context.push(CreatePostPage.path),
@@ -55,13 +55,13 @@ class PostsListPage extends CompositionWidget {
         body: loading && posts.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : posts.isEmpty
-            ? const Center(child: Text('Inga nyheter ännu.'))
+            ? const Center(child: Text('Inga inlägg ännu.'))
             : Column(
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                     child: SearchField(
-                      hintText: 'Sök nyhet...',
+                      hintText: 'Sök inlägg...',
                       onChanged: (v) => searchQuery.value = v,
                     ),
                   ),

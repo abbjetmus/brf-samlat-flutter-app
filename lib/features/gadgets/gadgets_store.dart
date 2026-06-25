@@ -61,7 +61,7 @@ class GadgetsStore {
     try {
       final records = await _pb
           .collection(Collections.gadgetBookings)
-          .getFullList(filter: 'gadget="$gadgetId"', expand: 'residence');
+          .getFullList(filter: 'gadget="$gadgetId"', expand: 'residence,user');
       _bookings.value = records
           .map((r) => GadgetBookingsRecord.fromJson(r.toJson()))
           .toList();

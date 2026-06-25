@@ -245,7 +245,7 @@ class ChatRoomPage extends CompositionWidget {
         body: Chat(
           chatController: controller,
           currentUserId: currentUserId,
-          theme: ChatTheme.fromThemeData(Theme.of(context)),
+          theme: _chatTheme(context),
           onAttachmentTap: () => pickImages(),
           onMessageLongPress: (ctx, message, {required index, required details}) {
             showMessageOptions(context, message, currentUserId);
@@ -264,6 +264,8 @@ class ChatRoomPage extends CompositionWidget {
               itemBuilder: itemBuilder,
               onEndReached: () => chatStore.loadOlderMessages(roomId),
             ),
+            emptyChatListBuilder: (ctx) =>
+                const EmptyChatList(text: 'Inga meddelanden än'),
           ),
           onMessageSend: (text) {
             final trimmed = text.trim();
@@ -289,6 +291,23 @@ class ChatRoomPage extends CompositionWidget {
         ),
       );
     };
+  }
+
+  /// Chat theme derived from the app [ThemeData], with an explicit
+  /// received-bubble color. The app's [ColorScheme] doesn't define
+  /// `surfaceContainer` (what flutter_chat_ui paints received bubbles with), so
+  /// it falls back to a near-white shade that's invisible on the white chat
+  /// surface — override it with a tint that clearly separates from the
+  /// background in both light and dark mode.
+  ChatTheme _chatTheme(BuildContext context) {
+    final base = ChatTheme.fromThemeData(Theme.of(context));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return base.copyWith(
+      colors: base.colors.copyWith(
+        surfaceContainer:
+            isDark ? const Color(0xFF1E2A40) : const Color(0xFFE8F0EC),
+      ),
+    );
   }
 
   Message _toMessage(ChatMessagesRecord m) {

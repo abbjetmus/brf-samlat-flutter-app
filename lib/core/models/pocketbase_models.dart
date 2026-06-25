@@ -651,6 +651,10 @@ class PlaceBookingsRecord {
   final bool isAllDay;
   final bool isBlock;
   final String? user;
+  // Expanded labels (when fetched with expand=residence,user): the residence's
+  // street address and the booking user's name.
+  final String? residenceLabel;
+  final String? userName;
 
   PlaceBookingsRecord({
     required this.id,
@@ -665,9 +669,14 @@ class PlaceBookingsRecord {
     this.isAllDay = false,
     this.isBlock = false,
     this.user,
+    this.residenceLabel,
+    this.userName,
   });
 
   factory PlaceBookingsRecord.fromJson(Map<String, dynamic> json) {
+    final expand = json['expand'] as Map<String, dynamic>?;
+    final residenceExpand = expand?['residence'] as Map<String, dynamic>?;
+    final userExpand = expand?['user'] as Map<String, dynamic>?;
     return PlaceBookingsRecord(
       id: json['id'] as String? ?? '',
       created: json['created'] as String?,
@@ -681,6 +690,8 @@ class PlaceBookingsRecord {
       isAllDay: json['is_all_day'] as bool? ?? false,
       isBlock: json['is_block'] as bool? ?? false,
       user: json['user'] as String?,
+      residenceLabel: residenceExpand?['street_address'] as String?,
+      userName: userExpand?['name'] as String?,
     );
   }
 }
@@ -772,6 +783,10 @@ class GadgetBookingsRecord {
   final bool isAllDay;
   final bool isBlock;
   final String? user;
+  // Expanded labels (when fetched with expand=residence,user): the residence's
+  // street address and the booking user's name.
+  final String? residenceLabel;
+  final String? userName;
 
   GadgetBookingsRecord({
     required this.id,
@@ -786,9 +801,14 @@ class GadgetBookingsRecord {
     this.isAllDay = false,
     this.isBlock = false,
     this.user,
+    this.residenceLabel,
+    this.userName,
   });
 
   factory GadgetBookingsRecord.fromJson(Map<String, dynamic> json) {
+    final expand = json['expand'] as Map<String, dynamic>?;
+    final residenceExpand = expand?['residence'] as Map<String, dynamic>?;
+    final userExpand = expand?['user'] as Map<String, dynamic>?;
     return GadgetBookingsRecord(
       id: json['id'] as String? ?? '',
       created: json['created'] as String?,
@@ -802,6 +822,8 @@ class GadgetBookingsRecord {
       isAllDay: json['is_all_day'] as bool? ?? false,
       isBlock: json['is_block'] as bool? ?? false,
       user: json['user'] as String?,
+      residenceLabel: residenceExpand?['street_address'] as String?,
+      userName: userExpand?['name'] as String?,
     );
   }
 }
