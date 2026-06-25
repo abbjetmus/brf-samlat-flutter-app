@@ -126,6 +126,27 @@ class UsersStore {
     }
   }
 
+  /// Re-sends an existing invitation: the backend regenerates the token and
+  /// emails a fresh register link. Only meaningful while the invitation is not
+  /// yet "Aktiverad".
+  Future<bool> resendInvitation(String id) async {
+    _loading.value = true;
+    try {
+      await _pb.send(
+        '/api/user-invitations/resend',
+        method: 'POST',
+        body: {'id': id},
+      );
+      await getInvitations();
+      return true;
+    } catch (e) {
+      debugPrint('UsersStore: Error resending invitation: $e');
+      return false;
+    } finally {
+      _loading.value = false;
+    }
+  }
+
   Future<bool> deleteInvitation(String id) async {
     _loading.value = true;
     try {

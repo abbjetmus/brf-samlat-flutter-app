@@ -133,6 +133,19 @@ class UsersListPage extends CompositionWidget {
       );
     }
 
+    Future<void> resendInvitation(String id) async {
+      final success = await usersStore.resendInvitation(id);
+      final ctx = contextRef.value;
+      if (ctx == null || !ctx.mounted) return;
+      ScaffoldMessenger.of(ctx).showSnackBar(
+        SnackBar(
+          content: Text(
+            success ? 'Inbjudan skickad igen.' : 'Kunde inte skicka inbjudan.',
+          ),
+        ),
+      );
+    }
+
     return (context) {
       final users = usersStore.users.value;
       final invitations = usersStore.invitations.value;
@@ -304,6 +317,16 @@ class UsersListPage extends CompositionWidget {
                                     trailing: isAdmin
                                         ? EntityActionMenu(
                                             actions: [
+                                              if (invitation.invitationStatus !=
+                                                  'Aktiverad')
+                                                EntityAction(
+                                                  icon: Icons.send_outlined,
+                                                  label: 'Skicka igen',
+                                                  onSelected: () =>
+                                                      resendInvitation(
+                                                        invitation.id,
+                                                      ),
+                                                ),
                                               EntityAction.delete(() async {
                                                 await usersStore.deleteInvitation(
                                                   invitation.id,
