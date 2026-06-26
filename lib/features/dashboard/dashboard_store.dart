@@ -50,11 +50,7 @@ class DashboardStore {
     try {
       final records = await _pb
           .collection(Collections.userNotificationsNotSeenCountView)
-          .getList(
-            page: 1,
-            perPage: 1,
-            filter: 'user="${user.id}"',
-          );
+          .getList(page: 1, perPage: 1, filter: 'user="${user.id}"');
       if (records.items.isNotEmpty) {
         final record = UserNotificationsNotSeenCountViewRecord.fromJson(
           records.items.first.toJson(),
@@ -78,6 +74,36 @@ class DashboardStore {
       return true;
     } catch (e) {
       debugPrint('DashboardStore: Error marking notification: $e');
+      return false;
+    }
+  }
+
+  /// Remove a notification. Updates local state optimistically so the list
+  /// reflects the swipe immediately; on failure the row is restored.
+  Future<bool> deleteNotification(String notificationId) async {
+    final previous = _notifications.value;
+    final removed = previous.firstWhere(
+      (n) => n.id == notificationId,
+      orElse: () => previous.first,
+    );
+    _notifications.value = previous
+        .where((n) => n.id != notificationId)
+        .toList();
+    if (!removed.seen) {
+      _notSeenCount.value = (_notSeenCount.value - 1).clamp(0, 1 << 31);
+    }
+
+    try {
+      await _pb
+          .collection(Collections.userNotifications)
+          .delete(notificationId);
+      return true;
+    } catch (e) {
+      debugPrint('DashboardStore: Error deleting notification: $e');
+      _notifications.value = previous;
+      if (!removed.seen) {
+        _notSeenCount.value = _notSeenCount.value + 1;
+      }
       return false;
     }
   }

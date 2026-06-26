@@ -446,6 +446,7 @@ class _EventListView extends StatelessWidget {
         final event = sorted[index];
         return Card(
           clipBehavior: Clip.antiAlias,
+          margin: EdgeInsets.zero,
           child: ListTile(
             leading: Container(
               width: 14,

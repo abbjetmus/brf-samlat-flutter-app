@@ -222,8 +222,9 @@ class DashboardPage extends CompositionWidget {
                           (post) => _InfoCard(
                             title: post.title,
                             subtitle: AppDateUtils.formatDate(post.created),
-                            onTap: () => context
-                                .push('${PostDetailPage.path}/${post.id}'),
+                            onTap: () => context.push(
+                              '${PostDetailPage.path}/${post.id}',
+                            ),
                           ),
                         ),
                       ],
@@ -642,60 +643,75 @@ void _showNotificationsDialog(
                       const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final notification = notifications[index];
-                    return ListTile(
-                      leading: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: notification.seen
-                              ? AppTheme.inkFaint.withValues(alpha: 0.12)
-                              : AppTheme.surfaceLight,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          notification.seen
-                              ? Icons.notifications_none
-                              : Icons.notifications_active,
-                          color: notification.seen
-                              ? AppTheme.inkFaint
-                              : AppTheme.primaryDarken1,
-                          size: 20,
+                    return Dismissible(
+                      key: ValueKey(notification.id),
+                      direction: DismissDirection.endToStart,
+                      onDismissed: (_) =>
+                          dashboardStore.deleteNotification(notification.id),
+                      background: Container(
+                        color: const Color(0xFFEF4444),
+                        alignment: Alignment.centerRight,
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.white,
                         ),
                       ),
-                      title: Text(
-                        notification.title,
-                        style: TextStyle(
-                          fontWeight: notification.seen
-                              ? FontWeight.normal
-                              : FontWeight.w600,
+                      child: ListTile(
+                        leading: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: notification.seen
+                                ? AppTheme.inkFaint.withValues(alpha: 0.12)
+                                : AppTheme.surfaceLight,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            notification.seen
+                                ? Icons.notifications_none
+                                : Icons.notifications_active,
+                            color: notification.seen
+                                ? AppTheme.inkFaint
+                                : AppTheme.primaryDarken1,
+                            size: 20,
+                          ),
                         ),
+                        title: Text(
+                          notification.title,
+                          style: TextStyle(
+                            fontWeight: notification.seen
+                                ? FontWeight.normal
+                                : FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          AppDateUtils.timeAgo(notification.created),
+                        ),
+                        onTap: () {
+                          if (!notification.seen) {
+                            dashboardStore.markNotificationAsSeen(
+                              notification.id,
+                            );
+                          }
+                          final actionUrl = notification.actionUrl;
+                          if (actionUrl == null || actionUrl.isEmpty) return;
+                          // action_url carries a full universal-link URL
+                          // (https://brfsamlat.se/app/posts/detail/X) or a bare
+                          // in-app path. go_router needs a path, so strip
+                          // scheme/host; the router's authGuard drops the /app
+                          // prefix. Mirrors NotificationService._navigateTo.
+                          final router = GoRouter.of(context);
+                          Navigator.of(context).pop();
+                          final uri = Uri.parse(actionUrl);
+                          final path = uri.hasScheme
+                              ? (uri.hasQuery
+                                    ? '${uri.path}?${uri.query}'
+                                    : uri.path)
+                              : actionUrl;
+                          router.go(path);
+                        },
                       ),
-                      subtitle: Text(
-                        AppDateUtils.timeAgo(notification.created),
-                      ),
-                      onTap: () {
-                        if (!notification.seen) {
-                          dashboardStore.markNotificationAsSeen(
-                            notification.id,
-                          );
-                        }
-                        final actionUrl = notification.actionUrl;
-                        if (actionUrl == null || actionUrl.isEmpty) return;
-                        // action_url carries a full universal-link URL
-                        // (https://brfsamlat.se/app/posts/detail/X) or a bare
-                        // in-app path. go_router needs a path, so strip
-                        // scheme/host; the router's authGuard drops the /app
-                        // prefix. Mirrors NotificationService._navigateTo.
-                        final router = GoRouter.of(context);
-                        Navigator.of(context).pop();
-                        final uri = Uri.parse(actionUrl);
-                        final path = uri.hasScheme
-                            ? (uri.hasQuery
-                                  ? '${uri.path}?${uri.query}'
-                                  : uri.path)
-                            : actionUrl;
-                        router.go(path);
-                      },
                     );
                   },
                 );
