@@ -612,8 +612,12 @@ void _showNotificationsDialog(
           ),
           const Divider(height: 1),
           Expanded(
-            child: Builder(
-              builder: (context) {
+            // ComputedBuilder, not a plain Builder: the modal sheet is built in a
+            // separate element tree outside DashboardPage's reactive scope, so a
+            // bare `notifications.value` read here would not subscribe and the
+            // sheet would never rebuild when the async getNotifications() resolves.
+            child: ComputedBuilder(
+              builder: () {
                 final notifications = dashboardStore.notifications.value;
                 if (notifications.isEmpty) {
                   return Center(
@@ -675,6 +679,22 @@ void _showNotificationsDialog(
                             notification.id,
                           );
                         }
+                        final actionUrl = notification.actionUrl;
+                        if (actionUrl == null || actionUrl.isEmpty) return;
+                        // action_url carries a full universal-link URL
+                        // (https://brfsamlat.se/app/posts/detail/X) or a bare
+                        // in-app path. go_router needs a path, so strip
+                        // scheme/host; the router's authGuard drops the /app
+                        // prefix. Mirrors NotificationService._navigateTo.
+                        final router = GoRouter.of(context);
+                        Navigator.of(context).pop();
+                        final uri = Uri.parse(actionUrl);
+                        final path = uri.hasScheme
+                            ? (uri.hasQuery
+                                  ? '${uri.path}?${uri.query}'
+                                  : uri.path)
+                            : actionUrl;
+                        router.go(path);
                       },
                     );
                   },
