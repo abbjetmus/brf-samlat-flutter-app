@@ -78,8 +78,9 @@ class AppGradientHeader extends StatelessWidget {
   final String? subtitle;
   final List<Widget> actions;
 
-  /// Overrides automatic back-button detection. When null the header shows a
-  /// back button if [Navigator] can pop the current route.
+  /// Overrides back-button visibility. When null a back button is shown by
+  /// default (it pops the route, or returns to the dashboard when there is
+  /// nothing to pop). Pass `false` to hide it.
   final bool? showBack;
 
   /// Custom handler for the left back button. When set, tapping back runs this
@@ -99,7 +100,12 @@ class AppGradientHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
-    final canPop = showBack ?? onBack != null || Navigator.of(context).canPop();
+    // Every page that uses GradientScaffold is a sub-page of the dashboard (the
+    // home view and the login page don't use it), so show a back button by
+    // default. When the stack can't be popped — e.g. opened straight from a
+    // notification deep link — the handler below falls back to the dashboard.
+    // Pages can still opt out with `showBack: false`.
+    final canPop = showBack ?? true;
 
     return Container(
       width: double.infinity,
