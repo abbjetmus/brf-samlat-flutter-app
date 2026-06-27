@@ -4,6 +4,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../core/utils/notification_link_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../dashboard_store.dart';
 import '../../settings/pages/settings_page.dart';
@@ -694,21 +695,18 @@ void _showNotificationsDialog(
                               notification.id,
                             );
                           }
-                          final actionUrl = notification.actionUrl;
-                          if (actionUrl == null || actionUrl.isEmpty) return;
                           // action_url carries a full universal-link URL
-                          // (https://brfsamlat.se/app/posts/detail/X) or a bare
-                          // in-app path. go_router needs a path, so strip
-                          // scheme/host; the router's authGuard drops the /app
-                          // prefix. Mirrors NotificationService._navigateTo.
+                          // (https://brfsamlat.se/app/posts/detail/X), a bare
+                          // in-app path, or a malformed value. resolvePath
+                          // returns a safe absolute path (the router's authGuard
+                          // drops any /app prefix) or null when unusable.
+                          // Mirrors NotificationService._navigateTo.
+                          final path = NotificationLinkUtils.resolvePath(
+                            notification.actionUrl,
+                          );
+                          if (path == null) return;
                           final router = GoRouter.of(context);
                           Navigator.of(context).pop();
-                          final uri = Uri.parse(actionUrl);
-                          final path = uri.hasScheme
-                              ? (uri.hasQuery
-                                    ? '${uri.path}?${uri.query}'
-                                    : uri.path)
-                              : actionUrl;
                           router.go(path);
                         },
                       ),

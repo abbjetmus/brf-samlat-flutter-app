@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pocketbase/pocketbase.dart';
+import '../utils/notification_link_utils.dart';
 
 /// Handles Firebase Cloud Messaging: permissions, token management,
 /// foreground/background notifications, and PocketBase token registration.
@@ -162,13 +163,11 @@ class NotificationService {
     if (_router == null) return;
     try {
       // Notification payloads carry full universal-link URLs
-      // (https://brfsamlat.se/app/posts/detail/X) as well as bare in-app
-      // paths. go_router needs a path, so strip scheme/host when present.
-      // The "/app" prefix is removed by the router's redirect (authGuard).
-      final uri = Uri.parse(link);
-      final path = uri.hasScheme
-          ? (uri.hasQuery ? '${uri.path}?${uri.query}' : uri.path)
-          : link;
+      // (https://brfsamlat.se/app/posts/detail/X), bare in-app paths, or
+      // malformed values. resolvePath returns a safe absolute path (the
+      // router's authGuard strips any /app prefix) or null when unusable.
+      final path = NotificationLinkUtils.resolvePath(link);
+      if (path == null) return;
       _router!.go(path);
     } catch (e) {
       debugPrint('NotificationService: Navigation error: $e');
