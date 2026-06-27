@@ -119,7 +119,9 @@ class AppGradientHeader extends StatelessWidget {
                     if (context.canPop()) {
                       context.pop();
                     } else {
-                      Navigator.of(context).maybePop();
+                      // Deep-linked from a notification: the stack was replaced,
+                      // so there is nothing to pop. Fall back to the dashboard.
+                      context.go('/');
                     }
                   },
             ),

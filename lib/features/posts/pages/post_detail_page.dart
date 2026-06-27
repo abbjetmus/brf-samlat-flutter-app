@@ -39,22 +39,28 @@ class PostDetailPage extends CompositionWidget {
       final canEdit = authStore.hasPermission('posts', CrudOperation.update);
       final canDelete = authStore.hasPermission('posts', CrudOperation.delete);
 
+      // Always offer a back button. When opened from a notification deep link
+      // the navigation stack is replaced, so GradientScaffold's default back
+      // handler falls back to the dashboard (the normal flow).
       if (loading && post == null) {
         return const GradientScaffold(
-          title: 'Nyhet',
+          title: 'Inlägg',
+          showBack: true,
           body: Center(child: CircularProgressIndicator()),
         );
       }
 
       if (post == null) {
         return const GradientScaffold(
-          title: 'Nyhet',
-          body: Center(child: Text('Nyhet hittades inte.')),
+          title: 'Inlägg',
+          showBack: true,
+          body: Center(child: Text('Inlägg hittades inte.')),
         );
       }
 
       return GradientScaffold(
-        title: 'Nyhet',
+        title: 'Inlägg',
+        showBack: true,
         actions: [
           if (canEdit || canDelete)
             EntityActionMenu.header(

@@ -44,6 +44,7 @@ class IssueDetailPage extends CompositionWidget {
       if (loading && issue == null) {
         return const GradientScaffold(
           title: 'Felanmälan & ärenden',
+          showBack: true,
           body: Center(child: CircularProgressIndicator()),
         );
       }
@@ -51,12 +52,14 @@ class IssueDetailPage extends CompositionWidget {
       if (issue == null) {
         return const GradientScaffold(
           title: 'Felanmälan & ärenden',
+          showBack: true,
           body: Center(child: Text('Hittades inte.')),
         );
       }
 
       return GradientScaffold(
         title: issue.type ?? 'Felanmälan',
+        showBack: true,
         actions: [
           if (canEdit || canDelete)
             EntityActionMenu.header(
