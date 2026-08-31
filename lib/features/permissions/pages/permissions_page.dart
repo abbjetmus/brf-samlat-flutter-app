@@ -10,6 +10,12 @@ import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/search_field.dart';
 
 /// Swedish labels for the permission/menu tokens stored on the association.
+///
+/// `users` and `user_role_types` are deliberately absent: they never appear in
+/// the matrix, because PocketBase's `associations` updateRule requires the admin
+/// user role. User and permission management therefore cannot be delegated to
+/// another role, and a card for them would promise something that cannot be
+/// saved.
 const _menuLabels = <String, String>{
   'posts': 'Nyheter',
   'chat': 'Meddelanden',
@@ -17,14 +23,14 @@ const _menuLabels = <String, String>{
   'residence_issues': 'Felanmälan & ärenden (bostäder)',
   'calendar_events': 'Kalender',
   'places': 'Lokaler',
+  'place_bookings': 'Lokalbokningar',
   'gadgets': 'Prylar',
+  'gadget_bookings': 'Prylbokningar',
   'residences': 'Bostäder',
   'parking_lots': 'Parkeringar',
   'folders_and_files': 'Dokument',
   'board': 'Styrelsen',
   'board_meetings': 'Styrelsemöten',
-  'users': 'Användare',
-  'user_role_types': 'Behörigheter',
   'invoices': 'Fakturor',
   'invoice_builder': 'Faktura Byggaren',
   'forms': 'Formulär',
