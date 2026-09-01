@@ -1,13 +1,16 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/models/pocketbase_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/file_utils.dart';
+import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/image_thumbnail.dart';
+import '../../auth/pages/login_page.dart';
 
 class AccountPage extends CompositionWidget {
   static const String path = '/account';
@@ -147,6 +150,39 @@ class AccountPage extends CompositionWidget {
       }
     }
 
+    Future<void> deleteAccount() async {
+      final context = contextRef.value;
+      if (context == null || !context.mounted) return;
+
+      final confirmed = await showConfirmDialog(
+        context,
+        title: 'Radera ditt konto?',
+        message:
+            'Kontot raderas permanent och du kan inte logga in igen. Dina '
+            'personuppgifter, notisinställningar och formulärsvar tas bort. '
+            'Föreningens inlägg och felanmälningar står kvar men visar '
+            '"Borttagen användare" som avsändare.\n\nÅtgärden kan inte ångras.',
+        okLabel: 'Radera konto',
+        okColor: Colors.red,
+      );
+      if (!confirmed) return;
+
+      loading.value = true;
+      final failure = await authStore.deleteAccount();
+      loading.value = false;
+
+      final current = contextRef.value;
+      if (current == null || !current.mounted) return;
+
+      if (failure != null) {
+        ScaffoldMessenger.of(current).showSnackBar(
+          SnackBar(content: Text(failure), backgroundColor: Colors.red),
+        );
+        return;
+      }
+      current.go(LoginPage.path);
+    }
+
     return (context) {
       final user = authStore.currentUser.value;
       return GradientScaffold(
@@ -266,6 +302,41 @@ class AccountPage extends CompositionWidget {
                     FilledButton(
                       onPressed: loading.value ? null : savePassword,
                       child: const Text('Byt lösenord'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Account deletion. App Store and Google Play both require this for
+            // an app that lets people register, and brfsamlat.se/radera-konto
+            // points members here.
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Radera konto',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Ditt konto raderas permanent och du kan inte logga in igen. '
+                      'Dina personuppgifter, notisinställningar och formulärsvar '
+                      'tas bort.',
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: loading.value ? null : deleteAccount,
+                      icon: const Icon(Icons.delete_forever_outlined, size: 18),
+                      label: const Text('Radera mitt konto'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                      ),
                     ),
                   ],
                 ),

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
@@ -157,6 +158,45 @@ class AuthStore {
     _association.value = null;
     _residence.value = null;
     _menuPermissions.value = [];
+  }
+
+  /// Deletes the signed-in user's account.
+  ///
+  /// The server anonymises the record rather than removing it (see
+  /// brf-samlat-pb/pb_hooks/api/account_deletion.pb.js): several collections
+  /// hold a required relation to the user, so a hard delete fails for anyone
+  /// who has ever sent a chat message, and it would strip the author from the
+  /// association's issues and board minutes. Push tokens, settings, notifications
+  /// and form answers are deleted for real, and the account can never sign in
+  /// again.
+  ///
+  /// Returns null on success, otherwise the server's reason — it refuses, for
+  /// instance, to remove the association's last administrator.
+  Future<String?> deleteAccount() async {
+    final user = _currentUser.value;
+    if (user == null) return 'Du är inte inloggad';
+
+    try {
+      final response = await http.post(
+        Uri.parse('${_pb.baseURL}/api/users/anonymize'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': _pb.authStore.token,
+        },
+        body: '{}',
+      );
+
+      if (response.statusCode == 200) {
+        signOut();
+        return null;
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      return (body['message'] as String?) ?? 'Kontot kunde inte raderas';
+    } catch (e) {
+      debugPrint('AuthStore: Error deleting account: $e');
+      return 'Kontot kunde inte raderas';
+    }
   }
 
   Future<void> _loadUserData() async {
