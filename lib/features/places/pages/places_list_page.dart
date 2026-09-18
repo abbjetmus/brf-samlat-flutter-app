@@ -85,10 +85,37 @@ class PlacesListPage extends CompositionWidget {
                                   leading: const Icon(
                                     Icons.meeting_room_outlined,
                                   ),
-                                  title: Text(
-                                    place.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  title: Row(
+                                    children: [
+                                      Flexible(
+                                        child: Text(
+                                          place.name,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (placesStore.isSharedWithUs(place)) ...[
+                                        const SizedBox(width: 8),
+                                        Icon(
+                                          Icons.apartment,
+                                          size: 14,
+                                          color: Colors.grey[600],
+                                        ),
+                                        const SizedBox(width: 2),
+                                        Flexible(
+                                          child: Text(
+                                            place.associationName ??
+                                                'Delad lokal',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey[600],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                   subtitle: Text(
                                     place.streetAddress,

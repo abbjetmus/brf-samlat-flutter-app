@@ -46,6 +46,11 @@ class CreatePlacePage extends CompositionWidget {
           : 'Timmar',
     );
     final allowedPeriodType = ref<String?>(existing?.allowedBookingPeriodType);
+    // Föreningar lokalen delas med. Ägarföreningen står kvar i `association`
+    // och är den enda som får redigera eller blockera lokalen.
+    final sharedWith = ref<List<String>>(
+      List<String>.from(existing?.sharedWithAssociations ?? const []),
+    );
 
     // Description is rich text (HTML), edited via the WYSIWYG editor.
     var descriptionHtml = existing?.description ?? '';
@@ -71,6 +76,9 @@ class CreatePlacePage extends CompositionWidget {
           ? place.bookingSlotDurationType
           : 'Timmar';
       allowedPeriodType.value = place.allowedBookingPeriodType;
+      sharedWith.value = List<String>.from(
+        place.sharedWithAssociations as List<String>,
+      );
       descriptionHtml = place.description ?? '';
     }
 
@@ -83,6 +91,8 @@ class CreatePlacePage extends CompositionWidget {
     }
 
     onMounted(() async {
+      placesStore.getShareableAssociations();
+
       if (isEdit && existing == null) {
         await placesStore.getPlace(placeId!);
         final place = placesStore.currentPlace.value;
@@ -120,6 +130,7 @@ class CreatePlacePage extends CompositionWidget {
               pricePerSlot: price,
               allowedBookingPeriodType: allowedPeriodType.value,
               allowedNumberOfBookingsPerPeriod: allowedCount,
+              sharedWithAssociations: sharedWith.value,
             )
           : await placesStore.createPlace(
               name: nameController.text.trim(),
@@ -137,6 +148,7 @@ class CreatePlacePage extends CompositionWidget {
               pricePerSlot: price,
               allowedBookingPeriodType: allowedPeriodType.value,
               allowedNumberOfBookingsPerPeriod: allowedCount,
+              sharedWithAssociations: sharedWith.value,
             );
       loading.value = false;
 
@@ -345,6 +357,43 @@ class CreatePlacePage extends CompositionWidget {
                 border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 24),
+            Text('Delning', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              'Valda föreningar ser lokalen i sin lokallista och kan boka den. '
+              'Bara din förening kan redigera, blockera tider eller ta bort den.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Theme.of(context).hintColor),
+            ),
+            const SizedBox(height: 8),
+            if (placesStore.shareableAssociations.value.isEmpty)
+              Text(
+                'Inga andra föreningar att dela med.',
+                style: Theme.of(context).textTheme.bodySmall,
+              )
+            else
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: placesStore.shareableAssociations.value.map((a) {
+                  final selected = sharedWith.value.contains(a.id);
+                  return FilterChip(
+                    label: Text(a.name),
+                    selected: selected,
+                    onSelected: (value) {
+                      final next = List<String>.from(sharedWith.value);
+                      if (value) {
+                        next.add(a.id);
+                      } else {
+                        next.remove(a.id);
+                      }
+                      sharedWith.value = next;
+                    },
+                  );
+                }).toList(),
+              ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: loading.value ? null : save,

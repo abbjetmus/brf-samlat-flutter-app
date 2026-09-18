@@ -582,6 +582,13 @@ class PlacesRecord {
   final int? allowedNumberOfBookingsPerPeriod;
   final String user;
 
+  /// Föreningar som lokalen delats med. `association` är fortfarande ägaren och
+  /// den enda som får redigera, blockera tider eller radera lokalen.
+  final List<String> sharedWithAssociations;
+
+  /// Ägarföreningens namn (när posten hämtats med expand=association).
+  final String? associationName;
+
   PlacesRecord({
     required this.id,
     this.created,
@@ -603,9 +610,14 @@ class PlacesRecord {
     this.allowedBookingPeriodType,
     this.allowedNumberOfBookingsPerPeriod,
     required this.user,
+    this.sharedWithAssociations = const [],
+    this.associationName,
   });
 
   factory PlacesRecord.fromJson(Map<String, dynamic> json) {
+    final associationExpand =
+        (json['expand'] as Map<String, dynamic>?)?['association']
+            as Map<String, dynamic>?;
     return PlacesRecord(
       id: json['id'] as String? ?? '',
       created: json['created'] as String?,
@@ -634,6 +646,12 @@ class PlacesRecord {
       allowedNumberOfBookingsPerPeriod:
           json['allowed_number_of_bookings_per_period'] as int?,
       user: json['user'] as String? ?? '',
+      sharedWithAssociations:
+          (json['shared_with_associations'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+      associationName: associationExpand?['name'] as String?,
     );
   }
 }
@@ -651,10 +669,16 @@ class PlaceBookingsRecord {
   final bool isAllDay;
   final bool isBlock;
   final String? user;
-  // Expanded labels (when fetched with expand=residence,user): the residence's
-  // street address and the booking user's name.
+
+  /// Föreningen som bokat. I en delad lokal ligger bokarens bostad och
+  /// användare i en annan förening och är osynliga via API-reglerna — då är
+  /// det här den enda avsändare ägaren ser.
+  final String? association;
+  // Expanded labels (when fetched with expand=residence,user,association): the
+  // residence's street address, the booking user's name and the association's.
   final String? residenceLabel;
   final String? userName;
+  final String? associationName;
 
   PlaceBookingsRecord({
     required this.id,
@@ -669,14 +693,17 @@ class PlaceBookingsRecord {
     this.isAllDay = false,
     this.isBlock = false,
     this.user,
+    this.association,
     this.residenceLabel,
     this.userName,
+    this.associationName,
   });
 
   factory PlaceBookingsRecord.fromJson(Map<String, dynamic> json) {
     final expand = json['expand'] as Map<String, dynamic>?;
     final residenceExpand = expand?['residence'] as Map<String, dynamic>?;
     final userExpand = expand?['user'] as Map<String, dynamic>?;
+    final associationExpand = expand?['association'] as Map<String, dynamic>?;
     return PlaceBookingsRecord(
       id: json['id'] as String? ?? '',
       created: json['created'] as String?,
@@ -690,8 +717,10 @@ class PlaceBookingsRecord {
       isAllDay: json['is_all_day'] as bool? ?? false,
       isBlock: json['is_block'] as bool? ?? false,
       user: json['user'] as String?,
+      association: json['association'] as String?,
       residenceLabel: residenceExpand?['street_address'] as String?,
       userName: userExpand?['name'] as String?,
+      associationName: associationExpand?['name'] as String?,
     );
   }
 }

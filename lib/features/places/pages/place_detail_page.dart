@@ -61,7 +61,7 @@ class PlaceDetailPage extends CompositionWidget {
               ),
             )
             .toList(),
-        isAdmin: authStore.isAdmin.value,
+        isAdmin: authStore.isAdmin.value && !placesStore.isSharedWithUs(place),
         myResidenceId: authStore.residence.value?.id,
         bookingPeriodType: place.allowedBookingPeriodType,
         maxBookingsPerPeriod: place.allowedNumberOfBookingsPerPeriod,
@@ -87,8 +87,6 @@ class PlaceDetailPage extends CompositionWidget {
         'place_bookings',
         CrudOperation.create,
       );
-      final canUpdate = authStore.hasPermission('places', CrudOperation.update);
-      final canDelete = authStore.hasPermission('places', CrudOperation.delete);
       final currentUserId = authStore.currentUser.value?.id;
       final isAdmin = authStore.isAdmin.value;
 
@@ -105,6 +103,14 @@ class PlaceDetailPage extends CompositionWidget {
           body: Center(child: Text('Lokal hittades inte.')),
         );
       }
+
+      // Lånade lokaler går att boka men inte att förvalta — samma gräns som
+      // API-reglerna sätter, så knappar som ändå skulle nekas göms här.
+      final isShared = placesStore.isSharedWithUs(place);
+      final canUpdate =
+          !isShared && authStore.hasPermission('places', CrudOperation.update);
+      final canDelete =
+          !isShared && authStore.hasPermission('places', CrudOperation.delete);
 
       return DefaultTabController(
         length: 2,
@@ -167,6 +173,24 @@ class PlaceDetailPage extends CompositionWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                          if (isShared) ...[
+                            const SizedBox(height: 8),
+                            Chip(
+                              avatar: const Icon(Icons.apartment, size: 16),
+                              label: Text(
+                                'Delad av ${place.associationName ?? 'annan förening'}',
+                              ),
+                            ),
+                          ] else if (place.sharedWithAssociations.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Chip(
+                              avatar: const Icon(Icons.apartment, size: 16),
+                              label: Text(
+                                'Delad med ${place.sharedWithAssociations.length} '
+                                '${place.sharedWithAssociations.length == 1 ? 'förening' : 'föreningar'}',
+                              ),
+                            ),
+                          ],
                           if (place.description != null &&
                               place.description!.isNotEmpty) ...[
                             const SizedBox(height: 12),
@@ -256,7 +280,7 @@ class PlaceDetailPage extends CompositionWidget {
                                   placesStore: placesStore,
                                   placeId: placeId,
                                   currentUserId: currentUserId,
-                                  isAdmin: isAdmin,
+                                  isAdmin: isAdmin && !isShared,
                                 )
                               : SfCalendar(
                                   controller: calendarController,
@@ -291,7 +315,7 @@ class PlaceDetailPage extends CompositionWidget {
                                         placesStore,
                                         placeId,
                                         currentUserId,
-                                        isAdmin,
+                                        isAdmin && !isShared,
                                       );
                                     }
                                   },
@@ -382,6 +406,15 @@ void _showBookingDetails(
               booking.residenceLabel!.isNotEmpty) ...[
             const SizedBox(height: 8),
             _bookingInfoRow(Icons.home_outlined, booking.residenceLabel!),
+          ],
+          // Bokarens bostad ligger i en annan förening och är osynlig via
+          // API-reglerna — då är föreningsnamnet den enda avsändaren.
+          if ((booking.residenceLabel == null ||
+                  booking.residenceLabel!.isEmpty) &&
+              booking.associationName != null &&
+              booking.associationName!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _bookingInfoRow(Icons.apartment, booking.associationName!),
           ],
           if (booking.userName != null && booking.userName!.isNotEmpty) ...[
             const SizedBox(height: 8),
@@ -501,6 +534,11 @@ class _BookingListView extends StatelessWidget {
             !booking.isBlock &&
             booking.userName != null &&
             booking.userName!.isNotEmpty;
+        final showAssociation =
+            !booking.isBlock &&
+            !showResidence &&
+            booking.associationName != null &&
+            booking.associationName!.isNotEmpty;
         return Card(
           clipBehavior: Clip.antiAlias,
           margin: EdgeInsets.zero,
@@ -550,6 +588,13 @@ class _BookingListView extends StatelessWidget {
                           _bookingInfoRow(
                             Icons.home_outlined,
                             booking.residenceLabel!,
+                          ),
+                        ],
+                        if (showAssociation) ...[
+                          const SizedBox(height: 2),
+                          _bookingInfoRow(
+                            Icons.apartment,
+                            booking.associationName!,
                           ),
                         ],
                         if (showUser) ...[

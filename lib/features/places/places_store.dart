@@ -18,7 +18,10 @@ class PlacesStore {
           .getList(
             page: page,
             perPage: perPage,
-            filter: 'association="$assocId"',
+            // Egna lokaler + lokaler som en annan förening delat med oss.
+            filter:
+                'association="$assocId" || shared_with_associations~"$assocId"',
+            expand: 'association',
           );
       return PageResult(
         res.items.map((r) => PlacesRecord.fromJson(r.toJson())).toList(),
@@ -29,11 +32,16 @@ class PlacesStore {
 
   late final Paginated<PlacesRecord> _places;
   final _currentPlace = ref<PlacesRecord?>(null);
+  final _shareableAssociations = ref<List<AssociationsRecord>>([]);
   final _bookings = ref<List<PlaceBookingsRecord>>([]);
   final _loading = ref<bool>(false);
 
   Ref<List<PlacesRecord>> get placesList => _places.items;
   Ref<PlacesRecord?> get currentPlace => _currentPlace;
+
+  /// Föreningar som lokaler kan delas med (alla utom den egna).
+  Ref<List<AssociationsRecord>> get shareableAssociations =>
+      _shareableAssociations;
   Ref<List<PlaceBookingsRecord>> get bookings => _bookings;
   Ref<bool> get loading => _loading;
   Ref<bool> get listLoading => _places.loading;
@@ -43,10 +51,32 @@ class PlacesStore {
   Future<void> getAllPlaces() => _places.refresh();
   Future<void> fetchNextPlaces() => _places.loadMore();
 
+  /// Lokalen ägs av en annan förening och lånas hit: den går att boka, men
+  /// inte att redigera, blockera eller radera.
+  bool isSharedWithUs(PlacesRecord place) =>
+      place.association != (_authStore.association.value?.id ?? '');
+
+  Future<void> getShareableAssociations() async {
+    try {
+      final records = await _pb
+          .collection(Collections.associations)
+          .getFullList(sort: 'name');
+      final ownId = _authStore.association.value?.id ?? '';
+      _shareableAssociations.value = records
+          .map((r) => AssociationsRecord.fromJson(r.toJson()))
+          .where((a) => a.id != ownId)
+          .toList();
+    } catch (e) {
+      debugPrint('PlacesStore: Error fetching associations: $e');
+    }
+  }
+
   Future<bool> getPlace(String id) async {
     _loading.value = true;
     try {
-      final record = await _pb.collection(Collections.places).getOne(id);
+      final record = await _pb
+          .collection(Collections.places)
+          .getOne(id, expand: 'association');
       _currentPlace.value = PlacesRecord.fromJson(record.toJson());
       return true;
     } catch (e) {
@@ -61,7 +91,10 @@ class PlacesStore {
     try {
       final records = await _pb
           .collection(Collections.placeBookings)
-          .getFullList(filter: 'place="$placeId"', expand: 'residence,user');
+          .getFullList(
+            filter: 'place="$placeId"',
+            expand: 'residence,user,association',
+          );
       _bookings.value = records
           .map((r) => PlaceBookingsRecord.fromJson(r.toJson()))
           .toList();
@@ -87,6 +120,7 @@ class PlacesStore {
     double? pricePerSlot,
     String? allowedBookingPeriodType,
     int? allowedNumberOfBookingsPerPeriod,
+    List<String> sharedWithAssociations = const [],
   }) async {
     _loading.value = true;
     try {
@@ -114,6 +148,7 @@ class PlacesStore {
               'allowed_booking_period_type': allowedBookingPeriodType ?? '',
               'allowed_number_of_bookings_per_period':
                   allowedNumberOfBookingsPerPeriod,
+              'shared_with_associations': sharedWithAssociations,
             },
           );
 
@@ -143,6 +178,7 @@ class PlacesStore {
     double? pricePerSlot,
     String? allowedBookingPeriodType,
     int? allowedNumberOfBookingsPerPeriod,
+    List<String> sharedWithAssociations = const [],
   }) async {
     _loading.value = true;
     try {
@@ -166,6 +202,7 @@ class PlacesStore {
               'allowed_booking_period_type': allowedBookingPeriodType ?? '',
               'allowed_number_of_bookings_per_period':
                   allowedNumberOfBookingsPerPeriod,
+              'shared_with_associations': sharedWithAssociations,
             },
           );
 
