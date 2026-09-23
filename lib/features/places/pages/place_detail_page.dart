@@ -111,6 +111,11 @@ class PlaceDetailPage extends CompositionWidget {
           !isShared && authStore.hasPermission('places', CrudOperation.update);
       final canDelete =
           !isShared && authStore.hasPermission('places', CrudOperation.delete);
+      // Granskare = Uppdatera på Lokalbokningar, och bara i ägarföreningen.
+      // Servern gör samma bedömning; det här gömmer knappar som ändå nekas.
+      final canReview =
+          !isShared &&
+          authStore.hasPermission('place_bookings', CrudOperation.update);
 
       return DefaultTabController(
         length: 2,
@@ -281,6 +286,7 @@ class PlaceDetailPage extends CompositionWidget {
                                   placeId: placeId,
                                   currentUserId: currentUserId,
                                   isAdmin: isAdmin && !isShared,
+                                  canReview: canReview,
                                 )
                               : SfCalendar(
                                   controller: calendarController,
@@ -316,6 +322,7 @@ class PlaceDetailPage extends CompositionWidget {
                                         placeId,
                                         currentUserId,
                                         isAdmin && !isShared,
+                                        canReview: canReview,
                                       );
                                     }
                                   },
@@ -353,8 +360,9 @@ void _showBookingDetails(
   PlacesStore placesStore,
   String placeId,
   String? currentUserId,
-  bool isAdmin,
-) {
+  bool isAdmin, {
+  bool canReview = false,
+}) {
   // Members may only cancel their own bookings; admins may cancel any.
   final canDeleteBooking =
       isAdmin || (booking.user != null && booking.user == currentUserId);
@@ -370,7 +378,10 @@ void _showBookingDetails(
               width: 16,
               height: 16,
               decoration: BoxDecoration(
-                color: PlacesStore.parseBookingColor(booking.isBlock),
+                color: PlacesStore.parseBookingColor(
+                  booking.isBlock,
+                  isPending: booking.isPending,
+                ),
                 shape: BoxShape.circle,
               ),
             ),
@@ -397,6 +408,34 @@ void _showBookingDetails(
               ),
           ],
         ),
+        if (booking.isPending || booking.isRejected) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                booking.isPending
+                    ? Icons.hourglass_empty
+                    : Icons.cancel_outlined,
+                size: 16,
+                color: booking.isPending ? Colors.orange : Colors.red,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  booking.isPending
+                      ? 'Väntar på godkännande'
+                      : (booking.rejectionReason?.isNotEmpty == true
+                            ? 'Nekad: ${booking.rejectionReason}'
+                            : 'Nekad'),
+                  style: TextStyle(
+                    color: booking.isPending ? Colors.orange : Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 12),
         _bookingTimeRow(booking),
         // Who booked. Hidden for blocks ("Inte bokningsbar"), which are
@@ -408,10 +447,16 @@ void _showBookingDetails(
             _bookingInfoRow(Icons.home_outlined, booking.residenceLabel!),
           ],
           // Bokarens bostad ligger i en annan förening och är osynlig via
-          // API-reglerna — då är föreningsnamnet den enda avsändaren.
+          // API-reglerna. Adressen kommer i stället från booked_by_label, som
+          // servern stämplar, och föreningen från expand.
           if ((booking.residenceLabel == null ||
                   booking.residenceLabel!.isEmpty) &&
-              booking.associationName != null &&
+              booking.bookedByLabel != null &&
+              booking.bookedByLabel!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _bookingInfoRow(Icons.home_outlined, booking.bookedByLabel!),
+          ],
+          if (booking.associationName != null &&
               booking.associationName!.isNotEmpty) ...[
             const SizedBox(height: 8),
             _bookingInfoRow(Icons.apartment, booking.associationName!),
@@ -421,7 +466,73 @@ void _showBookingDetails(
             _bookingInfoRow(Icons.person_outline, booking.userName!),
           ],
         ],
+        if (canReview && booking.isPending) ...[
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () =>
+                      _review(context, placesStore, booking, placeId, true),
+                  icon: const Icon(Icons.check, size: 18),
+                  label: const Text('Godkänn'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () =>
+                      _review(context, placesStore, booking, placeId, false),
+                  icon: const Icon(Icons.close, size: 18),
+                  label: const Text('Neka'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red,
+                    side: const BorderSide(color: Colors.red),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
+    ),
+  );
+}
+
+Future<void> _review(
+  BuildContext context,
+  PlacesStore placesStore,
+  PlaceBookingsRecord booking,
+  String placeId,
+  bool approve,
+) async {
+  if (!approve) {
+    final confirmed = await showConfirmDialog(
+      context,
+      title: 'Neka bokningen?',
+      message:
+          'Tiden frigörs och den som bokat får ett meddelande om att '
+          'bokningen inte blev godkänd.',
+      okLabel: 'Neka',
+      okColor: Colors.red,
+    );
+    if (!confirmed) return;
+  }
+
+  final failure = await placesStore.reviewBooking(
+    booking.id,
+    placeId,
+    approve: approve,
+  );
+
+  if (!context.mounted) return;
+  Navigator.of(context).pop();
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        failure ?? (approve ? 'Bokningen godkänd' : 'Bokningen nekad'),
+      ),
+      backgroundColor: failure != null ? Colors.red : null,
     ),
   );
 }
@@ -496,6 +607,7 @@ class _BookingListView extends StatelessWidget {
     required this.placeId,
     required this.currentUserId,
     required this.isAdmin,
+    required this.canReview,
   });
 
   final List<PlaceBookingsRecord> bookings;
@@ -503,6 +615,7 @@ class _BookingListView extends StatelessWidget {
   final String placeId;
   final String? currentUserId;
   final bool isAdmin;
+  final bool canReview;
 
   DateTime _start(PlaceBookingsRecord b) {
     try {
@@ -534,6 +647,11 @@ class _BookingListView extends StatelessWidget {
             !booking.isBlock &&
             booking.userName != null &&
             booking.userName!.isNotEmpty;
+        final showBookedByLabel =
+            !booking.isBlock &&
+            !showResidence &&
+            booking.bookedByLabel != null &&
+            booking.bookedByLabel!.isNotEmpty;
         final showAssociation =
             !booking.isBlock &&
             !showResidence &&
@@ -550,6 +668,7 @@ class _BookingListView extends StatelessWidget {
               placeId,
               currentUserId,
               isAdmin,
+              canReview: canReview,
             ),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
@@ -588,6 +707,13 @@ class _BookingListView extends StatelessWidget {
                           _bookingInfoRow(
                             Icons.home_outlined,
                             booking.residenceLabel!,
+                          ),
+                        ],
+                        if (showBookedByLabel) ...[
+                          const SizedBox(height: 2),
+                          _bookingInfoRow(
+                            Icons.home_outlined,
+                            booking.bookedByLabel!,
                           ),
                         ],
                         if (showAssociation) ...[

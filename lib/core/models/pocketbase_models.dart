@@ -586,6 +586,10 @@ class PlacesRecord {
   /// den enda som får redigera, blockera tider eller radera lokalen.
   final List<String> sharedWithAssociations;
 
+  /// När den är satt måste varje bokning godkännas av en granskare i
+  /// ägarföreningen innan den gäller. Tiden hålls under tiden.
+  final bool requiresApproval;
+
   /// Ägarföreningens namn (när posten hämtats med expand=association).
   final String? associationName;
 
@@ -611,6 +615,7 @@ class PlacesRecord {
     this.allowedNumberOfBookingsPerPeriod,
     required this.user,
     this.sharedWithAssociations = const [],
+    this.requiresApproval = false,
     this.associationName,
   });
 
@@ -651,6 +656,7 @@ class PlacesRecord {
               ?.map((e) => e as String)
               .toList() ??
           [],
+      requiresApproval: json['requires_approval'] as bool? ?? false,
       associationName: associationExpand?['name'] as String?,
     );
   }
@@ -670,15 +676,34 @@ class PlaceBookingsRecord {
   final bool isBlock;
   final String? user;
 
+  /// Adressen som bokat, stämplad av servern. Bokarens bostad ligger i en
+  /// annan förening och är osynlig via API-reglerna — det här fältet finns för
+  /// att grannföreningen ska slippa läsa `residences`.
+  final String? bookedByLabel;
+
   /// Föreningen som bokat. I en delad lokal ligger bokarens bostad och
   /// användare i en annan förening och är osynliga via API-reglerna — då är
   /// det här den enda avsändare ägaren ser.
   final String? association;
+
+  /// 'pending', 'approved' eller 'rejected'. Sätts bara av servern. Tomt på
+  /// gamla bokningar skapade innan godkännandesteget fanns — de gäller.
+  final String? approvalStatus;
+
+  /// Granskarens skäl vid nekad bokning. Döljs för andra föreningar än den som
+  /// bokat, eftersom det är fritext.
+  final String? rejectionReason;
   // Expanded labels (when fetched with expand=residence,user,association): the
   // residence's street address, the booking user's name and the association's.
   final String? residenceLabel;
   final String? userName;
   final String? associationName;
+
+  /// Väntar på granskarens beslut. Tiden är upptagen men inte bekräftad.
+  bool get isPending => approvalStatus == 'pending';
+
+  /// Nekad av en granskare, och håller därför ingen tid längre.
+  bool get isRejected => approvalStatus == 'rejected';
 
   PlaceBookingsRecord({
     required this.id,
@@ -694,6 +719,9 @@ class PlaceBookingsRecord {
     this.isBlock = false,
     this.user,
     this.association,
+    this.approvalStatus,
+    this.rejectionReason,
+    this.bookedByLabel,
     this.residenceLabel,
     this.userName,
     this.associationName,
@@ -718,6 +746,9 @@ class PlaceBookingsRecord {
       isBlock: json['is_block'] as bool? ?? false,
       user: json['user'] as String?,
       association: json['association'] as String?,
+      approvalStatus: json['approval_status'] as String?,
+      rejectionReason: json['rejection_reason'] as String?,
+      bookedByLabel: json['booked_by_label'] as String?,
       residenceLabel: residenceExpand?['street_address'] as String?,
       userName: userExpand?['name'] as String?,
       associationName: associationExpand?['name'] as String?,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
-import 'package:pocketbase/pocketbase.dart' show PocketBase;
+import 'package:pocketbase/pocketbase.dart' show PocketBase, ClientException;
 import '../../core/models/pocketbase_models.dart';
 import '../../core/pagination/paginated.dart';
 import '../auth/auth_store.dart' as auth;
@@ -121,6 +121,7 @@ class PlacesStore {
     String? allowedBookingPeriodType,
     int? allowedNumberOfBookingsPerPeriod,
     List<String> sharedWithAssociations = const [],
+    bool requiresApproval = false,
   }) async {
     _loading.value = true;
     try {
@@ -149,6 +150,7 @@ class PlacesStore {
               'allowed_number_of_bookings_per_period':
                   allowedNumberOfBookingsPerPeriod,
               'shared_with_associations': sharedWithAssociations,
+        'requires_approval': requiresApproval,
             },
           );
 
@@ -179,6 +181,7 @@ class PlacesStore {
     String? allowedBookingPeriodType,
     int? allowedNumberOfBookingsPerPeriod,
     List<String> sharedWithAssociations = const [],
+    bool requiresApproval = false,
   }) async {
     _loading.value = true;
     try {
@@ -203,6 +206,7 @@ class PlacesStore {
               'allowed_number_of_bookings_per_period':
                   allowedNumberOfBookingsPerPeriod,
               'shared_with_associations': sharedWithAssociations,
+        'requires_approval': requiresApproval,
             },
           );
 
@@ -279,7 +283,43 @@ class PlacesStore {
     }
   }
 
-  static Color parseBookingColor(bool isBlock) {
-    return isBlock ? const Color(0xFF808080) : const Color(0xFF2ed188);
+  /// Godkänner eller nekar en bokning.
+  ///
+  /// Servern avgör om anroparen får göra det — bara granskare i lokalens
+  /// ägarförening, se pb_hooks/collections/place_bookings.pb.js — och stämplar
+  /// vem som granskade och när. Returnerar null vid lyckat, annars skälet.
+  Future<String?> reviewBooking(
+    String bookingId,
+    String placeId, {
+    required bool approve,
+    String rejectionReason = '',
+  }) async {
+    try {
+      await _pb
+          .collection(Collections.placeBookings)
+          .update(
+            bookingId,
+            body: {
+              'approval_status': approve ? 'approved' : 'rejected',
+              'rejection_reason': approve ? '' : rejectionReason,
+            },
+          );
+      await getBookings(placeId);
+      return null;
+    } catch (e) {
+      debugPrint('PlacesStore: Error reviewing booking: $e');
+      if (e is ClientException) {
+        final message = e.response['message'];
+        if (message is String && message.isNotEmpty) return message;
+      }
+      return 'Bokningen kunde inte uppdateras';
+    }
+  }
+
+  /// Orange medan bokningen väntar på godkännande: tiden är upptagen, men
+  /// ännu inte bekräftad.
+  static Color parseBookingColor(bool isBlock, {bool isPending = false}) {
+    if (isBlock) return const Color(0xFF808080);
+    return isPending ? const Color(0xFFFB8C00) : const Color(0xFF2ed188);
   }
 }

@@ -48,6 +48,7 @@ class CreatePlacePage extends CompositionWidget {
     final allowedPeriodType = ref<String?>(existing?.allowedBookingPeriodType);
     // Föreningar lokalen delas med. Ägarföreningen står kvar i `association`
     // och är den enda som får redigera eller blockera lokalen.
+    final requiresApproval = ref<bool>(existing?.requiresApproval ?? false);
     final sharedWith = ref<List<String>>(
       List<String>.from(existing?.sharedWithAssociations ?? const []),
     );
@@ -76,6 +77,7 @@ class CreatePlacePage extends CompositionWidget {
           ? place.bookingSlotDurationType
           : 'Timmar';
       allowedPeriodType.value = place.allowedBookingPeriodType;
+      requiresApproval.value = place.requiresApproval;
       sharedWith.value = List<String>.from(
         place.sharedWithAssociations as List<String>,
       );
@@ -131,6 +133,7 @@ class CreatePlacePage extends CompositionWidget {
               allowedBookingPeriodType: allowedPeriodType.value,
               allowedNumberOfBookingsPerPeriod: allowedCount,
               sharedWithAssociations: sharedWith.value,
+              requiresApproval: requiresApproval.value,
             )
           : await placesStore.createPlace(
               name: nameController.text.trim(),
@@ -149,6 +152,7 @@ class CreatePlacePage extends CompositionWidget {
               allowedBookingPeriodType: allowedPeriodType.value,
               allowedNumberOfBookingsPerPeriod: allowedCount,
               sharedWithAssociations: sharedWith.value,
+              requiresApproval: requiresApproval.value,
             );
       loading.value = false;
 
@@ -394,6 +398,18 @@ class CreatePlacePage extends CompositionWidget {
                   );
                 }).toList(),
               ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: requiresApproval.value,
+              onChanged: (value) => requiresApproval.value = value,
+              title: const Text('Bokningar måste godkännas'),
+              subtitle: const Text(
+                'Varje bokning hamnar hos en granskare innan den gäller, och '
+                'tiden hålls under tiden. Granskare är de roller som har '
+                'Uppdatera på Lokalbokningar under Behörigheter.',
+              ),
+            ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: loading.value ? null : save,
