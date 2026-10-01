@@ -6,6 +6,7 @@ import 'package:printing/printing.dart';
 
 import '../../core/models/pocketbase_models.dart';
 import '../../core/utils/date_utils.dart';
+import '../signatures/signatures_store.dart';
 
 /// Builds a printable meeting-protocol PDF for a board meeting (styrelsemöte)
 /// and opens the native share / print sheet via [Printing.sharePdf].
@@ -15,14 +16,23 @@ import '../../core/utils/date_utils.dart';
 /// block at the bottom. Because this is a board meeting the signatures are
 /// ordförande + sekreterare with an optional justerare (no legally required
 /// justerare, unlike a föreningsstämma).
+///
+/// When the protocol has been sent for e-signing, the signature block lists the
+/// electronic signatures (name, role, time and the SHA-256 of the signed
+/// content) instead of blank lines.
 class BoardMeetingPdf {
   const BoardMeetingPdf._();
 
   static Future<void> shareProtocol(
     BoardMeetingsRecord meeting, {
     String? associationName,
+    List<Signature> signatures = const [],
   }) async {
-    final bytes = await _build(meeting, associationName: associationName);
+    final bytes = await _build(
+      meeting,
+      associationName: associationName,
+      signatures: signatures,
+    );
     final fileDate = AppDateUtils.formatDate(meeting.startAt);
     await Printing.sharePdf(
       bytes: bytes,
@@ -33,6 +43,7 @@ class BoardMeetingPdf {
   static Future<Uint8List> _build(
     BoardMeetingsRecord meeting, {
     String? associationName,
+    List<Signature> signatures = const [],
   }) async {
     final doc = pw.Document();
 
@@ -68,7 +79,7 @@ class BoardMeetingPdf {
             _itemsSection('Mötesprotokoll', meeting.meetingProtocol!),
           ],
           pw.SizedBox(height: 48),
-          _signatures(),
+          signatures.isEmpty ? _signatures() : _eSignatures(signatures),
         ],
       ),
     );
@@ -215,6 +226,64 @@ class BoardMeetingPdf {
         line('Ordförande'),
         line('Sekreterare'),
         line('Justerare'),
+      ],
+    );
+  }
+
+  static pw.Widget _eSignatures(List<Signature> signatures) {
+    pw.Widget entry(Signature s) {
+      final who = s.role.isEmpty ? s.displayName : '${s.displayName} – ${s.role}';
+      final signedAt = DateTime.tryParse(s.signedAt)?.toLocal();
+      return pw.Container(
+        margin: const pw.EdgeInsets.only(top: 12),
+        padding: const pw.EdgeInsets.all(10),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.grey400, width: 0.8),
+          borderRadius: pw.BorderRadius.circular(4),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              who,
+              style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 2),
+            if (s.isSigned && signedAt != null) ...[
+              pw.Text(
+                'Signerad elektroniskt '
+                '${AppDateUtils.formatDateTime(signedAt.toIso8601String())} · ${s.signerEmail}',
+                style: pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+              ),
+              pw.Text(
+                'SHA-256: ${s.documentHash}',
+                style: pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
+              ),
+            ] else
+              pw.Text(
+                'Väntar på signatur',
+                style: pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'Underskrifter',
+          style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold),
+        ),
+        ...signatures.map(entry),
+        pw.SizedBox(height: 10),
+        pw.Text(
+          'Signerat elektroniskt i BRF Samlat med engångskod skickad till '
+          'signerarens e-post. Hashen är en SHA-256 av protokollets innehåll '
+          'vid signeringen.',
+          style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+        ),
       ],
     );
   }

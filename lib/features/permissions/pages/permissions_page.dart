@@ -31,6 +31,7 @@ const _menuLabels = <String, String>{
   'folders_and_files': 'Dokument',
   'board': 'Styrelsen',
   'board_meetings': 'Styrelsemöten',
+  'annual_wheel': 'Årshjul',
   'invoices': 'Fakturor',
   'invoice_builder': 'Faktura Byggaren',
   'forms': 'Formulär',

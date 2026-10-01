@@ -38,6 +38,9 @@ import '../../features/chat/pages/chat_room_page.dart';
 import '../../features/chat/pages/new_chat_page.dart';
 import '../../features/help/pages/help_page.dart';
 import '../../features/permissions/pages/permissions_page.dart';
+import '../../features/signatures/pages/signatures_list_page.dart';
+import '../../features/signatures/pages/signature_page.dart';
+import '../../features/annual_wheel/pages/annual_wheel_page.dart';
 import 'auth_guard.dart';
 
 final router = GoRouter(
@@ -218,6 +221,22 @@ final router = GoRouter(
     GoRoute(
       path: CreateBoardMeetingPage.path,
       builder: (context, state) => const CreateBoardMeetingPage(),
+    ),
+    // E-signing
+    GoRoute(
+      path: SignaturesListPage.path,
+      builder: (context, state) => const SignaturesListPage(),
+    ),
+    GoRoute(
+      path: '${SignaturePage.path}/:id',
+      builder: (context, state) => SignaturePage(
+        signatureId: state.pathParameters['id']!,
+      ),
+    ),
+    // Annual wheel
+    GoRoute(
+      path: AnnualWheelPage.path,
+      builder: (context, state) => const AnnualWheelPage(),
     ),
     // Users
     GoRoute(

@@ -16,6 +16,8 @@ import 'core/services/notification_service.dart';
 import 'core/utils/date_utils.dart';
 import 'features/auth/auth_store.dart' as auth;
 import 'features/dashboard/dashboard_store.dart';
+import 'features/signatures/signatures_store.dart';
+import 'features/annual_wheel/annual_wheel_store.dart';
 import 'features/posts/posts_store.dart';
 import 'features/issues/issues_store.dart';
 import 'features/calendar/calendar_store.dart';
@@ -83,6 +85,8 @@ class MyApp extends CompositionWidget {
     final invoicesStore = InvoicesStore(pocketBase, authStore);
     final formsStore = FormsStore(pocketBase, authStore);
     final chatStore = ChatStore(pocketBase, authStore);
+    final signaturesStore = SignaturesStore(pocketBase);
+    final annualWheelStore = AnnualWheelStore(pocketBase, authStore);
     final themeStore = ThemeStore();
     final notificationService = NotificationService(pocketBase);
 
@@ -104,6 +108,8 @@ class MyApp extends CompositionWidget {
     provide(invoicesStoreKey, invoicesStore);
     provide(formsStoreKey, formsStore);
     provide(chatStoreKey, chatStore);
+    provide(signaturesStoreKey, signaturesStore);
+    provide(annualWheelStoreKey, annualWheelStore);
 
     setGlobalAuthStore(authStore);
     setGlobalThemeStore(themeStore);

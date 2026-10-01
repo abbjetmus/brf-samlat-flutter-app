@@ -40,6 +40,7 @@ class DashboardPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final authStore = inject(authStoreKey);
     final dashboardStore = inject(dashboardStoreKey);
+    final signaturesStore = inject(signaturesStoreKey);
 
     onMounted(() {
       dashboardStore.getNotSeenCount();
@@ -52,6 +53,7 @@ class DashboardPage extends CompositionWidget {
     watch(() => authStore.association.value?.id, (assocId, _) {
       if (assocId != null && assocId.isNotEmpty) {
         dashboardStore.getGeneralInfoList();
+        signaturesStore.getMine();
       }
     }, immediate: true);
 
@@ -130,6 +132,13 @@ class DashboardPage extends CompositionWidget {
         featureName: 'board',
       ),
       _MenuItem(
+        label: 'Årshjul',
+        icon: Icons.donut_large_outlined,
+        path: '/annual-wheel',
+        color: Color(0xFF22C55E),
+        permissionName: 'annual_wheel',
+      ),
+      _MenuItem(
         label: 'Användare',
         icon: Icons.people_outlined,
         path: '/users',
@@ -170,6 +179,8 @@ class DashboardPage extends CompositionWidget {
       final association = authStore.association.value;
       final notSeenCount = dashboardStore.notSeenCount.value;
       final generalInfoList = dashboardStore.generalInfoList.value;
+      final mySignatures = signaturesStore.mine.value;
+      final pendingSignatures = mySignatures.where((s) => !s.isSigned).length;
 
       // Filter menu items: association feature toggles, then per-role read
       // permission.
@@ -182,6 +193,19 @@ class DashboardPage extends CompositionWidget {
         }
         return authStore.hasPermission(permission, CrudOperation.read);
       }).toList();
+
+      // "Att signera" only for those who have been asked to sign something.
+      if (mySignatures.isNotEmpty) {
+        visibleItems.insert(
+          0,
+          const _MenuItem(
+            label: 'Att signera',
+            icon: Icons.draw_outlined,
+            path: '/signatures',
+            color: Color(0xFFF97316),
+          ),
+        );
+      }
 
       return Scaffold(
         body: Column(
@@ -211,6 +235,17 @@ class DashboardPage extends CompositionWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (pendingSignatures > 0) ...[
+                        _InfoCard(
+                          icon: Icons.draw_outlined,
+                          title: pendingSignatures == 1
+                              ? 'Du har ett protokoll att signera'
+                              : 'Du har $pendingSignatures protokoll att signera',
+                          subtitle: 'Tryck för att läsa och signera',
+                          onTap: () => context.push('/signatures'),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
                       _MenuGrid(
                         items: visibleItems,
                         onTap: (item) => context.push(item.path),
@@ -504,8 +539,14 @@ class _InfoCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
+  final IconData icon;
 
-  const _InfoCard({required this.title, required this.subtitle, this.onTap});
+  const _InfoCard({
+    required this.title,
+    required this.subtitle,
+    this.onTap,
+    this.icon = Icons.campaign_outlined,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -531,8 +572,8 @@ class _InfoCard extends StatelessWidget {
                   color: AppTheme.surfaceLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(
-                  Icons.campaign_outlined,
+                child: Icon(
+                  icon,
                   color: AppTheme.primaryDarken1,
                   size: 22,
                 ),

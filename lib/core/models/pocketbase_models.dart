@@ -37,6 +37,8 @@ class Collections {
   static const String chatRooms = 'chat_rooms';
   static const String chatMessages = 'chat_messages';
   static const String chatReadReceipts = 'chat_read_receipts';
+  static const String annualWheelActivities = 'annual_wheel_activities';
+  static const String annualWheelCompletions = 'annual_wheel_completions';
 }
 
 // --- Users ---
@@ -1577,6 +1579,94 @@ class ChatReadReceiptsRecord {
       room: json['room'] as String? ?? '',
       user: json['user'] as String? ?? '',
       lastReadMessage: json['last_read_message'] as String?,
+    );
+  }
+}
+
+// --- Annual wheel (årshjul) ---
+
+class AnnualWheelActivitiesRecord {
+  final String id;
+  final String? created;
+  final String? updated;
+  final String association;
+  final String title;
+  final String description;
+  final int month;
+
+  /// 0 = "during the month", no fixed day.
+  final int day;
+
+  /// board | finance | meeting | property | other
+  final String category;
+  final String? responsible;
+
+  /// 0 = no reminder.
+  final int reminderDaysBefore;
+
+  AnnualWheelActivitiesRecord({
+    required this.id,
+    this.created,
+    this.updated,
+    required this.association,
+    required this.title,
+    this.description = '',
+    required this.month,
+    this.day = 0,
+    this.category = 'other',
+    this.responsible,
+    this.reminderDaysBefore = 0,
+  });
+
+  factory AnnualWheelActivitiesRecord.fromJson(Map<String, dynamic> json) {
+    final responsible = json['responsible'] as String?;
+    return AnnualWheelActivitiesRecord(
+      id: json['id'] as String? ?? '',
+      created: json['created'] as String?,
+      updated: json['updated'] as String?,
+      association: json['association'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      month: (json['month'] as num?)?.toInt() ?? 1,
+      day: (json['day'] as num?)?.toInt() ?? 0,
+      category: (json['category'] as String?)?.isNotEmpty == true
+          ? json['category'] as String
+          : 'other',
+      responsible: responsible == null || responsible.isEmpty
+          ? null
+          : responsible,
+      reminderDaysBefore: (json['reminder_days_before'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class AnnualWheelCompletionsRecord {
+  final String id;
+  final String association;
+  final String activity;
+  final int year;
+  final String? completedBy;
+  final String? completedAt;
+
+  AnnualWheelCompletionsRecord({
+    required this.id,
+    required this.association,
+    required this.activity,
+    required this.year,
+    this.completedBy,
+    this.completedAt,
+  });
+
+  factory AnnualWheelCompletionsRecord.fromJson(Map<String, dynamic> json) {
+    final by = json['completed_by'] as String?;
+    final at = json['completed_at'] as String?;
+    return AnnualWheelCompletionsRecord(
+      id: json['id'] as String? ?? '',
+      association: json['association'] as String? ?? '',
+      activity: json['activity'] as String? ?? '',
+      year: (json['year'] as num?)?.toInt() ?? 0,
+      completedBy: by == null || by.isEmpty ? null : by,
+      completedAt: at == null || at.isEmpty ? null : at,
     );
   }
 }

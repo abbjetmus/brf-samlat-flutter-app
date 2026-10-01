@@ -15,6 +15,8 @@ import '../../features/users/users_store.dart';
 import '../../features/invoices/invoices_store.dart';
 import '../../features/forms/forms_store.dart';
 import '../../features/chat/chat_store.dart';
+import '../../features/signatures/signatures_store.dart';
+import '../../features/annual_wheel/annual_wheel_store.dart';
 import '../theme/theme_store.dart';
 import '../services/notification_service.dart';
 
@@ -37,6 +39,9 @@ const usersStoreKey = InjectionKey<UsersStore>('usersStore');
 const invoicesStoreKey = InjectionKey<InvoicesStore>('invoicesStore');
 const formsStoreKey = InjectionKey<FormsStore>('formsStore');
 const chatStoreKey = InjectionKey<ChatStore>('chatStore');
+const signaturesStoreKey = InjectionKey<SignaturesStore>('signaturesStore');
+const annualWheelStoreKey =
+    InjectionKey<AnnualWheelStore>('annualWheelStore');
 
 auth.AuthStore? _globalAuthStore;
 

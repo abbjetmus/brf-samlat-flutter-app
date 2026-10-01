@@ -27,6 +27,7 @@ const toggleableFeatures = <ToggleableFeature>[
   // template sub-views inside it (matches the web board tabs).
   ToggleableFeature('board', 'Styrelsen'),
   ToggleableFeature('board_meetings', 'Styrelsemöten'),
+  ToggleableFeature('annual_wheel', 'Årshjul'),
   ToggleableFeature('invoices', 'Fakturor'),
   ToggleableFeature('invoice_builder', 'Faktura Byggaren'),
 ];

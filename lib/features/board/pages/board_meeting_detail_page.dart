@@ -8,6 +8,7 @@ import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/rich_description.dart';
+import '../../signatures/widgets/meeting_signatures_section.dart';
 import '../board_meeting_pdf.dart';
 
 class BoardMeetingDetailPage extends CompositionWidget {
@@ -21,6 +22,7 @@ class BoardMeetingDetailPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final boardStore = inject(boardStoreKey);
     final authStore = inject(authStoreKey);
+    final signaturesStore = inject(signaturesStoreKey);
     final contextRef = useContext();
 
     onMounted(() {
@@ -63,10 +65,14 @@ class BoardMeetingDetailPage extends CompositionWidget {
               EntityAction(
                 icon: Icons.picture_as_pdf_outlined,
                 label: 'Generera PDF',
-                onSelected: () {
-                  BoardMeetingPdf.shareProtocol(
+                onSelected: () async {
+                  final signed = await signaturesStore.getForMeeting(
+                    meeting.id,
+                  );
+                  await BoardMeetingPdf.shareProtocol(
                     meeting,
                     associationName: authStore.association.value?.name,
+                    signatures: signed?.signatures ?? const [],
                   );
                 },
               ),
@@ -185,6 +191,9 @@ class BoardMeetingDetailPage extends CompositionWidget {
                   ],
                 ),
               ),
+
+              const Divider(height: 1),
+              MeetingSignaturesSection(meetingId: meeting.id),
 
               // Meeting Agenda
               if (meeting.meetingAgenda != null &&
