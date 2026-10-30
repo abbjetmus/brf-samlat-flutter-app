@@ -161,10 +161,7 @@ class VotingTab extends CompositionWidget {
               });
               return null;
             } catch (e) {
-              return generalMeetingErrorMessage(
-                e,
-                'Kunde inte spara rösterna',
-              );
+              return generalMeetingErrorMessage(e, 'Kunde inte spara rösterna');
             }
           },
         ),
@@ -178,8 +175,8 @@ class VotingTab extends CompositionWidget {
     return (context) {
       final o = overview.value;
       final manage = props.value.canManage;
-      final perMember = (o?.voteMode ?? props.value.meeting.voteMode) ==
-          'per_member';
+      final perMember =
+          (o?.voteMode ?? props.value.meeting.voteMode) == 'per_member';
       final openUnits = (o?.units ?? const <VotingUnit>[])
           .where((u) => !u.blocked)
           .toList();
@@ -382,9 +379,7 @@ class _VotingItemCard extends StatelessWidget {
                   )
                 else if (manage && open)
                   FilledButton.tonalIcon(
-                    style: FilledButton.styleFrom(
-                      foregroundColor: Colors.red,
-                    ),
+                    style: FilledButton.styleFrom(foregroundColor: Colors.red),
                     onPressed: busy ? null : onClose,
                     icon: const Icon(Icons.stop),
                     label: const Text('Stäng'),
@@ -433,7 +428,9 @@ class _VotingItemCard extends StatelessWidget {
               ]
             else if (open && !manage)
               Text(
-                'Omröstningen är öppen i lokalen.',
+                canVote
+                    ? 'Omröstningen är öppen.'
+                    : 'Omröstningen är öppen i lokalen.',
                 style: TextStyle(color: Colors.grey[600]),
               )
             else if (!open && !closed && !manage)
@@ -448,8 +445,18 @@ class _VotingItemCard extends StatelessWidget {
                 style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
               const SizedBox(height: 6),
-              _ResultBar('Ja', results.total.ja, results.votesCast, Colors.green),
-              _ResultBar('Nej', results.total.nej, results.votesCast, Colors.red),
+              _ResultBar(
+                'Ja',
+                results.total.ja,
+                results.votesCast,
+                Colors.green,
+              ),
+              _ResultBar(
+                'Nej',
+                results.total.nej,
+                results.votesCast,
+                Colors.red,
+              ),
               _ResultBar(
                 'Avstår',
                 results.total.avstar,
@@ -595,10 +602,7 @@ class _ManualCountsSheet extends CompositionWidget {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
-        Text(
-          props.value.item.title,
-          style: TextStyle(color: Colors.grey[600]),
-        ),
+        Text(props.value.item.title, style: TextStyle(color: Colors.grey[600])),
         const SizedBox(height: 16),
         Row(
           children: [

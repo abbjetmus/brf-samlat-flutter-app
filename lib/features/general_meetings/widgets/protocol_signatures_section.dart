@@ -170,7 +170,9 @@ class ProtocolSignaturesSection extends CompositionWidget {
                           : '$signedCount/${signatures.length} signerade',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: allSigned ? AppTheme.primaryColor : Colors.orange,
+                        color: allSigned
+                            ? AppTheme.primaryColor
+                            : Colors.orange,
                       ),
                     ),
                 ],

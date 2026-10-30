@@ -700,4 +700,3 @@ class GeneralMeetingVoter {
         note: _s(json['note']),
       );
 }
-

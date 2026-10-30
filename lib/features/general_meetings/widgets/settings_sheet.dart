@@ -23,9 +23,7 @@ class GeneralMeetingSettingsSheet extends CompositionWidget {
     final (minWeeksController, minWeeks, _) = useTextEditingController(
       text: '2',
     );
-    final (proxiesController, proxies, _) = useTextEditingController(
-      text: '1',
-    );
+    final (proxiesController, proxies, _) = useTextEditingController(text: '1');
 
     onMounted(() async {
       try {

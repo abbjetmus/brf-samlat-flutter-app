@@ -188,8 +188,7 @@ class MotionsTab extends CompositionWidget {
       final mine = motion.submittedBy == store.currentUserId;
       if (mine && motion.isDraft) {
         return [
-          if (m.canSubmitMotions)
-            EntityAction.update(() => openEditor(motion)),
+          if (m.canSubmitMotions) EntityAction.update(() => openEditor(motion)),
           EntityAction.delete(() => deleteMotion(motion)),
         ];
       }
@@ -317,8 +316,7 @@ class _AnswerSheet extends CompositionWidget {
   const _AnswerSheet({required this.motion, required this.onSave});
 
   final Motion motion;
-  final Future<String?> Function(String response, String recommendation)
-  onSave;
+  final Future<String?> Function(String response, String recommendation) onSave;
 
   @override
   Widget Function(BuildContext) setup() {

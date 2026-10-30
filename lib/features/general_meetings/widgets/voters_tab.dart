@@ -29,7 +29,9 @@ class VotersTab extends CompositionWidget {
     final closed = computed(
       () => props.value.meeting.status == GeneralMeetingStatus.closed,
     );
-    final withVote = computed(() => voters.value.where((v) => v.hasVote).length);
+    final withVote = computed(
+      () => voters.value.where((v) => v.hasVote).length,
+    );
     final present = computed(
       () => voters.value.where((v) => v.hasVote && v.present).length,
     );
@@ -82,7 +84,9 @@ class VotersTab extends CompositionWidget {
           for (final v in voters.value) v.id == saved.id ? saved : v,
         ];
       } catch (e) {
-        snack(generalMeetingErrorMessage(e, 'Kunde inte uppdatera röstlängden'));
+        snack(
+          generalMeetingErrorMessage(e, 'Kunde inte uppdatera röstlängden'),
+        );
       } finally {
         busy.value = '';
       }
@@ -94,12 +98,12 @@ class VotersTab extends CompositionWidget {
         final (added, removed) = await store.regenerateVoters(
           props.value.meeting.id,
         );
-        snack(
-          'Röstlängden är uppdaterad: $added tillagda, $removed borttagna',
-        );
+        snack('Röstlängden är uppdaterad: $added tillagda, $removed borttagna');
         await load();
       } catch (e) {
-        snack(generalMeetingErrorMessage(e, 'Kunde inte uppdatera röstlängden'));
+        snack(
+          generalMeetingErrorMessage(e, 'Kunde inte uppdatera röstlängden'),
+        );
       } finally {
         generating.value = false;
       }

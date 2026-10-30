@@ -108,9 +108,7 @@ class GeneralMeetingsStore {
   }
 
   Future<NoticeCheck> noticeCheck(String meetingId) async {
-    final res = await _pb.send(
-      '/api/general-meetings/$meetingId/notice-check',
-    );
+    final res = await _pb.send('/api/general-meetings/$meetingId/notice-check');
     return NoticeCheck.fromJson(Map<String, dynamic>.from(res as Map));
   }
 
@@ -203,10 +201,8 @@ class GeneralMeetingsStore {
     return _signatures((res as Map)['signatures']);
   }
 
-  Future<void> cancelSignatures(String meetingId) => _pb.send(
-    '/api/general-meetings/$meetingId/signatures',
-    method: 'DELETE',
-  );
+  Future<void> cancelSignatures(String meetingId) =>
+      _pb.send('/api/general-meetings/$meetingId/signatures', method: 'DELETE');
 
   static List<Signature> _signatures(dynamic raw) => (raw as List? ?? const [])
       .map((e) => Signature.fromJson(Map<String, dynamic>.from(e as Map)))
@@ -327,7 +323,10 @@ class GeneralMeetingsStore {
       .collection(GeneralMeetingCollections.motions)
       .update(
         motionId,
-        body: {'board_response': boardResponse, 'recommendation': recommendation},
+        body: {
+          'board_response': boardResponse,
+          'recommendation': recommendation,
+        },
       );
 
   Future<void> deleteMotion(String motionId) =>

@@ -19,7 +19,9 @@ class MeetingFormSheet extends CompositionWidget {
     final contextRef = useContext();
     final existing = props.value.meeting;
 
-    final type = ref(existing?.type.isNotEmpty == true ? existing!.type : 'ordinarie');
+    final type = ref(
+      existing?.type.isNotEmpty == true ? existing!.type : 'ordinarie',
+    );
     final startAt = ref<DateTime?>(
       existing == null ? null : parsePbDate(existing.startAt),
     );
@@ -232,7 +234,9 @@ class MeetingFormSheet extends CompositionWidget {
         const SizedBox(height: 12),
         _DateField(
           label: 'Sista dag för motioner',
-          value: deadline.value == null ? '' : dateFormat.format(deadline.value!),
+          value: deadline.value == null
+              ? ''
+              : dateFormat.format(deadline.value!),
           enabled: motionsOpen.value,
           onTap: () async {
             final picked = await pickDateTime(deadline.value);
