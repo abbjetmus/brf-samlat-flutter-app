@@ -120,12 +120,12 @@ class FormDetailPage extends CompositionWidget {
       }
 
       saving.value = true;
-      final success = await formsStore.updateFormResponse(
+      final failure = await formsStore.updateFormResponse(
         id: formResponseId,
         answers: answers,
       );
       saving.value = false;
-      snack(success ? 'Svar sparade.' : 'Kunde inte spara svar.');
+      snack(failure ?? 'Svar sparade.');
     }
 
     // --- Field builder -------------------------------------------------------

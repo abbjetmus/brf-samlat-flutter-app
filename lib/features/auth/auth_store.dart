@@ -5,6 +5,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase, ClientException;
 import 'package:http/http.dart' as http;
 import '../../core/models/pocketbase_models.dart';
+import '../../core/utils/pb_error.dart';
 import '../../core/utils/permissions_utils.dart';
 
 class AuthStore {
@@ -39,9 +40,14 @@ class AuthStore {
     return adminRole != null &&
         _currentUser.value?.userRoleType == adminRole.id;
   });
-  late final _isBoardMember = computed(
-    () => (_currentUser.value?.associationRoleTypes ?? []).isNotEmpty,
-  );
+  // Only board roles (is_board_role) count — e.g. valberedning is a role but
+  // not the board. Permissions still use every role id via the matrix.
+  late final _isBoardMember = computed(() {
+    final roleIds = _currentUser.value?.associationRoleTypes ?? const [];
+    return _associationRoleTypes.value.any(
+      (r) => r.isBoardRole && roleIds.contains(r.id),
+    );
+  });
 
   ReadonlyRef<bool> get isAuthenticated => _isAuthenticated;
   ReadonlyRef<bool> get isAdmin => _isAdmin;
@@ -94,7 +100,9 @@ class AuthStore {
     }
   }
 
-  Future<bool> signUp({
+  /// Returns null on success, otherwise the server's reason (e.g. an invalid
+  /// or expired invitation, or an e-mail address that is already in use).
+  Future<String?> signUp({
     required String email,
     required String password,
     required String name,
@@ -134,10 +142,13 @@ class AuthStore {
           .collection(Collections.userInvitations)
           .update(invitationData.id, body: {'invitation_status': 'Aktiverad'});
 
-      return true;
+      return null;
     } catch (e) {
       debugPrint('AuthStore: Error in signUp: $e');
-      return false;
+      return pbErrorMessage(
+        e,
+        'Registrering misslyckades. Kontrollera inbjudningskoden.',
+      );
     }
   }
 

@@ -5,6 +5,7 @@ import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import 'package:http/http.dart' as http;
 import '../../core/models/pocketbase_models.dart';
 import '../../core/pagination/paginated.dart';
+import '../../core/utils/pb_error.dart';
 import '../auth/auth_store.dart' as auth;
 
 class IssuesStore {
@@ -70,6 +71,9 @@ class IssuesStore {
       return true;
     } catch (e) {
       debugPrint('IssuesStore: Error fetching issue: $e');
+      // Don't leave a previously opened issue on screen: a residence's issues
+      // are only readable by its residents and admins, so a 404 is expected.
+      _currentIssue.value = null;
       return false;
     } finally {
       _loading.value = false;
@@ -97,7 +101,12 @@ class IssuesStore {
     }
   }
 
-  Future<bool> createIssue({
+  /// [residenceId] ties the issue to a residence; such an issue is only visible
+  /// to that residence's residents and admins. Null creates a shared issue that
+  /// the whole association can see.
+  ///
+  /// Returns null on success, otherwise the server's reason.
+  Future<String?> createIssue({
     required String title,
     required String description,
     String type = 'Felanmälan',
@@ -111,10 +120,6 @@ class IssuesStore {
     try {
       final assocId = _authStore.association.value?.id ?? '';
       final userId = _authStore.currentUser.value?.id ?? '';
-      // Explicit residence (e.g. creating from a residence's detail page) wins
-      // over the current user's own residence.
-      final resolvedResidenceId =
-          residenceId ?? _authStore.residence.value?.id;
 
       final body = <String, dynamic>{
         'title': title,
@@ -128,7 +133,7 @@ class IssuesStore {
       };
 
       if (assignedTo != null) body['assigned_to'] = assignedTo;
-      if (resolvedResidenceId != null) body['residence'] = resolvedResidenceId;
+      if (residenceId != null) body['residence'] = residenceId;
 
       final files = <http.MultipartFile>[];
       if (attachments != null) {
@@ -147,16 +152,17 @@ class IssuesStore {
       await _pb.collection(Collections.issues).create(body: body, files: files);
 
       await getAllIssues();
-      return true;
+      return null;
     } catch (e) {
       debugPrint('IssuesStore: Error creating issue: $e');
-      return false;
+      return pbErrorMessage(e, 'Kunde inte skapa ärendet.');
     } finally {
       _loading.value = false;
     }
   }
 
-  Future<bool> updateIssue({
+  /// Returns null on success, otherwise the server's reason.
+  Future<String?> updateIssue({
     required String id,
     required String title,
     required String description,
@@ -182,10 +188,10 @@ class IssuesStore {
       await _pb.collection(Collections.issues).update(id, body: body);
       await getIssue(id);
       await getAllIssues();
-      return true;
+      return null;
     } catch (e) {
       debugPrint('IssuesStore: Error updating issue: $e');
-      return false;
+      return pbErrorMessage(e, 'Kunde inte uppdatera ärendet.');
     } finally {
       _loading.value = false;
     }

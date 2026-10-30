@@ -6,25 +6,20 @@ import 'package:printing/printing.dart';
 
 import '../../core/models/pocketbase_models.dart';
 import '../../core/utils/date_utils.dart';
+import 'invoice_display.dart';
 
 /// Builds a printable invoice PDF and opens the native share/print sheet via
 /// [Printing.sharePdf]. Mirrors [InvoiceDetailPage]: dates, residence address,
-/// invoice items with totals, and bank account information.
+/// invoice items with totals, and bank account information, all taken from
+/// [InvoiceDisplay] (the invoice's template snapshot when it has one).
 class InvoicePdf {
   const InvoicePdf._();
 
   static Future<void> share(
     InvoicesRecord invoice,
-    InvoiceTemplatesRecord template, {
-    String? residenceAddress,
-    String? associationName,
-  }) async {
-    final bytes = await _build(
-      invoice,
-      template,
-      residenceAddress: residenceAddress,
-      associationName: associationName,
-    );
+    InvoiceDisplay display,
+  ) async {
+    final bytes = await _build(invoice, display);
     final fileDate = AppDateUtils.formatDate(invoice.invoiceDate)
         .replaceAll(' ', '_')
         .replaceAll('/', '-');
@@ -36,23 +31,15 @@ class InvoicePdf {
 
   static Future<Uint8List> _build(
     InvoicesRecord invoice,
-    InvoiceTemplatesRecord template, {
-    String? residenceAddress,
-    String? associationName,
-  }) async {
+    InvoiceDisplay display,
+  ) async {
     final doc = pw.Document();
 
     final regular = await PdfGoogleFonts.notoSansRegular();
     final bold = await PdfGoogleFonts.notoSansBold();
 
-    final items = (template.invoiceItems ?? [])
-        .whereType<Map>()
-        .map((e) => _InvoiceItem(
-              description: (e['description'] as String?) ?? '',
-              price: num.tryParse('${e['price']}')?.toDouble() ?? 0,
-            ))
-        .toList();
-    final total = items.fold<double>(0, (sum, e) => sum + e.price);
+    final items = display.items;
+    final total = display.total;
 
     doc.addPage(
       pw.MultiPage(
@@ -61,22 +48,23 @@ class InvoicePdf {
         theme: pw.ThemeData.withFont(base: regular, bold: bold),
         build: (context) => [
           _header(
-            associationName: associationName,
+            associationName: display.associationName,
             invoiceId: invoice.id,
             invoiceDate: AppDateUtils.formatDate(invoice.invoiceDate),
             dispatchDate: AppDateUtils.formatDate(invoice.invoiceDispatchDate),
             dueDate: AppDateUtils.formatDate(invoice.invoiceDueDate),
-            residenceAddress: residenceAddress,
-            bankAccountType: template.bankAccountType,
-            bankAccountNumber: template.bankAccountNumber,
+            residenceAddress: display.residenceAddress,
+            bankAccountType: display.bankAccountType,
+            bankAccountNumber: display.bankAccountNumber,
+            ocr: invoice.ocr,
           ),
           if (items.isNotEmpty) ...[
             pw.SizedBox(height: 24),
             _itemsTable(items, total),
           ],
-          if (template.message != null && template.message!.isNotEmpty) ...[
+          if (display.message != null) ...[
             pw.SizedBox(height: 24),
-            _message(template.message!),
+            _message(display.message!),
           ],
         ],
       ),
@@ -94,6 +82,7 @@ class InvoicePdf {
     String? residenceAddress,
     String? bankAccountType,
     String? bankAccountNumber,
+    String ocr = '',
   }) {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -124,6 +113,18 @@ class InvoicePdf {
                     _metaRow('Kontotyp', bankAccountType),
                   if (bankAccountNumber != null && bankAccountNumber.isNotEmpty)
                     _metaRow('Kontonummer', bankAccountNumber),
+                  if (ocr.isNotEmpty) _metaRow('OCR-nummer', ocr),
+                  if (ocr.isNotEmpty)
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.only(top: 4),
+                      child: pw.Text(
+                        'Ange OCR-nummer vid betalning.',
+                        style: pw.TextStyle(
+                          fontSize: 11,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -176,7 +177,7 @@ class InvoicePdf {
     );
   }
 
-  static pw.Widget _itemsTable(List<_InvoiceItem> items, double total) {
+  static pw.Widget _itemsTable(List<InvoiceDisplayItem> items, double total) {
     const cellStyle = pw.TextStyle(fontSize: 11);
 
     return pw.Column(
@@ -308,10 +309,4 @@ class InvoicePdf {
         .replaceAll('&#39;', "'");
     return text.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
   }
-}
-
-class _InvoiceItem {
-  const _InvoiceItem({required this.description, required this.price});
-  final String description;
-  final double price;
 }

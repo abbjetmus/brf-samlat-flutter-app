@@ -139,6 +139,27 @@ class DashboardPage extends CompositionWidget {
         permissionName: 'annual_wheel',
       ),
       _MenuItem(
+        label: 'Förenings-\nstämma',
+        icon: Icons.gavel_outlined,
+        path: '/general-meetings',
+        color: Color(0xFFA855F7),
+        permissionName: 'general_meetings',
+      ),
+      _MenuItem(
+        label: 'Underhållsplan',
+        icon: Icons.construction_outlined,
+        path: '/maintenance-plan',
+        color: Color(0xFFB45309),
+        permissionName: 'maintenance_plan',
+      ),
+      _MenuItem(
+        label: 'Ansökningar',
+        icon: Icons.assignment_outlined,
+        path: '/residence-applications',
+        color: Color(0xFF0D9488),
+        permissionName: 'residence_applications',
+      ),
+      _MenuItem(
         label: 'Användare',
         icon: Icons.people_outlined,
         path: '/users',

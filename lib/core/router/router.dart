@@ -41,6 +41,12 @@ import '../../features/permissions/pages/permissions_page.dart';
 import '../../features/signatures/pages/signatures_list_page.dart';
 import '../../features/signatures/pages/signature_page.dart';
 import '../../features/annual_wheel/pages/annual_wheel_page.dart';
+import '../../features/general_meetings/pages/general_meetings_list_page.dart';
+import '../../features/general_meetings/pages/general_meeting_detail_page.dart';
+import '../../features/maintenance_plan/pages/maintenance_plan_page.dart';
+import '../../features/residence_applications/pages/residence_applications_page.dart';
+import '../../features/residence_applications/pages/create_residence_application_page.dart';
+import '../../features/residence_applications/pages/residence_application_detail_page.dart';
 import 'auth_guard.dart';
 
 final router = GoRouter(
@@ -237,6 +243,37 @@ final router = GoRouter(
     GoRoute(
       path: AnnualWheelPage.path,
       builder: (context, state) => const AnnualWheelPage(),
+    ),
+    // Föreningsstämma (push: /app/general-meetings/<id>)
+    GoRoute(
+      path: GeneralMeetingsListPage.path,
+      builder: (context, state) => const GeneralMeetingsListPage(),
+    ),
+    GoRoute(
+      path: '${GeneralMeetingDetailPage.path}/:id',
+      builder: (context, state) => GeneralMeetingDetailPage(
+        meetingId: state.pathParameters['id']!,
+      ),
+    ),
+    // Maintenance plan (read-only)
+    GoRoute(
+      path: MaintenancePlanPage.path,
+      builder: (context, state) => const MaintenancePlanPage(),
+    ),
+    // Residence applications
+    GoRoute(
+      path: ResidenceApplicationsPage.path,
+      builder: (context, state) => const ResidenceApplicationsPage(),
+    ),
+    GoRoute(
+      path: CreateResidenceApplicationPage.path,
+      builder: (context, state) => const CreateResidenceApplicationPage(),
+    ),
+    GoRoute(
+      path: '${ResidenceApplicationDetailPage.path}/:id',
+      builder: (context, state) => ResidenceApplicationDetailPage(
+        applicationId: state.pathParameters['id']!,
+      ),
     ),
     // Users
     GoRoute(

@@ -33,12 +33,14 @@ class BoardStore {
   final _currentMeeting = ref<BoardMeetingsRecord?>(null);
   final _templates = ref<List<BoardMeetingTemplatesRecord>>([]);
   final _boardMembers = ref<List<UsersRecord>>([]);
+  final _otherRoleMembers = ref<List<UsersRecord>>([]);
   final _loading = ref<bool>(false);
 
   Ref<List<BoardMeetingsRecord>> get boardMeetings => _boardMeetings.items;
   Ref<BoardMeetingsRecord?> get currentMeeting => _currentMeeting;
   Ref<List<BoardMeetingTemplatesRecord>> get templates => _templates;
   Ref<List<UsersRecord>> get boardMembers => _boardMembers;
+  Ref<List<UsersRecord>> get otherRoleMembers => _otherRoleMembers;
   Ref<bool> get loading => _loading;
   Ref<bool> get listLoading => _boardMeetings.loading;
   Ref<bool> get loadingMore => _boardMeetings.loadingMore;
@@ -47,21 +49,31 @@ class BoardStore {
   Future<void> getAllBoardMeetings() => _boardMeetings.refresh();
   Future<void> fetchNextBoardMeetings() => _boardMeetings.loadMore();
 
-  /// Board members are the association's users that have at least one
-  /// `association_role_types` role assigned.
+  /// Board members are the association's users with at least one board role
+  /// (`is_board_role`). Users whose roles are all non-board roles (e.g.
+  /// valberedning, fastighetsskötare) are loaded into [otherRoleMembers].
   Future<bool> getBoardMembers() async {
     try {
       final assocId = _authStore.association.value?.id ?? '';
       if (assocId.isEmpty) return false;
 
-      final records = await _pb
-          .collection(Collections.users)
-          .getFullList(
-            filter:
-                'association="$assocId" && association_role_types:length > 0',
-            sort: 'name',
-          );
-      _boardMembers.value = records
+      final users = _pb.collection(Collections.users);
+      final results = await Future.wait([
+        users.getFullList(
+          filter:
+              'association="$assocId" && association_role_types.is_board_role ?= true',
+          sort: 'name',
+        ),
+        users.getFullList(
+          filter:
+              'association="$assocId" && association_role_types:length > 0 && association_role_types.is_board_role != true',
+          sort: 'name',
+        ),
+      ]);
+      _boardMembers.value = results[0]
+          .map((r) => UsersRecord.fromJson(r.toJson()))
+          .toList();
+      _otherRoleMembers.value = results[1]
           .map((r) => UsersRecord.fromJson(r.toJson()))
           .toList();
       return true;
@@ -71,8 +83,8 @@ class BoardStore {
     }
   }
 
-  /// Assigns (or replaces) the association roles for a user, turning them into
-  /// a board member. Passing an empty list removes them from the board.
+  /// Assigns (or replaces) the association roles for a user. Passing an empty
+  /// list removes all of their roles.
   Future<bool> setBoardMemberRoles({
     required String userId,
     required List<String> roleTypeIds,
@@ -92,8 +104,23 @@ class BoardStore {
     }
   }
 
-  /// Removes a user from the board by clearing their association roles.
-  Future<bool> removeBoardMember(String userId) =>
+  /// Removes a user from the board: clears their board roles but keeps any
+  /// other roles, so they move to [otherRoleMembers].
+  Future<bool> removeBoardMember(UsersRecord user) {
+    final boardRoleIds = _authStore.associationRoleTypes.value
+        .where((r) => r.isBoardRole)
+        .map((r) => r.id)
+        .toSet();
+    return setBoardMemberRoles(
+      userId: user.id,
+      roleTypeIds: user.associationRoleTypes
+          .where((id) => !boardRoleIds.contains(id))
+          .toList(),
+    );
+  }
+
+  /// Clears all association roles of a user.
+  Future<bool> removeAllRoles(String userId) =>
       setBoardMemberRoles(userId: userId, roleTypeIds: const []);
 
   Future<bool> getBoardMeeting(String id) async {

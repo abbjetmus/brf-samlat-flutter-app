@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import '../../account/pages/account_page.dart';
 import '../../auth/pages/login_page.dart';
 import '../notification_settings_store.dart';
@@ -85,42 +86,113 @@ class SettingsPage extends CompositionWidget {
             padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: Text('Notiser', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
-          SwitchListTile(
-            secondary: const Icon(Icons.article_outlined),
-            title: const Text('Inlägg'),
-            subtitle: const Text('Notis när ett nytt inlägg publiceras'),
-            value: notificationSettings.posts.value,
-            onChanged: notificationSettings.loading.value
-                ? null
-                : notificationSettings.setPosts,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Text(
+              notificationSettings.hasPushToken.value
+                  ? 'Välj push-notis och/eller e-post för varje område. '
+                        'Notiserna finns alltid kvar i notislistan.'
+                  : 'Du har inga push-notiser registrerade, så e-post är på '
+                        'som standard. Notiserna finns alltid kvar i notislistan.',
+              style: const TextStyle(fontSize: 13),
+            ),
           ),
-          SwitchListTile(
-            secondary: const Icon(Icons.mode_comment_outlined),
-            title: const Text('Kommentarer'),
-            subtitle: const Text('Kommentarer på inlägg och ärenden'),
-            value: notificationSettings.comments.value,
-            onChanged: notificationSettings.loading.value
-                ? null
-                : notificationSettings.setComments,
-          ),
-          SwitchListTile(
-            secondary: const Icon(Icons.report_problem_outlined),
-            title: const Text('Ärenden'),
-            subtitle: const Text('Nya och uppdaterade ärenden'),
-            value: notificationSettings.issues.value,
-            onChanged: notificationSettings.loading.value
-                ? null
-                : notificationSettings.setIssues,
-          ),
-          SwitchListTile(
-            secondary: const Icon(Icons.event_outlined),
-            title: const Text('Kalender & fakturor'),
-            subtitle: const Text('Kalenderhändelser och nya fakturor'),
-            value: notificationSettings.calendar.value,
-            onChanged: notificationSettings.loading.value
-                ? null
-                : notificationSettings.setCalendar,
-          ),
+          if (notificationSettings.loading.value)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (notificationSettings.loadFailed.value)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text('Kunde inte hämta dina notisinställningar.'),
+            )
+          else ...[
+            const HelpTip(
+              id: 'notification-preferences',
+              padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+              text:
+                  'Slå av det du inte vill bli meddelad om. Viktiga '
+                  'e-postmeddelanden, som engångskoder för signering och '
+                  'lösenordsåterställning, skickas alltid.',
+            ),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(child: SizedBox.shrink()),
+                  SizedBox(
+                    width: 64,
+                    child: Text(
+                      'Push',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 64,
+                    child: Text(
+                      'E-post',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            for (final category in notificationSettings.categories.value)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(category.label),
+                          Text(
+                            category.description,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(
+                      width: 64,
+                      child: Switch(
+                        value: notificationSettings
+                                .preferences.value[category.key]?.push ??
+                            true,
+                        onChanged: notificationSettings.saving.value ==
+                                '${category.key}:push'
+                            ? null
+                            : (v) => notificationSettings.setPush(category.key, v),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 64,
+                      child: Switch(
+                        value: notificationSettings
+                                .preferences.value[category.key]?.email ??
+                            false,
+                        onChanged: notificationSettings.saving.value ==
+                                '${category.key}:email'
+                            ? null
+                            : (v) => notificationSettings.setEmail(category.key, v),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Text(
+                'Signeringsförfrågningar, inbjudningar, lösenordsåterställning '
+                'och fakturor skickas alltid.',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ],
           const Divider(height: 32),
           ListTile(
             leading: const Icon(Icons.person_outlined),

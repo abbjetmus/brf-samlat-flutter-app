@@ -29,7 +29,7 @@ class RegisterPage extends CompositionWidget {
       loading.value = true;
 
       try {
-        final success = await authStore.signUp(
+        final failure = await authStore.signUp(
           email: emailController.text.trim().toLowerCase(),
           password: passwordController.text,
           name: nameController.text.trim(),
@@ -37,8 +37,8 @@ class RegisterPage extends CompositionWidget {
         );
 
         final context = contextRef.value;
-        if (context != null) {
-          if (success) {
+        if (context != null && context.mounted) {
+          if (failure == null) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Konto skapat! Du kan nu logga in.'),
@@ -48,10 +48,7 @@ class RegisterPage extends CompositionWidget {
             context.pop();
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Registrering misslyckades. Kontrollera inbjudningskoden.'),
-                backgroundColor: Colors.red,
-              ),
+              SnackBar(content: Text(failure), backgroundColor: Colors.red),
             );
           }
         }

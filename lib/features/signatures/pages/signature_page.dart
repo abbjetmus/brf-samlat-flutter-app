@@ -140,7 +140,11 @@ class SignaturePage extends CompositionWidget {
               _SignersCard(signatures: view.signatures),
               const SizedBox(height: 16),
               Text(
-                '${meeting.streetAddress}, ${meeting.zipCode} ${meeting.locality}',
+                // Stämmoprotokoll har bara en plats (zip/ort tomma).
+                [
+                  meeting.streetAddress,
+                  '${meeting.zipCode} ${meeting.locality}'.trim(),
+                ].where((s) => s.isNotEmpty).join(', '),
                 style: TextStyle(color: Colors.grey[600]),
               ),
               if (meeting.meetingAgenda?.isNotEmpty == true) ...[

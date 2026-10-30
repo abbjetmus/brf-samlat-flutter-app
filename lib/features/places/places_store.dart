@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
-import 'package:pocketbase/pocketbase.dart' show PocketBase, ClientException;
+import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import '../../core/models/pocketbase_models.dart';
 import '../../core/pagination/paginated.dart';
+import '../../core/utils/pb_error.dart';
 import '../auth/auth_store.dart' as auth;
 
 class PlacesStore {
@@ -235,7 +236,9 @@ class PlacesStore {
     }
   }
 
-  Future<bool> addBooking({
+  /// Returns null on success, otherwise the server's reason (e.g. that the
+  /// time is already booked or the residence has reached its booking limit).
+  Future<String?> addBooking({
     required String placeId,
     required String startAt,
     required String endAt,
@@ -265,10 +268,10 @@ class PlacesStore {
           );
 
       await getBookings(placeId);
-      return true;
+      return null;
     } catch (e) {
       debugPrint('PlacesStore: Error adding booking: $e');
-      return false;
+      return pbErrorMessage(e, 'Kunde inte boka lokalen.');
     }
   }
 
@@ -308,11 +311,7 @@ class PlacesStore {
       return null;
     } catch (e) {
       debugPrint('PlacesStore: Error reviewing booking: $e');
-      if (e is ClientException) {
-        final message = e.response['message'];
-        if (message is String && message.isNotEmpty) return message;
-      }
-      return 'Bokningen kunde inte uppdateras';
+      return pbErrorMessage(e, 'Bokningen kunde inte uppdateras');
     }
   }
 

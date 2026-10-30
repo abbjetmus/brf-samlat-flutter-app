@@ -19,7 +19,9 @@ class CalendarStore {
 
   /// Calendar events merged with post-derived events (posts that have
   /// `add_to_calendar` enabled), sorted chronologically. Post entries are
-  /// read-only here — they're managed under Inlägg.
+  /// read-only here — they're managed under Inlägg. Board meetings with
+  /// `add_to_calendar` arrive as calendar events synced by the server (with
+  /// `board_meeting` set) and are read-only too.
   late final _items = computed<List<CalendarItem>>(() {
     final list = <CalendarItem>[];
     for (final e in _events.value) {
@@ -169,6 +171,11 @@ class CalendarItem {
   /// True when this entry comes from a post (read-only in the calendar).
   final bool isPost;
 
+  /// Set when this entry mirrors a board meeting (read-only in the calendar,
+  /// managed under Styrelsen).
+  final String? boardMeetingId;
+  final String location;
+
   const CalendarItem({
     required this.id,
     required this.title,
@@ -177,7 +184,12 @@ class CalendarItem {
     required this.end,
     required this.color,
     required this.isPost,
+    this.boardMeetingId,
+    this.location = '',
   });
+
+  /// Posts and board meetings are changed at their source, not here.
+  bool get isReadOnly => isPost || boardMeetingId != null;
 
   /// Fixed colour for post-derived calendar entries (purple).
   static const String postColor = '#9C27B0';
@@ -199,6 +211,8 @@ class CalendarItem {
       end: end,
       color: CalendarStore.parseColor(e.color),
       isPost: false,
+      boardMeetingId: e.boardMeeting,
+      location: e.location,
     );
   }
 

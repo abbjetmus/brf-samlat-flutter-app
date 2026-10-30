@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/file_utils.dart';
 import '../../../core/models/pocketbase_models.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import 'chat_room_page.dart';
 import 'new_chat_page.dart';
 
@@ -138,7 +139,17 @@ class ChatRoomsPage extends CompositionWidget {
           onPressed: () => context.push(NewChatPage.path),
           child: const Icon(Icons.add_comment_outlined),
         ),
-        body: loading && rooms.isEmpty
+        body: Column(
+          children: [
+            const HelpTip(
+              id: 'chat',
+              text:
+                'Tryck på + och välj en eller flera personer för att starta '
+                'en konversation. Håll fingret på en konversation för att '
+                'lämna den, eller radera den om du startade den.',
+            ),
+            Expanded(
+              child: loading && rooms.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : rooms.isEmpty
                 ? const Center(child: Text('Inga konversationer ännu.'))
@@ -181,6 +192,9 @@ class ChatRoomsPage extends CompositionWidget {
                       },
                     ),
                   ),
+            ),
+          ],
+        ),
       );
     };
   }

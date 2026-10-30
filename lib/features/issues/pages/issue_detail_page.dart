@@ -212,7 +212,10 @@ class IssueDetailPage extends CompositionWidget {
                       comment: c.comment,
                       created: c.created,
                       userId: c.user,
-                      userName: userName,
+                      userName: (userName == null || userName.isEmpty) &&
+                              (c.authorLabel ?? '').isNotEmpty
+                          ? c.authorLabel
+                          : userName,
                     );
                   }).toList(),
                   currentUserId: currentUserId,

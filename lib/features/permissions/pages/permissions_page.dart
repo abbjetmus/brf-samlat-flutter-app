@@ -7,6 +7,7 @@ import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/app_bottom_sheet.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import '../../../shared/widgets/search_field.dart';
 
 /// Swedish labels for the permission/menu tokens stored on the association.
@@ -32,6 +33,8 @@ const _menuLabels = <String, String>{
   'board': 'Styrelsen',
   'board_meetings': 'Styrelsemöten',
   'annual_wheel': 'Årshjul',
+  'maintenance_plan': 'Underhållsplan',
+  'residence_applications': 'Ansökningar (andrahand, överlåtelse m.m.)',
   'invoices': 'Fakturor',
   'invoice_builder': 'Faktura Byggaren',
   'forms': 'Formulär',
@@ -681,6 +684,14 @@ class PermissionsPage extends CompositionWidget {
           title: 'Behörigheter',
           body: Column(
             children: [
+              const HelpTip(
+                id: 'permissions',
+                text:
+                    'Under Funktioner slår du av delar av appen som föreningen '
+                    'inte använder. Under Rättigheter väljer du vilka roller som '
+                    'får läsa, skapa, uppdatera och radera i varje funktion. '
+                    'Administratörer har alltid full åtkomst.',
+              ),
               const TabBar(
                 tabs: [
                   Tab(text: 'Funktioner'),

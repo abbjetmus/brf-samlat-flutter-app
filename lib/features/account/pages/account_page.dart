@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/models/pocketbase_models.dart';
 import '../../../core/theme/app_theme.dart';
@@ -20,6 +21,7 @@ class AccountPage extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final authStore = inject(authStoreKey);
+    final pocketBase = inject(pocketBaseKey);
     final (nameController, _, __) = useTextEditingController();
     final (emailController, ___, ____) = useTextEditingController();
     final (oldPasswordController, _____, ______) = useTextEditingController();
@@ -145,6 +147,39 @@ class AccountPage extends CompositionWidget {
           SnackBar(
             content: Text(success ? 'Lösenord uppdaterat!' : 'Kunde inte uppdatera lösenord.'),
             backgroundColor: success ? AppTheme.primaryColor : Colors.red,
+          ),
+        );
+      }
+    }
+
+    // GDPR: "Ladda ner mina uppgifter". The app can't save files without an
+    // extra plugin, so the export (GET /api/users/export) is opened in the
+    // browser instead, authenticated by a short-lived file token in the link —
+    // the browser has no session of its own. The link only works for a few
+    // minutes, and the browser downloads or shows the JSON file.
+    Future<void> exportData() async {
+      loading.value = true;
+      var opened = false;
+      try {
+        final token = await pocketBase.files.getToken();
+        final uri = pocketBase.buildURL('/api/users/export', {'token': token});
+        opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } catch (e) {
+        debugPrint('AccountPage: Error exporting data: $e');
+        opened = false;
+      }
+      loading.value = false;
+
+      final context = contextRef.value;
+      if (context != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              opened
+                  ? 'Dina uppgifter öppnas i webbläsaren.'
+                  : 'Kunde inte hämta dina uppgifter.',
+            ),
+            backgroundColor: opened ? AppTheme.primaryColor : Colors.red,
           ),
         );
       }
@@ -302,6 +337,36 @@ class AccountPage extends CompositionWidget {
                     FilledButton(
                       onPressed: loading.value ? null : savePassword,
                       child: const Text('Byt lösenord'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // GDPR data export (art. 15/20).
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Ladda ner mina uppgifter',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Få en fil med allt som har sparats om dig: profil, bostad, '
+                      'felanmälningar, bokningar, formulärsvar, chattmeddelanden, '
+                      'notiser, avgifter och signeringar. Filen öppnas i '
+                      'webbläsaren via en länk som bara gäller i några minuter.',
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: loading.value ? null : exportData,
+                      icon: const Icon(Icons.download_outlined, size: 18),
+                      label: const Text('Ladda ner mina uppgifter'),
                     ),
                   ],
                 ),

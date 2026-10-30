@@ -3,6 +3,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import '../../core/models/pocketbase_models.dart';
 import '../../core/pagination/paginated.dart';
+import '../../core/utils/pb_error.dart';
 import '../auth/auth_store.dart' as auth;
 
 class FormsStore {
@@ -82,7 +83,8 @@ class FormsStore {
 
   Future<void> fetchNextForms() => _userFormResponses.loadMore();
 
-  Future<bool> updateFormResponse({
+  /// Returns null on success, otherwise the server's reason.
+  Future<String?> updateFormResponse({
     required String id,
     required Map<String, dynamic> answers,
   }) async {
@@ -92,10 +94,10 @@ class FormsStore {
           .collection(Collections.formResponses)
           .update(id, body: {'answers': answers});
       await getUserFormResponses();
-      return true;
+      return null;
     } catch (e) {
       debugPrint('FormsStore: Error updating form response: $e');
-      return false;
+      return pbErrorMessage(e, 'Kunde inte spara svar.');
     } finally {
       _loading.value = false;
     }

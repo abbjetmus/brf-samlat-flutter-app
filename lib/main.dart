@@ -18,6 +18,7 @@ import 'features/auth/auth_store.dart' as auth;
 import 'features/dashboard/dashboard_store.dart';
 import 'features/signatures/signatures_store.dart';
 import 'features/annual_wheel/annual_wheel_store.dart';
+import 'features/general_meetings/general_meetings_store.dart';
 import 'features/posts/posts_store.dart';
 import 'features/issues/issues_store.dart';
 import 'features/calendar/calendar_store.dart';
@@ -87,6 +88,7 @@ class MyApp extends CompositionWidget {
     final chatStore = ChatStore(pocketBase, authStore);
     final signaturesStore = SignaturesStore(pocketBase);
     final annualWheelStore = AnnualWheelStore(pocketBase, authStore);
+    final generalMeetingsStore = GeneralMeetingsStore(pocketBase, authStore);
     final themeStore = ThemeStore();
     final notificationService = NotificationService(pocketBase);
 
@@ -110,6 +112,7 @@ class MyApp extends CompositionWidget {
     provide(chatStoreKey, chatStore);
     provide(signaturesStoreKey, signaturesStore);
     provide(annualWheelStoreKey, annualWheelStore);
+    provide(generalMeetingsStoreKey, generalMeetingsStore);
 
     setGlobalAuthStore(authStore);
     setGlobalThemeStore(themeStore);

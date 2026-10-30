@@ -4,6 +4,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import '../../../shared/widgets/paginated_list_view.dart';
 import 'form_detail_page.dart';
 
@@ -28,7 +29,17 @@ class FormsListPage extends CompositionWidget {
 
       return GradientScaffold(
         title: 'Formulär',
-        body: loading && responses.isEmpty
+        body: Column(
+          children: [
+            const HelpTip(
+              id: 'my-forms',
+              text:
+                'Tryck på ett formulär som väntar på svar, fyll i det och '
+                'tryck på Svara. Svaret går till föreningen, och du kan '
+                'öppna och ändra det i efterhand.',
+            ),
+            Expanded(
+              child: loading && responses.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : responses.isEmpty
             ? const Center(child: Text('Inga formulär.'))
@@ -76,6 +87,9 @@ class FormsListPage extends CompositionWidget {
                   );
                 },
               ),
+            ),
+          ],
+        ),
       );
     };
   }

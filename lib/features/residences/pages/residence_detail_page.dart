@@ -45,8 +45,9 @@ class ResidenceDetailPage extends CompositionWidget {
         CrudOperation.delete,
       );
       // Residence issues are scoped to the residence's own tenants: only the
-      // assigned residents (and admins) may even see the "Ärenden" tab. Creating
-      // is admin-only by default (residence_issues create — members are read-only).
+      // assigned residents (and admins) may even see the "Ärenden" tab, and the
+      // API rules enforce the same. Members get residence_issues create by
+      // default, so residents can report for their own residence.
       final currentUserId = authStore.currentUser.value?.id;
       final canCreateIssue = authStore.hasPermission(
         'residence_issues',

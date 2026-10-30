@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
+import '../../../core/models/pocketbase_models.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import '../../../shared/widgets/rich_description.dart';
+import '../invoice_display.dart';
+import '../invoice_payment_status.dart';
 import '../invoice_pdf.dart';
 
 class InvoiceDetailPage extends CompositionWidget {
@@ -24,7 +29,6 @@ class InvoiceDetailPage extends CompositionWidget {
 
     onMounted(() {
       invoicesStore.getInvoice(invoiceId);
-      invoicesStore.getInvoiceTemplate();
     });
 
     return (context) {
@@ -32,6 +36,7 @@ class InvoiceDetailPage extends CompositionWidget {
       final template = invoicesStore.invoiceTemplate.value;
       final residence = invoicesStore.currentResidence.value;
       final loading = invoicesStore.loading.value;
+      final payments = invoicesStore.payments.value;
       final canDelete = authStore.hasPermission(
         'invoices',
         CrudOperation.delete,
@@ -51,34 +56,28 @@ class InvoiceDetailPage extends CompositionWidget {
         );
       }
 
-      final items = (template?.invoiceItems ?? [])
-          .whereType<Map>()
-          .map((e) => (
-                description: (e['description'] as String?) ?? '',
-                price: num.tryParse('${e['price']}')?.toDouble() ?? 0.0,
-              ))
-          .toList();
-      final total = items.fold<double>(0, (sum, e) => sum + e.price);
-
-      final residenceAddress = residence != null
-          ? '${residence.streetAddress}, ${residence.zipCode} ${residence.locality}'
-          : null;
+      // Snapshot on the invoice, falling back to the live template/residence
+      // for invoices created before snapshots existed.
+      final display = InvoiceDisplay.resolve(
+        invoice,
+        template: template,
+        residence: residence,
+        associationName: authStore.association.value?.name,
+      );
+      final items = display.items;
+      final total = display.total;
+      final residenceAddress = display.residenceAddress;
 
       return GradientScaffold(
         title: 'Faktura',
         actions: [
           EntityActionMenu.header(
             actions: [
-              if (template != null)
+              if (invoice.templateSnapshot != null || template != null)
                 EntityAction(
                   icon: Icons.picture_as_pdf_outlined,
                   label: 'Generera PDF',
-                  onSelected: () => InvoicePdf.share(
-                    invoice,
-                    template,
-                    residenceAddress: residenceAddress,
-                    associationName: authStore.association.value?.name,
-                  ),
+                  onSelected: () => InvoicePdf.share(invoice, display),
                 ),
               if (canDelete)
                 EntityAction.delete(() async {
@@ -106,6 +105,14 @@ class InvoiceDetailPage extends CompositionWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const HelpTip(
+                id: 'invoice-detail',
+                padding: EdgeInsets.only(bottom: 8),
+                text:
+                    'Betala via din internetbank till kontonumret nedan senast '
+                    'på förfallodatumet och ange OCR-numret som referens. I '
+                    'menyn uppe till höger kan du skapa en PDF av avin.',
+              ),
               // Dates
               _InfoRow(Icons.calendar_today, 'Fakturadatum',
                   AppDateUtils.formatDate(invoice.invoiceDate)),
@@ -120,17 +127,23 @@ class InvoiceDetailPage extends CompositionWidget {
                 _InfoRow(Icons.home_outlined, 'Fakturaadress', residenceAddress),
               ],
 
-              // Bank account
-              if (template?.bankAccountType != null ||
-                  template?.bankAccountNumber != null) ...[
-                const Divider(height: 24),
-                if (template?.bankAccountType != null)
-                  _InfoRow(Icons.account_balance_outlined, 'Kontotyp',
-                      template!.bankAccountType!),
-                if (template?.bankAccountNumber != null)
-                  _InfoRow(Icons.tag_outlined, 'Kontonummer',
-                      template!.bankAccountNumber!),
-              ],
+              // Betalning: konto, OCR och status. De boende betalar via sin
+              // egen internetbank.
+              const Divider(height: 24),
+              _PaymentCard(
+                invoice: invoice,
+                display: display,
+                payments: payments,
+                onCopyOcr: () async {
+                  await Clipboard.setData(ClipboardData(text: invoice.ocr));
+                  final ctx = contextRef.value;
+                  if (ctx != null && ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(content: Text('OCR-numret är kopierat')),
+                    );
+                  }
+                },
+              ),
 
               // Invoice items
               if (items.isNotEmpty) ...[
@@ -175,21 +188,130 @@ class InvoiceDetailPage extends CompositionWidget {
               ],
 
               // Message
-              if (template?.message != null &&
-                  template!.message!.isNotEmpty) ...[
+              if (display.message != null) ...[
                 const Divider(height: 24),
                 const Text(
                   'Meddelande',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                RichDescription(html: template.message!, fontSize: 15),
+                RichDescription(html: display.message!, fontSize: 15),
               ],
             ],
           ),
         ),
       );
     };
+  }
+}
+
+class _PaymentCard extends StatelessWidget {
+  const _PaymentCard({
+    required this.invoice,
+    required this.display,
+    required this.payments,
+    required this.onCopyOcr,
+  });
+
+  final InvoicesRecord invoice;
+  final InvoiceDisplay display;
+  final List<InvoicePaymentsRecord> payments;
+  final VoidCallback onCopyOcr;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = InvoicePaymentStatus.of(invoice);
+    final outstanding = invoice.outstanding;
+    final paid = status == InvoicePaymentStatus.betald;
+    final caption = paid && invoice.paidAt.isNotEmpty
+        ? 'Betald ${invoice.paidAt}'
+        : status == InvoicePaymentStatus.forfallen
+            ? 'Förföll ${AppDateUtils.formatDate(invoice.invoiceDueDate)}'
+            : 'Betala senast ${AppDateUtils.formatDate(invoice.invoiceDueDate)}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Betalning',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            InvoiceStatusChip(status),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(caption, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+        const SizedBox(height: 8),
+        if (display.bankAccountNumber != null)
+          _InfoRow(
+            Icons.account_balance_outlined,
+            accountTypeLabel(display.bankAccountType),
+            display.bankAccountNumber!,
+          ),
+        if (invoice.ocr.isNotEmpty)
+          Row(
+            children: [
+              Expanded(
+                child: _InfoRow(Icons.tag_outlined, 'OCR-nummer', invoice.ocr),
+              ),
+              IconButton(
+                icon: const Icon(Icons.copy, size: 20),
+                tooltip: 'Kopiera OCR-nummer',
+                onPressed: onCopyOcr,
+              ),
+            ],
+          ),
+        _InfoRow(
+          Icons.payments_outlined,
+          outstanding < 0 ? 'Överbetalt' : 'Att betala',
+          formatKr(outstanding.abs()),
+        ),
+        if (invoice.ocr.isNotEmpty && !paid)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(top: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Text(
+              'Ange OCR-nummer vid betalning. Betala via din internetbank '
+              'till kontonumret ovan.',
+              style: TextStyle(fontSize: 13),
+            ),
+          ),
+        if (payments.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            'Registrerade betalningar (${formatKr(invoice.paidAmount)} av '
+            '${formatKr(invoice.amount)})',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          ...payments.map(
+            (p) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      p.paymentDate,
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ),
+                  Text(formatKr(p.amount), style: const TextStyle(fontSize: 14)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
 

@@ -4,6 +4,7 @@ import '../../../core/di/injection_keys.dart';
 import '../../../core/models/pocketbase_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 
 class CreateBoardMeetingPage extends CompositionWidget {
   static const String path = '/board/create';
@@ -108,6 +109,13 @@ class CreateBoardMeetingPage extends CompositionWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const HelpTip(
+              id: 'board-meeting-create',
+              padding: EdgeInsets.only(bottom: 12),
+              text:
+                  'Ange tid och plats och välj en mötesmall. Mallens punkter '
+                  'blir mötets protokoll.',
+            ),
             // Start date/time
             Text('Starttid', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
             const SizedBox(height: 4),
@@ -190,6 +198,9 @@ class CreateBoardMeetingPage extends CompositionWidget {
 
             SwitchListTile(
               title: const Text('Lägg till i kalender'),
+              subtitle: const Text(
+                'Mötet visas som "Styrelsemöte" med tid och adress i föreningens kalender, i appen och på webben, för alla medlemmar.',
+              ),
               value: addToCalendar.value,
               onChanged: (v) => addToCalendar.value = v,
             ),

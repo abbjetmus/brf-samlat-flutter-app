@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import 'signature_page.dart';
 
 /// "Att signera": the protocols the current user has been asked to sign.
@@ -30,7 +31,17 @@ class SignaturesListPage extends CompositionWidget {
       return GradientScaffold(
         title: 'Att signera',
         subtitle: 'Protokoll du har ombetts att signera',
-        body: loading.value
+        body: Column(
+          children: [
+            const HelpTip(
+              id: 'signatures',
+              text:
+                'Tryck på ett protokoll som väntar på din signatur, läs '
+                'igenom det och signera med en engångskod som skickas till '
+                'din e-post. Signerade protokoll ligger kvar här.',
+            ),
+            Expanded(
+              child: loading.value
             ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
                 onRefresh: load,
@@ -105,6 +116,9 @@ class SignaturesListPage extends CompositionWidget {
                         },
                       ),
               ),
+            ),
+          ],
+        ),
       );
     };
   }

@@ -11,6 +11,7 @@ class Collections {
   static const String forms = 'forms';
   static const String gadgetBookings = 'gadget_bookings';
   static const String gadgets = 'gadgets';
+  static const String invoicePayments = 'invoice_payments';
   static const String invoiceTemplates = 'invoice_templates';
   static const String invoices = 'invoices';
   static const String issueComments = 'issue_comments';
@@ -39,6 +40,8 @@ class Collections {
   static const String chatReadReceipts = 'chat_read_receipts';
   static const String annualWheelActivities = 'annual_wheel_activities';
   static const String annualWheelCompletions = 'annual_wheel_completions';
+  static const String maintenancePlanItems = 'maintenance_plan_items';
+  static const String residenceApplications = 'residence_applications';
 }
 
 // --- Users ---
@@ -214,12 +217,17 @@ class AssociationRoleTypesRecord {
   final String name;
   final String displayName;
 
+  /// True for board roles (ordförande, kassör, …); false for other roles such
+  /// as valberedning or fastighetsskötare. Permissions use the role id either way.
+  final bool isBoardRole;
+
   AssociationRoleTypesRecord({
     required this.id,
     this.created,
     this.updated,
     required this.name,
     this.displayName = '',
+    this.isBoardRole = false,
   });
 
   factory AssociationRoleTypesRecord.fromJson(Map<String, dynamic> json) {
@@ -229,6 +237,7 @@ class AssociationRoleTypesRecord {
       updated: json['updated'] as String?,
       name: json['name'] as String? ?? '',
       displayName: json['displayName'] as String? ?? '',
+      isBoardRole: json['is_board_role'] as bool? ?? false,
     );
   }
 }
@@ -479,6 +488,10 @@ class IssueCommentsRecord {
   final String comment;
   final String issue;
   final String? user;
+
+  /// Sender name for comments without a user, e.g. "Leverantör: Rör AB" for a
+  /// contractor's status update.
+  final String? authorLabel;
   final Map<String, dynamic>? expand;
 
   IssueCommentsRecord({
@@ -488,6 +501,7 @@ class IssueCommentsRecord {
     required this.comment,
     required this.issue,
     this.user,
+    this.authorLabel,
     this.expand,
   });
 
@@ -499,6 +513,7 @@ class IssueCommentsRecord {
       comment: json['comment'] as String? ?? '',
       issue: json['issue'] as String? ?? '',
       user: json['user'] as String?,
+      authorLabel: json['author_label'] as String?,
       expand: json['expand'] as Map<String, dynamic>?,
     );
   }
@@ -521,6 +536,11 @@ class CalendarEventsRecord {
   final String? user;
   final bool? sendPushNotification;
 
+  /// Set when the event mirrors a board meeting with `add_to_calendar` (synced
+  /// server-side and read-only for clients).
+  final String? boardMeeting;
+  final String location;
+
   CalendarEventsRecord({
     required this.id,
     this.created,
@@ -535,6 +555,8 @@ class CalendarEventsRecord {
     this.attachments = const [],
     this.user,
     this.sendPushNotification,
+    this.boardMeeting,
+    this.location = '',
   });
 
   factory CalendarEventsRecord.fromJson(Map<String, dynamic> json) {
@@ -556,6 +578,10 @@ class CalendarEventsRecord {
           [],
       user: json['user'] as String?,
       sendPushNotification: json['send_push_notification'] as bool?,
+      boardMeeting: (json['board_meeting'] as String?)?.isNotEmpty == true
+          ? json['board_meeting'] as String
+          : null,
+      location: json['location'] as String? ?? '',
     );
   }
 }
@@ -1164,6 +1190,24 @@ class InvoicesRecord {
   final String invoiceDate;
   final String invoiceDispatchDate;
   final String invoiceDueDate;
+  final InvoiceTemplateSnapshot? templateSnapshot;
+  final bool emailSent;
+
+  /// Bankgiro-OCR (längd- och kontrollsiffra), satt av servern när avin skapas.
+  final String ocr;
+
+  /// Avins belopp (ögonblicksbildens total).
+  final double amount;
+
+  /// "obetald" | "delbetald" | "betald", räknas om av servern från
+  /// invoice_payments. "Förfallen" följer av förfallodatumet, se
+  /// InvoicePaymentStatus i features/invoices.
+  final String paymentStatus;
+  final double paidAmount;
+
+  /// Dagen avin blev fullt betald (YYYY-MM-DD), annars tom.
+  final String paidAt;
+  final String reminderSentAt;
 
   InvoicesRecord({
     required this.id,
@@ -1174,7 +1218,18 @@ class InvoicesRecord {
     required this.invoiceDate,
     required this.invoiceDispatchDate,
     required this.invoiceDueDate,
+    this.templateSnapshot,
+    this.emailSent = false,
+    this.ocr = '',
+    this.amount = 0,
+    this.paymentStatus = 'obetald',
+    this.paidAmount = 0,
+    this.paidAt = '',
+    this.reminderSentAt = '',
   });
+
+  /// Kvar att betala. Negativt vid överbetalning.
+  double get outstanding => ((amount - paidAmount) * 100).roundToDouble() / 100;
 
   factory InvoicesRecord.fromJson(Map<String, dynamic> json) {
     return InvoicesRecord(
@@ -1186,6 +1241,107 @@ class InvoicesRecord {
       invoiceDate: json['invoice_date'] as String? ?? '',
       invoiceDispatchDate: json['invoice_dispatch_date'] as String? ?? '',
       invoiceDueDate: json['invoice_due_date'] as String? ?? '',
+      templateSnapshot: InvoiceTemplateSnapshot.tryParse(
+        json['template_snapshot'],
+      ),
+      emailSent: json['email_sent'] as bool? ?? false,
+      ocr: json['ocr'] as String? ?? '',
+      amount: (json['amount'] as num?)?.toDouble() ?? 0,
+      paymentStatus: (json['payment_status'] as String?)?.isNotEmpty == true
+          ? json['payment_status'] as String
+          : 'obetald',
+      paidAmount: (json['paid_amount'] as num?)?.toDouble() ?? 0,
+      paidAt: json['paid_at'] as String? ?? '',
+      reminderSentAt: json['reminder_sent_at'] as String? ?? '',
+    );
+  }
+}
+
+/// invoice_payments: en registrerad (manuell) inbetalning på en avi. De
+/// boende kan läsa sin bostads betalningar; bara administratörer skriver.
+class InvoicePaymentsRecord {
+  final String id;
+  final String invoice;
+  final double amount;
+  final String paymentDate;
+  final String reference;
+  final String note;
+
+  InvoicePaymentsRecord({
+    required this.id,
+    required this.invoice,
+    required this.amount,
+    required this.paymentDate,
+    this.reference = '',
+    this.note = '',
+  });
+
+  factory InvoicePaymentsRecord.fromJson(Map<String, dynamic> json) {
+    return InvoicePaymentsRecord(
+      id: json['id'] as String? ?? '',
+      invoice: json['invoice'] as String? ?? '',
+      amount: (json['amount'] as num?)?.toDouble() ?? 0,
+      paymentDate: json['payment_date'] as String? ?? '',
+      reference: json['reference'] as String? ?? '',
+      note: json['note'] as String? ?? '',
+    );
+  }
+}
+
+/// invoices.template_snapshot: the template, association and residence data
+/// frozen on the invoice when it was created (see the PocketBase hook in
+/// pb_hooks/utils/invoice_utils.js), so editing the template later doesn't
+/// change invoices that were already sent.
+class InvoiceTemplateSnapshot {
+  /// "create", or "backfill" for invoices created before snapshots existed
+  /// (built from the template as it was when the field was added).
+  final String source;
+  final String? associationName;
+  final String? bankAccountType;
+  final String? bankAccountNumber;
+  final List<dynamic> invoiceItems;
+  final String? message;
+  final String? residenceStreetAddress;
+  final String? residenceZipCode;
+  final String? residenceLocality;
+  final List<String> recipients;
+
+  InvoiceTemplateSnapshot({
+    required this.source,
+    this.associationName,
+    this.bankAccountType,
+    this.bankAccountNumber,
+    this.invoiceItems = const [],
+    this.message,
+    this.residenceStreetAddress,
+    this.residenceZipCode,
+    this.residenceLocality,
+    this.recipients = const [],
+  });
+
+  bool get hasResidence =>
+      (residenceStreetAddress ?? '').isNotEmpty ||
+      (residenceLocality ?? '').isNotEmpty;
+
+  /// Null for an unset (null / empty) snapshot.
+  static InvoiceTemplateSnapshot? tryParse(dynamic json) {
+    if (json is! Map || json.isEmpty) return null;
+    final association = json['association'];
+    final residence = json['residence'] is Map ? json['residence'] as Map : {};
+    return InvoiceTemplateSnapshot(
+      source: json['source'] as String? ?? '',
+      associationName:
+          association is Map ? association['name'] as String? : null,
+      bankAccountType: json['bank_account_type'] as String?,
+      bankAccountNumber: json['bank_account_number'] as String?,
+      invoiceItems: json['invoice_items'] as List<dynamic>? ?? const [],
+      message: json['message'] as String?,
+      residenceStreetAddress: residence['street_address'] as String?,
+      residenceZipCode: residence['zip_code'] as String?,
+      residenceLocality: residence['locality'] as String?,
+      recipients: (json['recipients'] as List<dynamic>? ?? const [])
+          .whereType<String>()
+          .toList(),
     );
   }
 }

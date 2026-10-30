@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import '../../../shared/widgets/paginated_list_view.dart';
 import '../../../shared/widgets/search_field.dart';
 import 'post_detail_page.dart';
@@ -52,7 +53,20 @@ class PostsListPage extends CompositionWidget {
                 child: const Icon(Icons.add),
               )
             : null,
-        body: loading && posts.isEmpty
+        body: Column(
+          children: [
+            HelpTip(
+              id: 'posts-list',
+              text: canCreate
+                  ? 'Inlägg är föreningens nyheter till medlemmarna. Tryck på '
+                        '+ för att publicera en nyhet och samtidigt skicka en '
+                        'push-notis eller lägga den i kalendern.'
+                  : 'Inlägg är föreningens nyheter till medlemmarna. Tryck på '
+                        'ett inlägg för att läsa det och kommentera, om '
+                        'kommentarer är påslagna.',
+            ),
+            Expanded(
+              child: loading && posts.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : posts.isEmpty
             ? const Center(child: Text('Inga inlägg ännu.'))
@@ -134,6 +148,9 @@ class PostsListPage extends CompositionWidget {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
       );
     };
   }

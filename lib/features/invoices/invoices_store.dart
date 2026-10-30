@@ -37,12 +37,16 @@ class InvoicesStore {
   final _currentInvoice = ref<InvoicesRecord?>(null);
   final _invoiceTemplate = ref<InvoiceTemplatesRecord?>(null);
   final _currentResidence = ref<ResidencesRecord?>(null);
+  final _payments = ref<List<InvoicePaymentsRecord>>([]);
   final _loading = ref<bool>(false);
 
   Ref<List<InvoicesRecord>> get invoices => _invoices.items;
   Ref<InvoicesRecord?> get currentInvoice => _currentInvoice;
   Ref<InvoiceTemplatesRecord?> get invoiceTemplate => _invoiceTemplate;
   Ref<ResidencesRecord?> get currentResidence => _currentResidence;
+
+  /// Registrerade betalningar på [currentInvoice], äldst först.
+  Ref<List<InvoicePaymentsRecord>> get payments => _payments;
   Ref<bool> get loading => _loading;
   Ref<bool> get listLoading => _invoices.loading;
   Ref<bool> get loadingMore => _invoices.loadingMore;
@@ -51,17 +55,53 @@ class InvoicesStore {
   Future<void> getAllInvoices() => _invoices.refresh();
   Future<void> fetchNextInvoices() => _invoices.loadMore();
 
+  /// Loads the invoice. Its template and residence are only fetched for
+  /// invoices without a template snapshot (see InvoiceDisplay): an invoice
+  /// with a snapshot shows what it was created with, not the current template.
   Future<bool> getInvoice(String id) async {
     _loading.value = true;
     _currentResidence.value = null;
+    _invoiceTemplate.value = null;
+    _payments.value = [];
     try {
       final record = await _pb.collection(Collections.invoices).getOne(id);
-      _currentInvoice.value = InvoicesRecord.fromJson(record.toJson());
-      final residenceId = _currentInvoice.value?.residence ?? '';
-      if (residenceId.isNotEmpty) {
+      final invoice = InvoicesRecord.fromJson(record.toJson());
+      _currentInvoice.value = invoice;
+      final snapshot = invoice.templateSnapshot;
+
+      if (snapshot == null && invoice.invoiceTemplate.isNotEmpty) {
+        try {
+          final template = await _pb
+              .collection(Collections.invoiceTemplates)
+              .getOne(invoice.invoiceTemplate);
+          _invoiceTemplate.value = InvoiceTemplatesRecord.fromJson(
+            template.toJson(),
+          );
+        } catch (e) {
+          debugPrint('InvoicesStore: Error fetching invoice template: $e');
+        }
+      }
+
+      // Betalningarna är bara information; ett fel här ska inte dölja avin.
+      try {
+        final payments = await _pb
+            .collection(Collections.invoicePayments)
+            .getFullList(
+              filter: _pb.filter('invoice = {:invoice}', {'invoice': id}),
+              sort: 'payment_date,created',
+            );
+        _payments.value = payments
+            .map((r) => InvoicePaymentsRecord.fromJson(r.toJson()))
+            .toList();
+      } catch (e) {
+        debugPrint('InvoicesStore: Error fetching invoice payments: $e');
+      }
+
+      if ((snapshot == null || !snapshot.hasResidence) &&
+          invoice.residence.isNotEmpty) {
         final res = await _pb
             .collection(Collections.residences)
-            .getOne(residenceId);
+            .getOne(invoice.residence);
         _currentResidence.value = ResidencesRecord.fromJson(res.toJson());
       }
       return true;
@@ -70,26 +110,6 @@ class InvoicesStore {
       return false;
     } finally {
       _loading.value = false;
-    }
-  }
-
-  Future<bool> getInvoiceTemplate() async {
-    try {
-      final assocId = _authStore.association.value?.id ?? '';
-      if (assocId.isEmpty) return false;
-
-      final records = await _pb
-          .collection(Collections.invoiceTemplates)
-          .getFullList(filter: 'association="$assocId"');
-      if (records.isNotEmpty) {
-        _invoiceTemplate.value = InvoiceTemplatesRecord.fromJson(
-          records.first.toJson(),
-        );
-      }
-      return true;
-    } catch (e) {
-      debugPrint('InvoicesStore: Error fetching invoice template: $e');
-      return false;
     }
   }
 

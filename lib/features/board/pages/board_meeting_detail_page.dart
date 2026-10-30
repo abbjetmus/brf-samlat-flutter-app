@@ -7,6 +7,7 @@ import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import '../../../shared/widgets/rich_description.dart';
 import '../../signatures/widgets/meeting_signatures_section.dart';
 import '../board_meeting_pdf.dart';
@@ -101,6 +102,13 @@ class BoardMeetingDetailPage extends CompositionWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const HelpTip(
+                id: 'board-meeting-detail',
+                text:
+                    'Här ser du mötets protokoll och vilka som har signerat '
+                    'det. Efter den första signaturen kan protokollet inte '
+                    'längre ändras. I menyn uppe till höger kan du skapa en PDF.',
+              ),
               // Date & Time
               Padding(
                 padding: const EdgeInsets.all(16),

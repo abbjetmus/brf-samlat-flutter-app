@@ -4,6 +4,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import '../../../shared/widgets/paginated_list_view.dart';
 import '../../../shared/widgets/search_field.dart';
 import 'place_detail_page.dart';
@@ -52,7 +53,18 @@ class PlacesListPage extends CompositionWidget {
                 child: const Icon(Icons.add),
               )
             : null,
-        body: loading && places.isEmpty
+        body: Column(
+          children: [
+            const HelpTip(
+              id: 'places-list',
+              text:
+                'Tryck på en lokal och välj fliken Bokningar för att se '
+                'lediga tider och boka. För att kunna boka måste du vara '
+                'kopplad till en bostad. Lokaler som är delade av en annan '
+                'förening kan du boka men inte ändra.',
+            ),
+            Expanded(
+              child: loading && places.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : places.isEmpty
             ? const Center(child: Text('Inga lokaler ännu.'))
@@ -135,6 +147,9 @@ class PlacesListPage extends CompositionWidget {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
       );
     };
   }

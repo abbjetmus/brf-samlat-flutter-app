@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
-import 'package:pocketbase/pocketbase.dart' show PocketBase;
+import 'package:pocketbase/pocketbase.dart' show ClientException, PocketBase;
 import '../../core/models/pocketbase_models.dart';
 import '../../core/pagination/paginated.dart';
+import '../../core/utils/pb_error.dart';
 import '../auth/auth_store.dart' as auth;
 
 class UsersStore {
@@ -81,21 +82,39 @@ class UsersStore {
     }
   }
 
-  Future<bool> deleteUser(String id) async {
+  /// Removes a member through POST /api/users/anonymize, like
+  /// [auth.AuthStore.deleteAccount] does for your own account. The users
+  /// deleteRule is superuser-only: the server anonymises the record instead of
+  /// deleting it, so the association's history keeps "Borttagen användare" as
+  /// the author (see brf-samlat-pb/pb_hooks/api/account_deletion.pb.js).
+  ///
+  /// Returns null on success, otherwise the server's reason — it refuses, for
+  /// instance, to remove the association's last administrator.
+  Future<String?> deleteUser(String id) async {
     _loading.value = true;
     try {
-      await _pb.collection(Collections.users).delete(id);
+      await _pb.send(
+        '/api/users/anonymize',
+        method: 'POST',
+        body: {'userId': id},
+      );
       await getUsers();
-      return true;
+      return null;
+    } on ClientException catch (e) {
+      debugPrint('UsersStore: Error deleting user: $e');
+      return (e.response['message'] as String?) ??
+          'Användaren kunde inte tas bort';
     } catch (e) {
       debugPrint('UsersStore: Error deleting user: $e');
-      return false;
+      return 'Användaren kunde inte tas bort';
     } finally {
       _loading.value = false;
     }
   }
 
-  Future<bool> sendInvitation({
+  /// Returns null on success, otherwise the server's reason (e.g. that the
+  /// user already exists).
+  Future<String?> sendInvitation({
     required String name,
     required String email,
     String? phone,
@@ -105,7 +124,7 @@ class UsersStore {
     try {
       final assocId = _authStore.association.value?.id ?? '';
       final assocType = _authStore.association.value?.associationType ?? 'BRF';
-      if (assocId.isEmpty) return false;
+      if (assocId.isEmpty) return 'Kunde inte skicka inbjudan.';
 
       await _pb.collection(Collections.userInvitations).create(body: {
         'name': name,
@@ -117,10 +136,10 @@ class UsersStore {
         'invitation_status': 'Skickad',
       });
       await getInvitations();
-      return true;
+      return null;
     } catch (e) {
       debugPrint('UsersStore: Error sending invitation: $e');
-      return false;
+      return pbErrorMessage(e, 'Kunde inte skicka inbjudan.');
     } finally {
       _loading.value = false;
     }
@@ -128,8 +147,8 @@ class UsersStore {
 
   /// Re-sends an existing invitation: the backend regenerates the token and
   /// emails a fresh register link. Only meaningful while the invitation is not
-  /// yet "Aktiverad".
-  Future<bool> resendInvitation(String id) async {
+  /// yet "Aktiverad". Returns null on success, otherwise the server's reason.
+  Future<String?> resendInvitation(String id) async {
     _loading.value = true;
     try {
       await _pb.send(
@@ -138,10 +157,10 @@ class UsersStore {
         body: {'id': id},
       );
       await getInvitations();
-      return true;
+      return null;
     } catch (e) {
       debugPrint('UsersStore: Error resending invitation: $e');
-      return false;
+      return pbErrorMessage(e, 'Kunde inte skicka inbjudan.');
     } finally {
       _loading.value = false;
     }

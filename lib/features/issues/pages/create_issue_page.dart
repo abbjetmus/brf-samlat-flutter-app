@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/rich_text_editor.dart';
 
@@ -12,8 +13,9 @@ class CreateIssuePage extends CompositionWidget {
   /// When non-null the page edits the existing issue instead of creating one.
   final String? issueId;
 
-  /// When non-null a newly created issue is tied to this residence instead of
-  /// the current user's own residence (e.g. created from a residence's page).
+  /// When non-null a newly created issue is tied to this residence (e.g.
+  /// created from a residence's page). Otherwise the reporter chooses between
+  /// their own residence and a shared issue.
   final String? residenceId;
 
   const CreateIssuePage({super.key, this.issueId, this.residenceId});
@@ -21,6 +23,7 @@ class CreateIssuePage extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final issuesStore = inject(issuesStoreKey);
+    final authStore = inject(authStoreKey);
     final isEdit = issueId != null;
     final existing = (isEdit && issuesStore.currentIssue.value?.id == issueId)
         ? issuesStore.currentIssue.value
@@ -32,6 +35,23 @@ class CreateIssuePage extends CompositionWidget {
     final consentToMasterKey = ref(existing?.consentToMasterKey ?? false);
     final loading = ref(false);
     final contextRef = useContext();
+
+    // From the issues list the issue either concerns the reporter's own
+    // residence (only its residents and admins can see it) or is shared with
+    // the whole association. Offer the choice only when both are allowed;
+    // otherwise the one permitted kind is used.
+    final ownResidenceId = authStore.residence.value?.id;
+    final canCreateShared = authStore.hasPermission(
+      'issues',
+      CrudOperation.create,
+    );
+    final canCreateForOwnResidence =
+        ownResidenceId != null &&
+        authStore.hasPermission('residence_issues', CrudOperation.create);
+    final choosesResidence = !isEdit && residenceId == null;
+    final showResidenceChoice =
+        choosesResidence && canCreateShared && canCreateForOwnResidence;
+    final forOwnResidence = ref(choosesResidence && canCreateForOwnResidence);
 
     // Description is rich text (HTML). Hold the current HTML and only mount the
     // editor once the initial content is known (it can load late on deep-links).
@@ -63,7 +83,7 @@ class CreateIssuePage extends CompositionWidget {
       if (htmlIsEmpty(descriptionHtml)) return;
 
       loading.value = true;
-      final success = isEdit
+      final failure = isEdit
           ? await issuesStore.updateIssue(
               id: issueId!,
               title: titleController.text.trim(),
@@ -78,14 +98,15 @@ class CreateIssuePage extends CompositionWidget {
               type: issueType.value,
               commentsAllowed: commentsAllowed.value,
               consentToMasterKey: consentToMasterKey.value,
-              residenceId: residenceId,
+              residenceId:
+                  residenceId ??
+                  (forOwnResidence.value ? ownResidenceId : null),
             );
       loading.value = false;
 
       final context = contextRef.value;
       if (context != null && context.mounted) {
-        final noun = issueType.value.toLowerCase();
-        if (success) {
+        if (failure == null) {
           Navigator.of(context).pop();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -99,14 +120,7 @@ class CreateIssuePage extends CompositionWidget {
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                isEdit
-                    ? 'Kunde inte uppdatera $noun.'
-                    : 'Kunde inte skapa $noun.',
-              ),
-              backgroundColor: Colors.red,
-            ),
+            SnackBar(content: Text(failure), backgroundColor: Colors.red),
           );
         }
       }
@@ -165,6 +179,17 @@ class CreateIssuePage extends CompositionWidget {
                   child: Center(child: CircularProgressIndicator()),
                 ),
               const SizedBox(height: 16),
+              if (showResidenceChoice)
+                SwitchListTile(
+                  title: const Text('Gäller min bostad'),
+                  subtitle: Text(
+                    forOwnResidence.value
+                        ? 'Syns bara för bostadens boende och administratörer.'
+                        : 'Syns för alla i föreningen.',
+                  ),
+                  value: forOwnResidence.value,
+                  onChanged: (v) => forOwnResidence.value = v,
+                ),
               SwitchListTile(
                 title: const Text('Tillåt kommentarer'),
                 value: commentsAllowed.value,

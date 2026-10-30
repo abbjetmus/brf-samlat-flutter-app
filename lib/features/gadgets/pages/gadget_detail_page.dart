@@ -11,6 +11,7 @@ import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/rich_description.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import '../gadgets_store.dart';
 import 'create_gadget_page.dart';
 
@@ -68,7 +69,7 @@ class GadgetDetailPage extends CompositionWidget {
       );
 
       if (result != null) {
-        await gadgetsStore.addBooking(
+        final failure = await gadgetsStore.addBooking(
           gadgetId: gadgetId,
           startAt: result.startAt.toUtc().toIso8601String(),
           endAt: result.endAt.toUtc().toIso8601String(),
@@ -76,6 +77,12 @@ class GadgetDetailPage extends CompositionWidget {
           isAllDay: result.isAllDay,
           isBlock: result.isBlock,
         );
+        final ctx = contextRef.value;
+        if (failure != null && ctx != null && ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text(failure), backgroundColor: Colors.red),
+          );
+        }
       }
     }
 
@@ -205,6 +212,13 @@ class GadgetDetailPage extends CompositionWidget {
                     // Bookings tab
                     Column(
                       children: [
+                        const HelpTip(
+                          id: 'gadget-calendar',
+                          text:
+                              'Tryck på + för att boka en tid för din bostad. '
+                              'Tryck på en bokning i schemat för att se '
+                              'detaljer.',
+                        ),
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           child: SizedBox(

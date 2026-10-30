@@ -4,6 +4,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import '../../../shared/widgets/paginated_list_view.dart';
 import '../../../shared/widgets/search_field.dart';
 import 'residence_detail_page.dart';
@@ -55,7 +56,18 @@ class ResidencesListPage extends CompositionWidget {
                 child: const Icon(Icons.add),
               )
             : null,
-        body: loading && residences.isEmpty
+        body: Column(
+          children: [
+            if (canCreate)
+              const HelpTip(
+              id: 'residences-list',
+              text:
+                'Koppla varje bostad till de personer som bor där. Det '
+                'behövs för att de boende ska kunna boka lokaler och prylar '
+                'och se bostadens felanmälningar.',
+            ),
+            Expanded(
+              child: loading && residences.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : residences.isEmpty
             ? const Center(child: Text('Inga bostäder ännu.'))
@@ -109,6 +121,9 @@ class ResidencesListPage extends CompositionWidget {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
       );
     };
   }

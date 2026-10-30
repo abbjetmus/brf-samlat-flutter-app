@@ -5,6 +5,7 @@ import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import '../../../shared/widgets/paginated_list_view.dart';
 import '../../../shared/widgets/search_field.dart';
 import 'issue_detail_page.dart';
@@ -31,7 +32,16 @@ class IssuesListPage extends CompositionWidget {
       final loadingMore = issuesStore.loadingMore.value;
       final hasMore = issuesStore.hasMore.value;
       final showResolved = issuesStore.showResolved.value;
-      final canCreate = authStore.hasPermission('issues', CrudOperation.create);
+      // A member with a residence may report for it (residence_issues) as well
+      // as for the whole association (issues); CreateIssuePage offers the kinds
+      // that are allowed.
+      final canCreate =
+          authStore.hasPermission('issues', CrudOperation.create) ||
+          (authStore.residence.value != null &&
+              authStore.hasPermission(
+                'residence_issues',
+                CrudOperation.create,
+              ));
 
       final query = searchQuery.value.trim().toLowerCase();
       final filteredIssues = query.isEmpty
@@ -59,7 +69,17 @@ class IssuesListPage extends CompositionWidget {
                 child: const Icon(Icons.add),
               )
             : null,
-        body: loading && issues.isEmpty
+        body: Column(
+          children: [
+            const HelpTip(
+              id: 'issues-list',
+              text:
+                  'Här samlas föreningens felanmälningar och ärenden. Tryck på '
+                  'ett ärende för att se detaljer, bilagor och kommentarer. '
+                  'Ärenden med husikon gäller en viss bostad.',
+            ),
+            Expanded(
+              child: loading && issues.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : issues.isEmpty
             ? const Center(child: Text('Inga felanmälningar eller ärenden.'))
@@ -135,6 +155,20 @@ class IssuesListPage extends CompositionWidget {
                                           ),
                                         ),
                                       ),
+                                      // Residence issues are private to the
+                                      // residence's residents and admins.
+                                      if ((issue.residence ?? '')
+                                          .isNotEmpty) ...[
+                                        const SizedBox(width: 6),
+                                        Tooltip(
+                                          message: 'Gäller en bostad',
+                                          child: Icon(
+                                            Icons.home_outlined,
+                                            size: 14,
+                                            color: Colors.grey[600],
+                                          ),
+                                        ),
+                                      ],
                                       const SizedBox(width: 8),
                                       Text(
                                         AppDateUtils.timeAgo(issue.created),
@@ -172,6 +206,9 @@ class IssuesListPage extends CompositionWidget {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
       );
     };
   }

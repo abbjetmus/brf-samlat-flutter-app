@@ -3,80 +3,142 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart';
 import '../auth/auth_store.dart' as auth;
 
-/// Reads and persists the user's push notification preferences in the
-/// PocketBase `user_notification_settings` collection (one record per user).
+/// A notification category as served by the backend (key, label, description).
+class NotificationCategory {
+  final String key;
+  final String label;
+  final String description;
+
+  const NotificationCategory({
+    required this.key,
+    required this.label,
+    required this.description,
+  });
+
+  factory NotificationCategory.fromJson(Map<String, dynamic> json) {
+    return NotificationCategory(
+      key: json['key'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+    );
+  }
+}
+
+/// Push / e-mail choice for one category.
+class NotificationChannels {
+  final bool push;
+  final bool email;
+
+  const NotificationChannels({required this.push, required this.email});
+
+  NotificationChannels copyWith({bool? push, bool? email}) =>
+      NotificationChannels(push: push ?? this.push, email: email ?? this.email);
+}
+
+/// Reads and persists the user's notification preferences per category via
+/// `GET/PATCH /api/notification-preferences` (brf-samlat-pb,
+/// pb_hooks/api/notification_preferences.pb.js).
 ///
-/// Opt-out semantics: when no record exists yet the user receives every
-/// category, so on first load we create a record with all categories enabled.
-/// The API (`/send-notification`) skips a category only when its boolean is
-/// explicitly `false`.
+/// The backend owns the category list and the defaults: push on everywhere,
+/// e-mail off — except for users without any push token, who get e-mail by
+/// default. Only explicit choices are stored, so toggling one switch sends
+/// just that category/channel.
 class NotificationSettingsStore {
-  static const String _collection = 'user_notification_settings';
+  static const String _path = '/api/notification-preferences';
 
   final PocketBase _pb;
+  // Kept for API compatibility with the settings page; the backend resolves
+  // the user from the auth token.
+  // ignore: unused_field
   final auth.AuthStore _authStore;
 
   final Ref<bool> loading = Ref(true);
-  final Ref<bool> posts = Ref(true);
-  final Ref<bool> comments = Ref(true);
-  final Ref<bool> issues = Ref(true);
-  final Ref<bool> calendar = Ref(true);
+  final Ref<bool> loadFailed = Ref(false);
+  final Ref<bool> hasPushToken = Ref(false);
+  final Ref<List<NotificationCategory>> categories = Ref(const []);
+  final Ref<Map<String, NotificationChannels>> preferences = Ref(const {});
 
-  String? _recordId;
+  /// "category:channel" currently being saved, to disable that switch.
+  final Ref<String?> saving = Ref(null);
 
   NotificationSettingsStore(this._pb, this._authStore);
+
+  void _apply(dynamic res) {
+    final map = Map<String, dynamic>.from(res as Map);
+    categories.value = ((map['categories'] as List?) ?? const [])
+        .map(
+          (c) => NotificationCategory.fromJson(
+            Map<String, dynamic>.from(c as Map),
+          ),
+        )
+        .toList();
+    final prefs = Map<String, dynamic>.from(
+      (map['preferences'] as Map?) ?? const {},
+    );
+    preferences.value = prefs.map((key, value) {
+      final entry = Map<String, dynamic>.from(value as Map);
+      return MapEntry(
+        key,
+        NotificationChannels(
+          push: entry['push'] as bool? ?? true,
+          email: entry['email'] as bool? ?? false,
+        ),
+      );
+    });
+    hasPushToken.value = map['has_push_token'] as bool? ?? false;
+  }
 
   Future<void> load() async {
     loading.value = true;
     try {
-      final userId = _authStore.currentUser.value?.id;
-      if (userId == null) return;
-
-      final existing = await _pb
-          .collection(_collection)
-          .getFullList(filter: 'user = "$userId"');
-
-      if (existing.isNotEmpty) {
-        final record = existing.first;
-        _recordId = record.id;
-        posts.value = record.getBoolValue('posts');
-        comments.value = record.getBoolValue('comments');
-        issues.value = record.getBoolValue('issues');
-        calendar.value = record.getBoolValue('calendar');
-      } else {
-        final record = await _pb.collection(_collection).create(body: {
-          'user': userId,
-          'posts': true,
-          'comments': true,
-          'issues': true,
-          'calendar': true,
-        });
-        _recordId = record.id;
-      }
+      _apply(await _pb.send(_path));
+      loadFailed.value = false;
     } catch (e) {
+      loadFailed.value = true;
       debugPrint('NotificationSettingsStore: load error: $e');
     } finally {
       loading.value = false;
     }
   }
 
-  Future<void> setPosts(bool value) => _set(posts, 'posts', value);
-  Future<void> setComments(bool value) => _set(comments, 'comments', value);
-  Future<void> setIssues(bool value) => _set(issues, 'issues', value);
-  Future<void> setCalendar(bool value) => _set(calendar, 'calendar', value);
+  Future<void> setPush(String category, bool value) =>
+      _set(category, 'push', value);
 
-  Future<void> _set(Ref<bool> ref, String field, bool value) async {
-    final previous = ref.value;
-    ref.value = value; // optimistic
-    if (_recordId == null) {
-      await load();
-      if (_recordId == null) return;
-    }
+  Future<void> setEmail(String category, bool value) =>
+      _set(category, 'email', value);
+
+  Future<void> _set(String category, String channel, bool value) async {
+    final previous = preferences.value;
+    final current = previous[category];
+    if (current == null) return;
+
+    // Optimistic update; reverted if the backend refuses.
+    preferences.value = {
+      ...previous,
+      category: channel == 'push'
+          ? current.copyWith(push: value)
+          : current.copyWith(email: value),
+    };
+    saving.value = '$category:$channel';
     try {
-      await _pb.collection(_collection).update(_recordId!, body: {field: value});
+      _apply(
+        await _pb.send(
+          _path,
+          method: 'PATCH',
+          body: {
+            'preferences': {
+              category: {channel: value},
+            },
+          },
+        ),
+      );
     } catch (e) {
-      ref.value = previous; // revert on failure
-      debugPrint('NotificationSettingsStore: update $field error: $e');
+      preferences.value = previous;
+      debugPrint(
+        'NotificationSettingsStore: update $category.$channel error: $e',
+      );
+    } finally {
+      saving.value = null;
     }
   }
 }

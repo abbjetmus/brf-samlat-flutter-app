@@ -8,6 +8,7 @@ import '../../../shared/widgets/app_bottom_sheet.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import '../annual_wheel_store.dart';
 import '../widgets/annual_wheel_chart.dart';
 import '../widgets/annual_wheel_activity_sheet.dart';
@@ -166,6 +167,16 @@ class AnnualWheelPage extends CompositionWidget {
               88 + mediaQuery.value.padding.bottom,
             ),
             children: [
+              HelpTip(
+                id: 'annual-wheel',
+                padding: const EdgeInsets.only(bottom: 4),
+                text: canCheck
+                    ? 'Bocka av en aktivitet när den är klar. Avbockningen '
+                          'gäller bara det valda året. Tryck på en månad i '
+                          'hjulet för att bara visa den månadens aktiviteter.'
+                    : 'Tryck på en månad i hjulet för att bara visa den '
+                          'månadens aktiviteter.',
+              ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
+import 'package:go_router/go_router.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/app_bottom_sheet.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import '../../../shared/widgets/rich_description.dart';
+import '../../board/pages/board_meeting_detail_page.dart';
 import '../calendar_store.dart';
 
 class CalendarPage extends CompositionWidget {
@@ -203,6 +206,10 @@ class CalendarPage extends CompositionWidget {
         'calendar_events',
         CrudOperation.delete,
       );
+      // Board meetings are read-restricted; others only see the event details.
+      final canOpenMeetings =
+          authStore.isFeatureEnabled('board_meetings') &&
+          authStore.hasPermission('board_meetings', CrudOperation.read);
 
       return GradientScaffold(
         title: 'Kalender',
@@ -220,6 +227,15 @@ class CalendarPage extends CompositionWidget {
             : null,
         body: Column(
           children: [
+            HelpTip(
+              id: 'calendar',
+              text: canCreate
+                  ? 'Kalendern visar föreningens händelser för alla '
+                        'medlemmar. Tryck på en händelse för att se detaljerna, '
+                        'eller på + för att lägga till en egen.'
+                  : 'Kalendern visar föreningens händelser för alla '
+                        'medlemmar. Tryck på en händelse för att se detaljerna.',
+            ),
             // View selector
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
@@ -269,6 +285,7 @@ class CalendarPage extends CompositionWidget {
                       items: items,
                       calendarStore: calendarStore,
                       canDelete: canDelete,
+                      canOpenMeetings: canOpenMeetings,
                     )
                   : SfCalendar(
                       controller: calendarController,
@@ -296,6 +313,7 @@ class CalendarPage extends CompositionWidget {
                             item,
                             calendarStore,
                             canDelete,
+                            canOpenMeetings,
                           );
                         }
                       },
@@ -313,7 +331,9 @@ void _showEventDetails(
   CalendarItem event,
   CalendarStore calendarStore,
   bool canDelete,
+  bool canOpenMeetings,
 ) {
+  final pageContext = context;
   showAppBottomSheet(
     context: context,
     builder: (context) => Column(
@@ -340,8 +360,9 @@ void _showEventDetails(
                 ),
               ),
             ),
-            // Posts are managed under Inlägg and can't be deleted from here.
-            if (canDelete && !event.isPost)
+            // Posts (Inlägg) and board meetings (Styrelsen) are managed at
+            // their source and can't be deleted from here.
+            if (canDelete && !event.isReadOnly)
               EntityActionMenu(
                 actions: [
                   EntityAction.delete(() async {
@@ -385,6 +406,43 @@ void _showEventDetails(
             ),
           ],
         ),
+        if (event.location.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.place_outlined, size: 16, color: Colors.grey),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  event.location,
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ),
+            ],
+          ),
+        ],
+        if (event.boardMeetingId != null) ...[
+          const SizedBox(height: 16),
+          if (canOpenMeetings)
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  pageContext.push(
+                    '${BoardMeetingDetailPage.path}/${event.boardMeetingId}',
+                  );
+                },
+                icon: const Icon(Icons.groups_outlined),
+                label: const Text('Öppna mötet'),
+              ),
+            )
+          else
+            Text(
+              'Mötet hanteras av styrelsen.',
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            ),
+        ],
         const SizedBox(height: 16),
       ],
     ),
@@ -424,11 +482,13 @@ class _EventListView extends StatelessWidget {
     required this.items,
     required this.calendarStore,
     required this.canDelete,
+    required this.canOpenMeetings,
   });
 
   final List<CalendarItem> items;
   final CalendarStore calendarStore;
   final bool canDelete;
+  final bool canOpenMeetings;
 
   @override
   Widget build(BuildContext context) {
@@ -464,9 +524,16 @@ class _EventListView extends StatelessWidget {
             subtitle: Text(_formatEventTime(event)),
             trailing: event.isPost
                 ? const Icon(Icons.article_outlined, size: 18)
+                : event.boardMeetingId != null
+                ? const Icon(Icons.groups_outlined, size: 18)
                 : const Icon(Icons.chevron_right),
-            onTap: () =>
-                _showEventDetails(context, event, calendarStore, canDelete),
+            onTap: () => _showEventDetails(
+              context,
+              event,
+              calendarStore,
+              canDelete,
+              canOpenMeetings,
+            ),
           ),
         );
       },

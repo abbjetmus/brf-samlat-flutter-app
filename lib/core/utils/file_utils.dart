@@ -96,6 +96,7 @@ String byteToMegabyte(int bytes) {
   return (bytes / (1024 * 1024)).toStringAsFixed(2);
 }
 
-/// Max upload size per file, in bytes (8 MiB). Mirrors the PocketBase
-/// `folders_and_files.files` field `maxSize`; keep the two in sync.
-const int kMaxUploadBytes = 8 * 1024 * 1024;
+/// Max upload size per file for the document archive, in bytes (50 MiB).
+/// Mirrors the PocketBase `folders_and_files.files` field `maxSize`
+/// (migration 1790901420_raise_file_limits.js); keep the two in sync.
+const int kMaxUploadBytes = 50 * 1024 * 1024;

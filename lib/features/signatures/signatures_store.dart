@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show ClientException, PocketBase;
 import '../../core/models/pocketbase_models.dart';
+import '../../core/utils/pb_error.dart';
 
 /// E-signing of board meeting protocols with a one-time email code.
 ///
@@ -11,6 +12,12 @@ import '../../core/models/pocketbase_models.dart';
 class Signature {
   final String id;
   final String boardMeeting;
+
+  /// Satt när signaturen justerar en föreningsstämmas protokoll.
+  final String generalMeeting;
+
+  /// 'board' | 'general'
+  final String kind;
   final String user;
   final String role;
   final int sortOrder;
@@ -26,6 +33,8 @@ class Signature {
   const Signature({
     required this.id,
     required this.boardMeeting,
+    this.generalMeeting = '',
+    this.kind = 'board',
     required this.user,
     required this.role,
     required this.sortOrder,
@@ -44,6 +53,8 @@ class Signature {
   factory Signature.fromJson(Map<String, dynamic> json) => Signature(
     id: json['id'] as String? ?? '',
     boardMeeting: json['board_meeting'] as String? ?? '',
+    generalMeeting: json['general_meeting'] as String? ?? '',
+    kind: json['kind'] as String? ?? 'board',
     user: json['user'] as String? ?? '',
     role: json['role'] as String? ?? '',
     sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
@@ -110,13 +121,9 @@ List<Signature> _signatureList(dynamic raw) => (raw as List? ?? const [])
     .toList();
 
 /// The server's (Swedish) error message when there is one, else [fallback].
-String signatureErrorMessage(Object e, [String fallback = 'Något gick fel']) {
-  if (e is ClientException) {
-    final message = e.response['message'];
-    if (message is String && message.isNotEmpty) return message;
-  }
-  return fallback;
-}
+/// See [pbErrorMessage].
+String signatureErrorMessage(Object e, [String fallback = 'Något gick fel']) =>
+    pbErrorMessage(e, fallback);
 
 class SignaturesStore {
   final PocketBase _pb;

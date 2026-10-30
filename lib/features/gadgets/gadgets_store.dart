@@ -3,6 +3,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import '../../core/models/pocketbase_models.dart';
 import '../../core/pagination/paginated.dart';
+import '../../core/utils/pb_error.dart';
 import '../auth/auth_store.dart' as auth;
 
 class GadgetsStore {
@@ -186,7 +187,9 @@ class GadgetsStore {
     }
   }
 
-  Future<bool> addBooking({
+  /// Returns null on success, otherwise the server's reason (e.g. that the
+  /// time is already booked or the residence has reached its booking limit).
+  Future<String?> addBooking({
     required String gadgetId,
     required String startAt,
     required String endAt,
@@ -216,10 +219,10 @@ class GadgetsStore {
           );
 
       await getBookings(gadgetId);
-      return true;
+      return null;
     } catch (e) {
       debugPrint('GadgetsStore: Error adding booking: $e');
-      return false;
+      return pbErrorMessage(e, 'Kunde inte boka prylen.');
     }
   }
 

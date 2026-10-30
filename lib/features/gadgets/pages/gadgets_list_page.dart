@@ -4,6 +4,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/help_tip.dart';
 import '../../../shared/widgets/paginated_list_view.dart';
 import '../../../shared/widgets/search_field.dart';
 import 'gadget_detail_page.dart';
@@ -54,7 +55,18 @@ class GadgetsListPage extends CompositionWidget {
                 child: const Icon(Icons.add),
               )
             : null,
-        body: loading && gadgets.isEmpty
+        body: Column(
+          children: [
+            const HelpTip(
+              id: 'gadgets-list',
+              text:
+                'Här finns saker som föreningen lånar ut. Tryck på en pryl '
+                'och välj fliken Bokningar för att se lediga tider och '
+                'boka. För att kunna boka måste du vara kopplad till en '
+                'bostad.',
+            ),
+            Expanded(
+              child: loading && gadgets.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : gadgets.isEmpty
             ? const Center(child: Text('Inga prylar ännu.'))
@@ -108,6 +120,9 @@ class GadgetsListPage extends CompositionWidget {
                   ),
                 ],
               ),
+            ),
+          ],
+        ),
       );
     };
   }
