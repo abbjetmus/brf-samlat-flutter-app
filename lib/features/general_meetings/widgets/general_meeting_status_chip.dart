@@ -3,9 +3,16 @@ import '../../../shared/widgets/status_chip.dart';
 import '../general_meetings_models.dart';
 
 class GeneralMeetingStatusChip extends StatelessWidget {
-  const GeneralMeetingStatusChip({super.key, required this.meeting});
+  const GeneralMeetingStatusChip({
+    super.key,
+    required this.meeting,
+    this.board = false,
+  });
 
   final GeneralMeeting meeting;
+
+  /// Styrelsens etiketter ("Utkast" i stället för "Tar emot motioner").
+  final bool board;
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +22,10 @@ class GeneralMeetingStatusChip extends StatelessWidget {
       GeneralMeetingStatus.ongoing => (StatusTone.warning, Icons.how_to_vote),
       _ => (StatusTone.neutral, Icons.check_circle_outline),
     };
-    return StatusChip(label: meeting.statusLabel, icon: icon, tone: tone);
+    final label = board
+        ? meetingStatusLabels[meeting.status] ?? meeting.status
+        : meeting.statusLabel;
+    return StatusChip(label: label, icon: icon, tone: tone);
   }
 }
 
