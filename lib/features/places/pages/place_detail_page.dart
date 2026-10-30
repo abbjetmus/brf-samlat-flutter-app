@@ -51,7 +51,9 @@ class PlaceDetailPage extends CompositionWidget {
         bookingEndTime: place.bookingEndTime,
         slotDurationLength: place.bookingSlotDurationLength,
         slotDurationType: place.bookingSlotDurationType,
+        // Rejected bookings free their time and don't count toward the limit.
         existingBookings: placesStore.bookings.value
+            .where((b) => !b.isRejected)
             .map(
               (b) => ExistingBooking(
                 DateTime.parse(b.startAt),
