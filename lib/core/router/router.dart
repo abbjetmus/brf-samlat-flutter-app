@@ -47,6 +47,8 @@ import '../../features/maintenance_plan/pages/maintenance_plan_page.dart';
 import '../../features/residence_applications/pages/residence_applications_page.dart';
 import '../../features/residence_applications/pages/create_residence_application_page.dart';
 import '../../features/residence_applications/pages/residence_application_detail_page.dart';
+import '../../features/invoice_overview/pages/invoice_overview_page.dart';
+import '../../features/contractors/pages/contractors_page.dart';
 import 'auth_guard.dart';
 
 final router = GoRouter(
@@ -274,6 +276,16 @@ final router = GoRouter(
       builder: (context, state) => ResidenceApplicationDetailPage(
         applicationId: state.pathParameters['id']!,
       ),
+    ),
+    // Contractors (Leverantörer)
+    GoRoute(
+      path: ContractorsPage.path,
+      builder: (context, state) => const ContractorsPage(),
+    ),
+    // Invoice overview (Fakturaöversikt)
+    GoRoute(
+      path: InvoiceOverviewPage.path,
+      builder: (context, state) => const InvoiceOverviewPage(),
     ),
     // Users
     GoRoute(

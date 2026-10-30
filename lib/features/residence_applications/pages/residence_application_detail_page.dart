@@ -5,14 +5,18 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/file_utils.dart';
+import '../../../core/utils/permissions_utils.dart';
+import '../../../shared/widgets/app_bottom_sheet.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../residence_applications_store.dart';
+import '../widgets/application_decision_sheet.dart';
 
 /// One application with its status and the board's decision. The applicant can
-/// withdraw it while it is undecided. Push links land here
+/// withdraw it while it is undecided; users with `residence_applications`
+/// update decide on it ("Fatta beslut") and with delete may remove it. Push links land here
 /// (`/residence-applications/detail/:id`).
 class ResidenceApplicationDetailPage extends CompositionWidget {
   static const String path = '/residence-applications/detail';
@@ -62,6 +66,48 @@ class ResidenceApplicationDetailPage extends CompositionWidget {
       );
     }
 
+    void snack(String message) {
+      final c = contextRef.value;
+      if (c == null || !c.mounted) return;
+      ScaffoldMessenger.of(c).showSnackBar(SnackBar(content: Text(message)));
+    }
+
+    Future<void> decide(ResidenceApplicationsRecord a) async {
+      final ctx = contextRef.value;
+      if (ctx == null || !ctx.mounted) return;
+      final saved = await showAppBottomSheet<bool>(
+        context: ctx,
+        builder: (_) => ApplicationDecisionSheet(
+          application: a,
+          onSave: ({required status, required note, periodTo}) => store.decide(
+            a.id,
+            status: status,
+            note: note,
+            periodTo: periodTo,
+          ),
+        ),
+      );
+      if (saved == true) snack('Beslutet sparat och den sökande meddelad');
+    }
+
+    Future<void> remove() async {
+      final ctx = contextRef.value;
+      if (ctx == null || !ctx.mounted) return;
+      final ok = await showConfirmDialog(
+        ctx,
+        title: 'Radera ansökan',
+        message:
+            'Vill du radera ansökan? Den försvinner också från bostadens historik.',
+        okLabel: 'Radera',
+        okColor: Colors.red,
+      );
+      if (!ok) return;
+      final message = await store.delete(applicationId);
+      snack(message ?? 'Ansökan raderad');
+      final c = contextRef.value;
+      if (message == null && c != null && c.mounted) Navigator.of(c).pop();
+    }
+
     final sek = NumberFormat.currency(
       locale: 'sv_SE',
       symbol: 'kr',
@@ -86,9 +132,21 @@ class ResidenceApplicationDetailPage extends CompositionWidget {
       final type = applicationTypeMeta(a.type);
       final canWithdraw =
           a.isOpen && a.applicant == authStore.currentUser.value?.id;
+      final canDecide =
+          a.status != 'återkallad' &&
+          authStore.hasPermission(
+            'residence_applications',
+            CrudOperation.update,
+          );
+      final canDelete = authStore.hasPermission(
+        'residence_applications',
+        CrudOperation.delete,
+      );
 
       final rows = <(String, String)>[
         if (a.residenceAddress.isNotEmpty) ('Bostad', a.residenceAddress),
+        if (a.applicantName.isNotEmpty && a.applicant != authStore.currentUser.value?.id)
+          ('Sökande', a.applicantName),
         ('Inskickad', AppDateUtils.formatDate(a.created)),
         if (a.type == 'andrahand') ...[
           (
@@ -121,15 +179,23 @@ class ResidenceApplicationDetailPage extends CompositionWidget {
         title: type.title,
         subtitle: a.residenceAddress.isEmpty ? null : a.residenceAddress,
         actions: [
-          if (canWithdraw)
+          if (canWithdraw || canDecide || canDelete)
             EntityActionMenu.header(
               actions: [
-                EntityAction(
-                  icon: Icons.undo,
-                  label: 'Återkalla',
-                  onSelected: withdraw,
-                  destructive: true,
-                ),
+                if (canDecide)
+                  EntityAction(
+                    icon: Icons.gavel_outlined,
+                    label: 'Fatta beslut',
+                    onSelected: () => decide(a),
+                  ),
+                if (canWithdraw)
+                  EntityAction(
+                    icon: Icons.undo,
+                    label: 'Återkalla',
+                    onSelected: withdraw,
+                    destructive: true,
+                  ),
+                if (canDelete) EntityAction.delete(remove),
               ],
             ),
         ],
@@ -198,7 +264,8 @@ class ResidenceApplicationDetailPage extends CompositionWidget {
                       if (a.decidedAt != null)
                         Text(
                           '${applicationStatusLabels[a.status] ?? a.status} '
-                          '${AppDateUtils.formatDate(a.decidedAt)}',
+                          '${AppDateUtils.formatDate(a.decidedAt)}'
+                          '${a.decidedByName.isNotEmpty ? ' av ${a.decidedByName}' : ''}',
                         ),
                       if (a.decisionNote.isNotEmpty)
                         Padding(
@@ -208,7 +275,11 @@ class ResidenceApplicationDetailPage extends CompositionWidget {
                       if (a.decidedAt == null && a.decisionNote.isEmpty)
                         Text(
                           a.status == 'återkallad'
-                              ? 'Du återkallade ansökan.'
+                              ? (a.applicant == authStore.currentUser.value?.id
+                                    ? 'Du återkallade ansökan.'
+                                    : 'Ansökan återkallades av den sökande.')
+                              : canDecide
+                              ? 'Styrelsen har inte fattat beslut ännu. Välj Fatta beslut i menyn.'
                               : 'Styrelsen har inte fattat beslut ännu. Du får besked via push och e-post.',
                         ),
                     ],

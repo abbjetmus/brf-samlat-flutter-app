@@ -28,6 +28,7 @@ const toggleableFeatures = <ToggleableFeature>[
   ToggleableFeature('board', 'Styrelsen'),
   ToggleableFeature('board_meetings', 'Styrelsemöten'),
   ToggleableFeature('annual_wheel', 'Årshjul'),
+  ToggleableFeature('general_meetings', 'Föreningsstämma'),
   ToggleableFeature('maintenance_plan', 'Underhållsplan'),
   ToggleableFeature('residence_applications', 'Ansökningar'),
   ToggleableFeature('invoices', 'Fakturor'),

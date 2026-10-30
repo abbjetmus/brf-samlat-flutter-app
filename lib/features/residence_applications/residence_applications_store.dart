@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart' show DateFormat;
 import 'package:pocketbase/pocketbase.dart' show ClientException, PocketBase;
 import '../../core/models/pocketbase_models.dart';
 import '../../core/pagination/paginated.dart';
+import '../../core/utils/pb_error.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../auth/auth_store.dart' as auth;
 
@@ -34,6 +36,10 @@ class ResidenceApplicationsRecord {
   final String decisionNote;
   final String? decidedAt;
 
+  /// From `expand=applicant` / `expand=decided_by` (board view).
+  final String applicantName;
+  final String decidedByName;
+
   const ResidenceApplicationsRecord({
     required this.id,
     this.collectionId = '',
@@ -57,10 +63,28 @@ class ResidenceApplicationsRecord {
     this.attachments = const [],
     this.decisionNote = '',
     this.decidedAt,
+    this.applicantName = '',
+    this.decidedByName = '',
   });
 
   /// The applicant may withdraw while the board hasn't decided.
   bool get isOpen => status == 'inskickad' || status == 'under behandling';
+
+  /// Days until an approved sublet ends (null without an end date).
+  int? get daysLeft {
+    final end = DateTime.tryParse(periodTo ?? '');
+    if (end == null) return null;
+    final today = DateTime.now();
+    final endDay = DateTime(end.year, end.month, end.day);
+    return endDay.difference(DateTime(today.year, today.month, today.day)).inDays;
+  }
+
+  /// Approved sublets ending within 30 days need the board's attention.
+  bool get endingSoon {
+    if (type != 'andrahand' || status != 'beviljad') return false;
+    final d = daysLeft;
+    return d != null && d >= 0 && d <= 30;
+  }
 
   factory ResidenceApplicationsRecord.fromJson(Map<String, dynamic> json) {
     String? date(String key) {
@@ -70,6 +94,8 @@ class ResidenceApplicationsRecord {
 
     final expand = json['expand'] as Map<String, dynamic>?;
     final residence = expand?['residence'] as Map<String, dynamic>?;
+    final applicant = expand?['applicant'] as Map<String, dynamic>?;
+    final decidedBy = expand?['decided_by'] as Map<String, dynamic>?;
     return ResidenceApplicationsRecord(
       id: json['id'] as String? ?? '',
       collectionId: json['collectionId'] as String? ?? '',
@@ -95,6 +121,8 @@ class ResidenceApplicationsRecord {
           const [],
       decisionNote: json['decision_note'] as String? ?? '',
       decidedAt: date('decided_at'),
+      applicantName: applicant?['name'] as String? ?? '',
+      decidedByName: decidedBy?['name'] as String? ?? '',
     );
   }
 }
@@ -154,9 +182,32 @@ StatusTone applicationStatusTone(String status) => switch (status) {
   _ => StatusTone.neutral,
 };
 
-/// The current user's own applications. The API rules already limit members to
-/// their own; the explicit `applicant` filter keeps the app's list personal for
-/// admins too (the board handles everyone's applications in the web admin).
+/// Status filter of the board view (web: residence-applications/index.vue).
+enum ApplicationFilter {
+  active('Att hantera'),
+  all('Alla'),
+  inskickad('Inskickad'),
+  underBehandling('Under behandling'),
+  beviljad('Beviljad'),
+  avslagen('Avslagen'),
+  aterkallad('Återkallad');
+
+  const ApplicationFilter(this.label);
+  final String label;
+
+  String? get status => switch (this) {
+    inskickad => 'inskickad',
+    underBehandling => 'under behandling',
+    beviljad => 'beviljad',
+    avslagen => 'avslagen',
+    aterkallad => 'återkallad',
+    _ => null,
+  };
+}
+
+/// Members see their own applications ([mine], filtered on `applicant`).
+/// Those with `residence_applications` update (the board) also get [all], every
+/// application in the association, and can decide on them.
 class ResidenceApplicationsStore {
   final PocketBase _pb;
   final auth.AuthStore _authStore;
@@ -188,6 +239,62 @@ class ResidenceApplicationsStore {
     );
   });
 
+  final filter = ref<ApplicationFilter>(ApplicationFilter.active);
+  final typeFilter = ref<String?>(null);
+
+  late final _all = Paginated<ResidenceApplicationsRecord>((
+    page,
+    perPage,
+  ) async {
+    final parts = ['association = {:a}'];
+    final params = <String, dynamic>{
+      'a': _authStore.currentUser.value?.association ?? '',
+    };
+    final f = filter.value;
+    if (f == ApplicationFilter.active) {
+      // Open applications, plus approved sublets ending within 30 days.
+      final day = DateFormat('yyyy-MM-dd');
+      final now = DateTime.now();
+      parts.add(
+        '(status = "inskickad" || status = "under behandling" || '
+        '(type = "andrahand" && status = "beviljad" && '
+        'period_to >= {:today} && period_to <= {:soon}))',
+      );
+      params['today'] = '${day.format(now)} 00:00:00.000Z';
+      params['soon'] =
+          '${day.format(now.add(const Duration(days: 30)))} 23:59:59.999Z';
+    } else if (f.status != null) {
+      parts.add('status = {:s}');
+      params['s'] = f.status;
+    }
+    if (typeFilter.value != null) {
+      parts.add('type = {:t}');
+      params['t'] = typeFilter.value;
+    }
+    final res = await _pb
+        .collection(Collections.residenceApplications)
+        .getList(
+          page: page,
+          perPage: perPage,
+          filter: _pb.filter(parts.join(' && '), params),
+          sort: '-created',
+          expand: 'residence,applicant',
+        );
+    return PageResult(
+      res.items
+          .map((r) => ResidenceApplicationsRecord.fromJson(r.toJson()))
+          .toList(),
+      res.totalPages,
+    );
+  });
+
+  Ref<List<ResidenceApplicationsRecord>> get all => _all.items;
+  Ref<bool> get allLoading => _all.loading;
+  Ref<bool> get allLoadingMore => _all.loadingMore;
+  Ref<bool> get allHasMore => _all.hasMore;
+  Future<void> refreshAll() => _all.refresh();
+  Future<void> loadMoreAll() => _all.loadMore();
+
   final _current = ref<ResidenceApplicationsRecord?>(null);
 
   Ref<List<ResidenceApplicationsRecord>> get mine => _mine.items;
@@ -203,7 +310,7 @@ class ResidenceApplicationsStore {
     try {
       final record = await _pb
           .collection(Collections.residenceApplications)
-          .getOne(id, expand: 'residence');
+          .getOne(id, expand: 'residence,applicant,decided_by');
       _current.value = ResidenceApplicationsRecord.fromJson(record.toJson());
       return true;
     } catch (e) {
@@ -263,6 +370,44 @@ class ResidenceApplicationsStore {
     } catch (e) {
       debugPrint('ResidenceApplicationsStore: Error creating: $e');
       return 'Kunde inte skicka ansökan.';
+    }
+  }
+
+  /// The board's decision. An approved sublet may be granted for a shorter
+  /// period than applied for ([periodTo], YYYY-MM-DD). The server sets
+  /// decided_by/decided_at and notifies the applicant.
+  Future<String?> decide(
+    String id, {
+    required String status,
+    required String note,
+    String? periodTo,
+  }) async {
+    try {
+      await _pb
+          .collection(Collections.residenceApplications)
+          .update(
+            id,
+            body: {
+              'status': status,
+              'decision_note': note,
+              if (periodTo != null) 'period_to': '$periodTo 00:00:00.000Z',
+            },
+          );
+      await load(id);
+      return null;
+    } catch (e) {
+      debugPrint('ResidenceApplicationsStore: Error deciding: $e');
+      return pbErrorMessage(e, 'Kunde inte spara beslutet.');
+    }
+  }
+
+  Future<String?> delete(String id) async {
+    try {
+      await _pb.collection(Collections.residenceApplications).delete(id);
+      return null;
+    } catch (e) {
+      debugPrint('ResidenceApplicationsStore: Error deleting: $e');
+      return pbErrorMessage(e, 'Kunde inte radera ansökan.');
     }
   }
 

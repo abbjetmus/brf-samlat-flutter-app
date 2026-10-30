@@ -42,6 +42,8 @@ class Collections {
   static const String annualWheelCompletions = 'annual_wheel_completions';
   static const String maintenancePlanItems = 'maintenance_plan_items';
   static const String residenceApplications = 'residence_applications';
+  static const String contractors = 'contractors';
+  static const String issueForwards = 'issue_forwards';
 }
 
 // --- Users ---

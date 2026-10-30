@@ -137,11 +137,9 @@ class AuthStore {
             },
           );
 
-      // Update invitation status
-      await _pb
-          .collection(Collections.userInvitations)
-          .update(invitationData.id, body: {'invitation_status': 'Aktiverad'});
-
+      // The server marks the invitation "Aktiverad" when the account is
+      // created (users onRecordAfterCreateSuccess); the visitor isn't signed
+      // in yet and may not update invitations.
       return null;
     } catch (e) {
       debugPrint('AuthStore: Error in signUp: $e');

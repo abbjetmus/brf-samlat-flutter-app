@@ -9,7 +9,12 @@ import '../../../shared/widgets/confirm_dialog.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/rich_description.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../../shared/widgets/app_bottom_sheet.dart';
 import '../../../shared/widgets/status_chip.dart';
+import '../../contractors/contractors_store.dart';
+import '../../contractors/widgets/forward_issue_sheet.dart';
+import '../../contractors/widgets/issue_forwards_card.dart';
+import '../../maintenance_plan/widgets/issue_maintenance_link.dart';
 import 'create_issue_page.dart';
 
 class IssueDetailPage extends CompositionWidget {
@@ -24,6 +29,25 @@ class IssueDetailPage extends CompositionWidget {
     final issuesStore = inject(issuesStoreKey);
     final authStore = inject(authStoreKey);
     final contextRef = useContext();
+    final contractorsStore = ContractorsStore(inject(pocketBaseKey), authStore);
+    // Bumped after a forward so the history card reloads.
+    final forwardsVersion = ref(0);
+
+    // "Skicka till leverantör" (web: ForwardIssueDialog).
+    Future<void> openForward(bool isResidenceIssue, int attachmentCount) async {
+      final ctx = contextRef.value;
+      if (ctx == null) return;
+      await showAppBottomSheet<bool>(
+        context: ctx,
+        builder: (_) => ForwardIssueSheet(
+          store: contractorsStore,
+          issueId: issueId,
+          isResidenceIssue: isResidenceIssue,
+          attachmentCount: attachmentCount,
+        ),
+      );
+      forwardsVersion.value++;
+    }
 
     onMounted(() {
       issuesStore.getIssue(issueId);
@@ -40,6 +64,19 @@ class IssueDetailPage extends CompositionWidget {
       // Commenting writes an issue_comment, which the backend gates on issues
       // create — so read-only members can view comments but not add them.
       final canComment = authStore.hasPermission('issues', CrudOperation.create);
+      // Contractors: the register + update on the issue's menu (residence
+      // issues need residence_issues update), as the server checks.
+      final canReadContractors = authStore.hasPermission(
+        'contractors',
+        CrudOperation.read,
+      );
+      final canForward =
+          canReadContractors &&
+          issue != null &&
+          authStore.hasPermission(
+            (issue.residence ?? '').isNotEmpty ? 'residence_issues' : 'issues',
+            CrudOperation.update,
+          );
 
       if (loading && issue == null) {
         return const GradientScaffold(
@@ -58,7 +95,7 @@ class IssueDetailPage extends CompositionWidget {
       return GradientScaffold(
         title: issue.type ?? 'Felanmälan',
         actions: [
-          if (canEdit || canDelete)
+          if (canEdit || canDelete || canForward)
             EntityActionMenu.header(
               actions: [
                 if (canEdit)
@@ -78,6 +115,15 @@ class IssueDetailPage extends CompositionWidget {
                         await issuesStore.resolveIssue(issue.id);
                       }
                     },
+                  ),
+                if (canForward)
+                  EntityAction(
+                    icon: Icons.engineering_outlined,
+                    label: 'Skicka till leverantör',
+                    onSelected: () => openForward(
+                      (issue.residence ?? '').isNotEmpty,
+                      issue.attachments.length,
+                    ),
                   ),
                 if (canDelete)
                   EntityAction.delete(() async {
@@ -182,6 +228,23 @@ class IssueDetailPage extends CompositionWidget {
                   ),
                 ),
               ],
+
+              // Maintenance plan link (web: IssueMaintenanceLink)
+              IssueMaintenanceLink(issueId: issue.id),
+
+              // Forward history (web: IssueForwardsCard)
+              if (canReadContractors)
+                IssueForwardsCard(
+                  store: contractorsStore,
+                  issueId: issue.id,
+                  isResolved: issue.isResolved,
+                  canManage: canForward,
+                  canResolve: canEdit,
+                  reloadToken: forwardsVersion.value,
+                  onResolve: () async {
+                    await issuesStore.resolveIssue(issue.id);
+                  },
+                ),
 
               // Comments section
               if (issue.commentsAllowed) ...[

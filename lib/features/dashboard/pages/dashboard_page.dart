@@ -160,6 +160,15 @@ class DashboardPage extends CompositionWidget {
         permissionName: 'residence_applications',
       ),
       _MenuItem(
+        label: 'Leverantörer',
+        icon: Icons.engineering_outlined,
+        path: '/contractors',
+        color: Color(0xFF78716C),
+        permissionName: 'contractors',
+        // Part of Felanmälan & ärenden on the web (feature token `issues`).
+        featureName: 'issues',
+      ),
+      _MenuItem(
         label: 'Användare',
         icon: Icons.people_outlined,
         path: '/users',
@@ -179,6 +188,14 @@ class DashboardPage extends CompositionWidget {
         path: '/invoices',
         color: Color(0xFFEF4444),
         permissionName: 'invoices',
+      ),
+      _MenuItem(
+        label: 'Faktura-\növersikt',
+        icon: Icons.table_chart_outlined,
+        path: '/invoice-overview',
+        color: Color(0xFFDC2626),
+        permissionName: 'invoice_payments',
+        featureName: 'invoices',
       ),
       _MenuItem(
         label: 'Formulär',
