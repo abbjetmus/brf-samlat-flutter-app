@@ -14,7 +14,7 @@ import '../widgets/annual_wheel_chart.dart';
 import '../widgets/annual_wheel_activity_sheet.dart';
 
 /// Föreningens årshjul: the wheel, then the activities grouped by month with a
-/// per-year checkbox. Mirrors the web /admin/annual-wheel page.
+/// per-year checkbox. Mirrors the web /portal/annual-wheel page.
 class AnnualWheelPage extends CompositionWidget {
   static const String path = '/annual-wheel';
 

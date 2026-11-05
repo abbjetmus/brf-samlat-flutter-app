@@ -162,7 +162,7 @@ class FoldersPage extends CompositionWidget {
       final isEmpty = children.isEmpty && files.isEmpty;
 
       return GradientScaffold(
-        title: isAtRoot ? 'Mappar & Filer' : (currentFolder?.name ?? 'Mappar & Filer'),
+        title: isAtRoot ? 'Dokument' : (currentFolder?.name ?? 'Dokument'),
         // In subfolders the back button navigates up the hierarchy (in-page),
         // so route it through the header's left back button via [onBack]. At
         // root, fall back to normal route back-detection.

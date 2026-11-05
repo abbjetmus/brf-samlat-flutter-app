@@ -11,11 +11,11 @@ class ToggleableFeature {
 }
 
 const toggleableFeatures = <ToggleableFeature>[
-  ToggleableFeature('posts', 'Nyheter'),
+  ToggleableFeature('posts', 'Inlägg'),
   ToggleableFeature('chat', 'Meddelanden'),
   ToggleableFeature('calendar_events', 'Kalender'),
-  ToggleableFeature('forms', 'Formulär'),
-  ToggleableFeature('form_builder', 'Formulär Byggaren'),
+  ToggleableFeature('forms', 'Enkäter'),
+  ToggleableFeature('form_builder', 'Formulärbyggaren'),
   ToggleableFeature('issues', 'Felanmälan & ärenden'),
   ToggleableFeature('residence_issues', 'Felanmälan & ärenden (bostäder)'),
   ToggleableFeature('residences', 'Bostäder'),
@@ -32,5 +32,5 @@ const toggleableFeatures = <ToggleableFeature>[
   ToggleableFeature('maintenance_plan', 'Underhållsplan'),
   ToggleableFeature('residence_applications', 'Ansökningar'),
   ToggleableFeature('invoices', 'Fakturor'),
-  ToggleableFeature('invoice_builder', 'Faktura Byggaren'),
+  ToggleableFeature('invoice_builder', 'Fakturabyggaren'),
 ];

@@ -28,7 +28,7 @@ class FormsListPage extends CompositionWidget {
       final hasMore = formsStore.hasMore.value;
 
       return GradientScaffold(
-        title: 'Formulär',
+        title: 'Enkäter',
         body: Column(
           children: [
             const HelpTip(

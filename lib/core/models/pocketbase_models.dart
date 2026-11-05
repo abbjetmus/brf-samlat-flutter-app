@@ -1461,7 +1461,10 @@ class FaqRecord {
   final String? updated;
   final String title;
   final String description;
+  /// Kategori, samma namn som menyposterna (t.ex. "Inlägg", "Enkäter").
   final String? tags;
+  /// Ordningen på hjälpsidan; kategorierna kommer i menyordning.
+  final int? position;
 
   FaqRecord({
     required this.id,
@@ -1470,6 +1473,7 @@ class FaqRecord {
     required this.title,
     required this.description,
     this.tags,
+    this.position,
   });
 
   factory FaqRecord.fromJson(Map<String, dynamic> json) {
@@ -1480,6 +1484,7 @@ class FaqRecord {
       title: json['title'] as String? ?? '',
       description: json['description'] as String? ?? '',
       tags: json['tags'] as String?,
+      position: (json['position'] as num?)?.toInt(),
     );
   }
 }

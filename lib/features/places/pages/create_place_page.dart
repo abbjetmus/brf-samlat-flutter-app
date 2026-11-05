@@ -407,7 +407,7 @@ class CreatePlacePage extends CompositionWidget {
               subtitle: const Text(
                 'Varje bokning hamnar hos en granskare innan den gäller, och '
                 'tiden hålls under tiden. Granskare är de roller som har '
-                'Uppdatera på Lokalbokningar under Behörigheter.',
+                'Uppdatera på Lokalbokningar under Rättigheter.',
               ),
             ),
             const SizedBox(height: 24),

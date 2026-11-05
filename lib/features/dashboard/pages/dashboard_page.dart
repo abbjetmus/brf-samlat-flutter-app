@@ -176,7 +176,7 @@ class DashboardPage extends CompositionWidget {
         permissionName: 'users',
       ),
       _MenuItem(
-        label: 'Behörigheter',
+        label: 'Rättigheter',
         icon: Icons.admin_panel_settings_outlined,
         path: '/permissions',
         color: Color(0xFF64748B),
@@ -198,7 +198,7 @@ class DashboardPage extends CompositionWidget {
         featureName: 'invoices',
       ),
       _MenuItem(
-        label: 'Formulär',
+        label: 'Enkäter',
         icon: Icons.fact_check_outlined,
         path: '/forms',
         color: Color(0xFF7C3AED),

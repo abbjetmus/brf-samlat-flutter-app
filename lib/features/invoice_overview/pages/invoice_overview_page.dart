@@ -20,7 +20,7 @@ import '../widgets/register_payment_sheet.dart';
 
 /// Fakturaöversikt (admin): every invoice in the association with status,
 /// period and search filters, totals, and payment registration. Mirrors
-/// /admin/invoice-overview on the web; the CSV and SIE exports stay web-only.
+/// /portal/invoice-overview on the web; the CSV and SIE exports stay web-only.
 class InvoiceOverviewPage extends CompositionWidget {
   static const String path = '/invoice-overview';
 

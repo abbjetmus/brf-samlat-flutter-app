@@ -18,7 +18,7 @@ import '../../../shared/widgets/search_field.dart';
 /// another role, and a card for them would promise something that cannot be
 /// saved.
 const _menuLabels = <String, String>{
-  'posts': 'Nyheter',
+  'posts': 'Inlägg',
   'chat': 'Meddelanden',
   'issues': 'Felanmälan & ärenden',
   'residence_issues': 'Felanmälan & ärenden (bostäder)',
@@ -36,9 +36,9 @@ const _menuLabels = <String, String>{
   'maintenance_plan': 'Underhållsplan',
   'residence_applications': 'Ansökningar (andrahand, överlåtelse m.m.)',
   'invoices': 'Fakturor',
-  'invoice_builder': 'Faktura Byggaren',
-  'forms': 'Formulär',
-  'form_builder': 'Formulär Byggaren',
+  'invoice_builder': 'Fakturabyggaren',
+  'forms': 'Enkäter',
+  'form_builder': 'Formulärbyggaren',
 };
 
 class PermissionsPage extends CompositionWidget {
@@ -681,7 +681,7 @@ class PermissionsPage extends CompositionWidget {
       return DefaultTabController(
         length: 2,
         child: GradientScaffold(
-          title: 'Behörigheter',
+          title: 'Rättigheter',
           body: Column(
             children: [
               const HelpTip(
