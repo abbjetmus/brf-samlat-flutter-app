@@ -136,7 +136,6 @@ class AssociationsRecord {
   final String? created;
   final String? updated;
   final String name;
-  final String associationType;
   final String organizationNumber;
   final String streetAddress;
   final String zipCode;
@@ -152,7 +151,6 @@ class AssociationsRecord {
     this.created,
     this.updated,
     required this.name,
-    required this.associationType,
     required this.organizationNumber,
     required this.streetAddress,
     required this.zipCode,
@@ -168,7 +166,6 @@ class AssociationsRecord {
       created: json['created'] as String?,
       updated: json['updated'] as String?,
       name: json['name'] as String? ?? '',
-      associationType: json['association_type'] as String? ?? '',
       organizationNumber: json['organization_number'] as String? ?? '',
       streetAddress: json['street_address'] as String? ?? '',
       zipCode: json['zip_code'] as String? ?? '',
@@ -1564,7 +1561,6 @@ class UserInvitationsRecord {
   final String email;
   final String? phone;
   final String association;
-  final String associationType;
   final String userRoleType;
   final List<String> associationRoleTypes;
   final String invitationStatus;
@@ -1578,7 +1574,6 @@ class UserInvitationsRecord {
     required this.email,
     this.phone,
     required this.association,
-    required this.associationType,
     required this.userRoleType,
     this.associationRoleTypes = const [],
     required this.invitationStatus,
@@ -1594,7 +1589,6 @@ class UserInvitationsRecord {
       email: json['email'] as String? ?? '',
       phone: json['phone'] as String?,
       association: json['association'] as String? ?? '',
-      associationType: json['association_type'] as String? ?? '',
       userRoleType: json['user_role_type'] as String? ?? '',
       associationRoleTypes:
           (json['association_role_types'] as List<dynamic>?)

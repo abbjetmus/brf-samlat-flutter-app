@@ -123,7 +123,6 @@ class UsersStore {
     _loading.value = true;
     try {
       final assocId = _authStore.association.value?.id ?? '';
-      final assocType = _authStore.association.value?.associationType ?? 'BRF';
       if (assocId.isEmpty) return 'Kunde inte skicka inbjudan.';
 
       await _pb.collection(Collections.userInvitations).create(body: {
@@ -131,7 +130,6 @@ class UsersStore {
         'email': email,
         if (phone != null && phone.isNotEmpty) 'phone': phone,
         'association': assocId,
-        'association_type': assocType,
         'user_role_type': userRoleType,
         'invitation_status': 'Skickad',
       });
