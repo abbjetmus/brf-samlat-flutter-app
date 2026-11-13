@@ -66,6 +66,8 @@ class RegisterPage extends CompositionWidget {
             'email': invitation.email,
             'emailVisibility': true,
             'name': invitation.name,
+            // Without it the server refuses to create the account.
+            'invitation_token': token,
           },
         );
 

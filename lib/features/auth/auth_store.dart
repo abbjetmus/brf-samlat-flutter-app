@@ -150,6 +150,9 @@ class AuthStore {
               'user_role_type': invitationData.userRoleType,
               'association': invitationData.association,
               'association_role_types': invitationData.associationRoleTypes,
+              // Required by the users create hook (brf-samlat-pb): the token,
+              // not just an invited address, proves the invitation.
+              'invitation_token': invitationToken,
             },
           );
 
