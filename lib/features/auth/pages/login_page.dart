@@ -28,9 +28,13 @@ class LoginPage extends CompositionWidget {
     final contextRef = useContext();
     final theme = useTheme();
 
+    // E-mail or username: an association can create members without an
+    // e-mail address and give them a username (an identity field in PocketBase,
+    // matched case-insensitively, so lower-casing the input is fine).
     String? validateEmail(String? value) {
-      if (value == null || value.isEmpty) return 'E-post krävs';
-      if (!value.contains('@')) return 'Ogiltig e-postadress';
+      if (value == null || value.trim().isEmpty) {
+        return 'E-post eller användarnamn krävs';
+      }
       return null;
     }
 
@@ -191,9 +195,11 @@ class LoginPage extends CompositionWidget {
                               RegExp(r'[a-zA-Z0-9@._\-+]'),
                             ),
                           ],
+                          autofillHints: const [AutofillHints.username],
+                          autocorrect: false,
                           decoration: const InputDecoration(
-                            labelText: 'E-post',
-                            prefixIcon: Icon(Icons.email_outlined),
+                            labelText: 'E-post eller användarnamn',
+                            prefixIcon: Icon(Icons.person_outlined),
                           ),
                           validator: validateEmail,
                         ),
