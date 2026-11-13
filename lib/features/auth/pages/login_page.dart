@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
+import '../auth_store.dart' show OAuthCancelledException;
+import '../widgets/oauth_buttons.dart';
 import 'forgot_password_page.dart';
 import '../../dashboard/pages/dashboard_page.dart';
 
@@ -21,6 +23,7 @@ class LoginPage extends CompositionWidget {
 
     final isPasswordVisible = ref(false);
     final loading = ref(false);
+    final oauthProvider = ref<String?>(null);
     final authError = ref<String?>(null);
     final contextRef = useContext();
     final theme = useTheme();
@@ -71,6 +74,33 @@ class LoginPage extends CompositionWidget {
         }
       } finally {
         loading.value = false;
+      }
+    }
+
+    // Google/Microsoft/Apple. An existing account with the provider's e-mail
+    // is signed in; otherwise one is created only when there is a pending
+    // invitation for that address (the server sets association and roles).
+    Future<void> handleOAuthLogin(String provider) async {
+      oauthProvider.value = provider;
+      authError.value = null;
+
+      try {
+        await authStore.signInWithOAuth2(provider);
+        final context = contextRef.value;
+        if (context != null && context.mounted) {
+          context.go(DashboardPage.path);
+        }
+      } on OAuthCancelledException {
+        // The member closed the sign-in sheet — nothing to report.
+      } catch (error) {
+        final message = error.toString().replaceAll('Exception: ', '');
+        authError.value = message.toLowerCase().contains('inbjudan')
+            ? 'Det finns inget konto i BRF Samlat för den e-postadressen. '
+                  'Logga in med e-post och lösenord, eller be din förening om '
+                  'en inbjudan.'
+            : message;
+      } finally {
+        oauthProvider.value = null;
       }
     }
 
@@ -190,7 +220,9 @@ class LoginPage extends CompositionWidget {
                         const SizedBox(height: 24),
 
                         FilledButton(
-                          onPressed: loading.value ? null : handleLogin,
+                          onPressed: loading.value || oauthProvider.value != null
+                              ? null
+                              : handleLogin,
                           child: loading.value
                               ? const SizedBox(
                                   width: 20,
@@ -207,7 +239,15 @@ class LoginPage extends CompositionWidget {
                                   style: TextStyle(fontSize: 16),
                                 ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 8),
+
+                        OAuthButtons(
+                          actionText: 'Logga in med',
+                          busyProvider: oauthProvider.value,
+                          disabled: loading.value,
+                          onSelected: handleOAuthLogin,
+                        ),
+                        const SizedBox(height: 8),
 
                         Align(
                           alignment: Alignment.center,

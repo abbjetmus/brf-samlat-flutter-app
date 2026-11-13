@@ -54,6 +54,12 @@ dependencies:
   url_launcher: ^6.2.6
   http: ^1.2.2
 
+  # OAuth (Google/Microsoft/Apple): opens the provider in
+  # ASWebAuthenticationSession / Custom Tabs and catches brfsamlat://oauth-callback.
+  # Stay on 5.x — 6.x is only needed for AGP 9 / built-in Kotlin.
+  flutter_web_auth_2: ^5.1.0
+  flutter_svg: ^2.2.4
+
   # Force-update gate (checks store for newer versions)
   upgrader: ^12.3.0
   flutter_chat_ui: ^2.0.0
@@ -82,6 +88,8 @@ dependency_overrides:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/
 
 # App icons — generated from the BRF Samlat logo (green house mark on white).
 # Run: dart run flutter_launcher_icons

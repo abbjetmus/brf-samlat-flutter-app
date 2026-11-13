@@ -37,6 +37,20 @@
                 <data android:pathPrefix="/app"/>
             </intent-filter>
         </activity>
+        <!-- OAuth (Google/Microsoft/Apple): brfsamlat.se/oauth-callback forwards the
+             provider's answer to brfsamlat://oauth-callback, which this activity
+             hands back to flutter_web_auth_2 (see AuthStore.signInWithOAuth2). -->
+        <activity
+            android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+            android:exported="true"
+            android:taskAffinity="">
+            <intent-filter android:label="flutter_web_auth_2">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="brfsamlat"/>
+            </intent-filter>
+        </activity>
         <!-- Let the Flutter engine forward verified App Links to go_router. -->
         <meta-data
             android:name="flutter_deeplinking_enabled"

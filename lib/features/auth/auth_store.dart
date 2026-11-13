@@ -1,15 +1,31 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_compositions/flutter_compositions.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase, ClientException;
 import 'package:http/http.dart' as http;
 import '../../core/models/pocketbase_models.dart';
 import '../../core/utils/pb_error.dart';
 import '../../core/utils/permissions_utils.dart';
 
+/// The member closed the provider's sign-in sheet (or declined there). A
+/// choice, not a failure — callers stay silent.
+class OAuthCancelledException implements Exception {
+  const OAuthCancelledException();
+}
+
 class AuthStore {
   final PocketBase _pb;
+
+  // OAuth (Google/Microsoft/Apple). The provider redirects to this page on the
+  // web app (brf-samlat-nuxt-app/server/routes/oauth-callback.ts), which
+  // forwards to brfsamlat://oauth-callback — caught by ASWebAuthenticationSession
+  // on iOS and flutter_web_auth_2's CallbackActivity on Android. The URL must be
+  // registered as a redirect URI with every provider.
+  static const _oauthRedirectUrl = 'https://brfsamlat.se/oauth-callback';
+  static const _oauthCallbackScheme = 'brfsamlat';
 
   AuthStore(this._pb) {
     _initialize();
@@ -147,6 +163,114 @@ class AuthStore {
         e,
         'Registrering misslyckades. Kontrollera inbjudningskoden.',
       );
+    }
+  }
+
+  /// Looks up a pending invitation by its token, or null when it is unknown,
+  /// expired or already used.
+  Future<UserInvitationsRecord?> findInvitation(String invitationToken) async {
+    try {
+      final record = await _pb
+          .collection(Collections.userInvitations)
+          .getFirstListItem('invitation_token="$invitationToken"');
+      return UserInvitationsRecord.fromJson(record.toJson());
+    } catch (e) {
+      debugPrint('AuthStore: Error finding invitation: $e');
+      return null;
+    }
+  }
+
+  /// OAuth providers switched on for the users collection in PocketBase.
+  Future<List<String>> loadOAuthProviders() async {
+    try {
+      final methods = await _pb.collection(Collections.users).listAuthMethods();
+      if (!methods.oauth2.enabled) return const [];
+      return methods.oauth2.providers.map((p) => p.name).toList();
+    } catch (e) {
+      debugPrint('AuthStore: Error loading auth methods: $e');
+      return const [];
+    }
+  }
+
+  /// Signs in with Google, Microsoft or Apple and returns whether a new account
+  /// was created.
+  ///
+  /// An existing account with the provider's e-mail is signed in. Otherwise
+  /// PocketBase creates one — but only when there is a pending invitation for
+  /// the address: the users onRecordCreateRequest hook (brf-samlat-pb) enforces
+  /// that and sets association and roles from the invitation. [createData] is
+  /// only used for a new account (the register page passes the invitation's
+  /// e-mail and name).
+  ///
+  /// Throws [OAuthCancelledException] when the member backs out, otherwise an
+  /// [Exception] with a Swedish message.
+  Future<bool> signInWithOAuth2(
+    String provider, {
+    Map<String, dynamic> createData = const {},
+  }) async {
+    try {
+      final methods = await _pb.collection(Collections.users).listAuthMethods();
+      final providerData = methods.oauth2.providers
+          .where((p) => p.name == provider)
+          .firstOrNull;
+      if (providerData == null) {
+        throw Exception('Inloggning med $provider är inte aktiverad.');
+      }
+
+      final String resultUrl;
+      try {
+        resultUrl = await FlutterWebAuth2.authenticate(
+          url:
+              providerData.authURL + Uri.encodeComponent(_oauthRedirectUrl),
+          callbackUrlScheme: _oauthCallbackScheme,
+        );
+      } on PlatformException catch (e) {
+        if (e.code.toUpperCase().contains('CANCEL')) {
+          throw const OAuthCancelledException();
+        }
+        rethrow;
+      }
+
+      final params = Uri.parse(resultUrl).queryParameters;
+      final error = params['error'];
+      if (error != null) {
+        // Apple: user_cancelled_authorize, Google/Microsoft: access_denied.
+        if (error.contains('cancel') || error == 'access_denied') {
+          throw const OAuthCancelledException();
+        }
+        throw Exception('Inloggningen misslyckades ($error).');
+      }
+      final code = params['code'];
+      if (code == null || code.isEmpty) {
+        throw Exception('Inloggningen misslyckades. Försök igen.');
+      }
+      if (params['state'] != providerData.state) {
+        throw Exception('Inloggningen misslyckades. Försök igen.');
+      }
+
+      final auth = await _pb
+          .collection(Collections.users)
+          .authWithOAuth2Code(
+            provider,
+            code,
+            providerData.codeVerifier,
+            _oauthRedirectUrl,
+            createData: createData,
+          );
+
+      _token.value = _pb.authStore.token;
+      _currentUser.value = UsersRecord.fromJson(auth.record.toJson());
+      await _loadUserData();
+      return auth.meta['isNew'] == true;
+    } on OAuthCancelledException {
+      rethrow;
+    } on ClientException catch (e) {
+      debugPrint('AuthStore: $provider OAuth error: $e');
+      throw Exception(pbErrorMessage(e, 'Inloggningen misslyckades.'));
+    } catch (e) {
+      debugPrint('AuthStore: $provider OAuth error: $e');
+      if (e is Exception) rethrow;
+      throw Exception('Inloggningen misslyckades.');
     }
   }
 

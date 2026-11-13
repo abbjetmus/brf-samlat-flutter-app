@@ -4,6 +4,9 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../../dashboard/pages/dashboard_page.dart';
+import '../auth_store.dart' show OAuthCancelledException;
+import '../widgets/oauth_buttons.dart';
 
 class RegisterPage extends CompositionWidget {
   static const String path = '/register';
@@ -21,7 +24,82 @@ class RegisterPage extends CompositionWidget {
 
     final isPasswordVisible = ref(false);
     final loading = ref(false);
+    final oauthProvider = ref<String?>(null);
     final contextRef = useContext();
+
+    void showMessage(String text, {bool error = false}) {
+      final context = contextRef.value;
+      if (context == null || !context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(text),
+          backgroundColor: error ? Colors.red : AppTheme.primaryColor,
+        ),
+      );
+    }
+
+    // Google/Microsoft/Apple: only the invitation code is needed. The account
+    // gets the invitation's e-mail and name even when the provider's address
+    // differs (another Gmail, Apple's "Hide My Email"); association and roles
+    // come from the invitation on the server (users onRecordCreateRequest).
+    Future<void> handleOAuthRegister(String provider) async {
+      final token = tokenController.text.trim();
+      if (token.isEmpty) {
+        showMessage('Ange inbjudningskoden först.', error: true);
+        return;
+      }
+
+      oauthProvider.value = provider;
+      try {
+        final invitation = await authStore.findInvitation(token);
+        if (invitation == null) {
+          showMessage(
+            'Inbjudan hittades inte eller har redan använts.',
+            error: true,
+          );
+          return;
+        }
+
+        final isNew = await authStore.signInWithOAuth2(
+          provider,
+          createData: {
+            'email': invitation.email,
+            'emailVisibility': true,
+            'name': invitation.name,
+          },
+        );
+
+        // The provider's e-mail already belonged to another account, so
+        // PocketBase signed in to that one instead of using the invitation.
+        if (!isNew) {
+          final existingEmail = authStore.currentUser.value?.email ?? '';
+          authStore.signOut();
+          showMessage(
+            existingEmail.isNotEmpty
+                ? 'Det kontot är redan kopplat till $existingEmail i BRF Samlat. '
+                      'Logga in med det i stället.'
+                : 'Det kontot är redan kopplat till ett annat konto i BRF Samlat.',
+            error: true,
+          );
+          return;
+        }
+
+        showMessage('Konto skapat! Du är nu inloggad.');
+        final context = contextRef.value;
+        if (context != null && context.mounted) {
+          context.go(DashboardPage.path);
+        }
+      } on OAuthCancelledException {
+        // The member closed the sign-in sheet — nothing to report.
+      } catch (error) {
+        showMessage(
+          error.toString().replaceAll('Exception: ', ''),
+          error: true,
+        );
+      } finally {
+        oauthProvider.value = null;
+      }
+    }
 
     Future<void> handleRegister() async {
       if (!formKey.currentState!.validate()) return;
@@ -151,7 +229,9 @@ class RegisterPage extends CompositionWidget {
                     const SizedBox(height: 24),
 
                     FilledButton(
-                      onPressed: loading.value ? null : handleRegister,
+                      onPressed: loading.value || oauthProvider.value != null
+                          ? null
+                          : handleRegister,
                       child: loading.value
                           ? const SizedBox(
                               width: 20,
@@ -162,6 +242,13 @@ class RegisterPage extends CompositionWidget {
                               ),
                             )
                           : const Text('Registrera', style: TextStyle(fontSize: 16)),
+                    ),
+
+                    OAuthButtons(
+                      dividerText: 'eller skapa kontot med',
+                      busyProvider: oauthProvider.value,
+                      disabled: loading.value,
+                      onSelected: handleOAuthRegister,
                     ),
                   ],
                 ),
