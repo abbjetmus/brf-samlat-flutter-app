@@ -9,7 +9,7 @@ class AppDateUtils {
   /// Format: "2024-01-15 14:30"
   static String formatDateTime(String? isoString) {
     if (isoString == null || isoString.isEmpty) return '';
-    final date = DateTime.tryParse(isoString);
+    final date = DateTime.tryParse(isoString)?.toLocal();
     if (date == null) return '';
     return DateFormat('yyyy-MM-dd HH:mm', 'sv_SE').format(date);
   }
@@ -17,7 +17,7 @@ class AppDateUtils {
   /// Format: "2024-01-15"
   static String formatDate(String? isoString) {
     if (isoString == null || isoString.isEmpty) return '';
-    final date = DateTime.tryParse(isoString);
+    final date = DateTime.tryParse(isoString)?.toLocal();
     if (date == null) return '';
     return DateFormat('yyyy-MM-dd', 'sv_SE').format(date);
   }
@@ -25,7 +25,7 @@ class AppDateUtils {
   /// Format: "15 januari 2024"
   static String formatDateLong(String? isoString) {
     if (isoString == null || isoString.isEmpty) return '';
-    final date = DateTime.tryParse(isoString);
+    final date = DateTime.tryParse(isoString)?.toLocal();
     if (date == null) return '';
     return DateFormat('d MMMM yyyy', 'sv_SE').format(date);
   }
@@ -33,7 +33,7 @@ class AppDateUtils {
   /// Format: "14:30"
   static String formatTime(String? isoString) {
     if (isoString == null || isoString.isEmpty) return '';
-    final date = DateTime.tryParse(isoString);
+    final date = DateTime.tryParse(isoString)?.toLocal();
     if (date == null) return '';
     return DateFormat('HH:mm', 'sv_SE').format(date);
   }
@@ -41,7 +41,7 @@ class AppDateUtils {
   /// Format: "januari"
   static String formatMonth(String? isoString) {
     if (isoString == null || isoString.isEmpty) return '';
-    final date = DateTime.tryParse(isoString);
+    final date = DateTime.tryParse(isoString)?.toLocal();
     if (date == null) return '';
     return DateFormat('MMMM', 'sv_SE').format(date);
   }
@@ -49,7 +49,7 @@ class AppDateUtils {
   /// Format: "15 jan"
   static String formatDayAndMonth(String? isoString) {
     if (isoString == null || isoString.isEmpty) return '';
-    final date = DateTime.tryParse(isoString);
+    final date = DateTime.tryParse(isoString)?.toLocal();
     if (date == null) return '';
     return DateFormat('d MMM', 'sv_SE').format(date);
   }
@@ -57,7 +57,7 @@ class AppDateUtils {
   /// Format: "Mån 15 jan 2024"
   static String formatDateCalendar(String? isoString) {
     if (isoString == null || isoString.isEmpty) return '';
-    final date = DateTime.tryParse(isoString);
+    final date = DateTime.tryParse(isoString)?.toLocal();
     if (date == null) return '';
     return DateFormat('E d MMM yyyy', 'sv_SE').format(date);
   }
@@ -65,7 +65,7 @@ class AppDateUtils {
   /// Swedish relative time (e.g. "just nu", "5 min sedan", "1 dag sedan")
   static String timeAgo(String? isoString) {
     if (isoString == null || isoString.isEmpty) return '';
-    final date = DateTime.tryParse(isoString);
+    final date = DateTime.tryParse(isoString)?.toLocal();
     if (date == null) return '';
 
     final now = DateTime.now();

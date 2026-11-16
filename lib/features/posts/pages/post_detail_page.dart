@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/di/injection_keys.dart';
+import '../../../core/models/pocketbase_models.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/calendar_export.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
+import '../../../shared/widgets/attachments_section.dart';
 import '../../../shared/widgets/comments_list.dart';
 import '../../../shared/widgets/status_chip.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
@@ -126,6 +129,19 @@ class PostDetailPage extends CompositionWidget {
                 child: RichDescription(html: post.description),
               ),
 
+              // Attachments (images as thumbnails, other files as a list)
+              if (post.attachments.isNotEmpty) ...[
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: AttachmentsSection(
+                    collection: Collections.posts,
+                    recordId: post.id,
+                    files: post.attachments,
+                  ),
+                ),
+              ],
+
               // Calendar info
               if (post.addToCalendar && post.startAt != null) ...[
                 const Divider(height: 1),
@@ -150,6 +166,11 @@ class PostDetailPage extends CompositionWidget {
                               ),
                           ],
                         ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () => _addPostToCalendar(context, post),
+                        icon: const Icon(Icons.event_available_outlined),
+                        label: const Text('Lägg till i kalender'),
                       ),
                     ],
                   ),
@@ -205,5 +226,23 @@ class PostDetailPage extends CompositionWidget {
         ),
       );
     };
+  }
+}
+
+/// "Lägg till i kalender" för ett inlägg med start/slut (add_to_calendar).
+Future<void> _addPostToCalendar(BuildContext context, PostsRecord post) async {
+  final start = DateTime.tryParse(post.startAt ?? '');
+  if (start == null) return;
+  final ok = await CalendarExport.addEvent(
+    title: post.title,
+    start: start,
+    end: DateTime.tryParse(post.endAt ?? ''),
+    description: post.description,
+    url: CalendarExport.webUrl('/portal/posts/${post.id}'),
+  );
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Kunde inte öppna kalendern.')),
+    );
   }
 }

@@ -19,6 +19,19 @@ class RichDescription extends StatelessWidget {
   final Color? color;
   final double lineHeight;
 
+  /// The web editor (Tiptap) saves a blank line as an empty `<p></p>`, which
+  /// flutter_html collapses to nothing, so posts lost their spacing. Give
+  /// every empty paragraph one line of content: a zero-width space, since
+  /// flutter_html trims ordinary spaces and `&nbsp;`, and a `<br>` alone
+  /// renders two lines high.
+  static final RegExp _emptyParagraph = RegExp(
+    r'<p(\s[^>]*)?>(\s|&nbsp;|&#160;|\u00a0|<br\s*/?>)*</p>',
+    caseSensitive: false,
+  );
+
+  static String normalize(String html) =>
+      html.replaceAllMapped(_emptyParagraph, (m) => '<p${m[1] ?? ''}>\u200B</p>');
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -27,7 +40,7 @@ class RichDescription extends StatelessWidget {
     final linkColor = theme.colorScheme.primary;
 
     return Html(
-      data: html,
+      data: normalize(html),
       onLinkTap: (url, _, __) async {
         if (url == null) return;
         final uri = Uri.tryParse(url);
@@ -44,10 +57,12 @@ class RichDescription extends StatelessWidget {
           color: textColor,
           lineHeight: LineHeight(lineHeight),
         ),
-        'p': Style(margin: Margins.only(bottom: 8)),
+        'p': Style(margin: Margins.only(bottom: 12)),
         'p:last-child': Style(margin: Margins.zero),
-        'ul, ol': Style(margin: Margins.only(bottom: 8, left: 16)),
+        'ul, ol': Style(margin: Margins.only(bottom: 12, left: 16)),
         'li': Style(margin: Margins.only(bottom: 4)),
+        // Tiptap wraps list item text in <p>; no paragraph gap inside lists.
+        'li p': Style(margin: Margins.zero),
         'a': Style(
           color: linkColor,
           textDecoration: TextDecoration.underline,

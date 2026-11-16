@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'package:file_picker/file_picker.dart' show PlatformFile;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
@@ -92,7 +92,7 @@ class PostsStore {
     bool sendPushNotification = false,
     String? startAt,
     String? endAt,
-    List<File>? attachments,
+    List<PlatformFile> attachments = const [],
   }) async {
     _loading.value = true;
     try {
@@ -113,19 +113,7 @@ class PostsStore {
       if (startAt != null) body['start_at'] = startAt;
       if (endAt != null) body['end_at'] = endAt;
 
-      final files = <http.MultipartFile>[];
-      if (attachments != null) {
-        for (final file in attachments) {
-          final bytes = await file.readAsBytes();
-          files.add(
-            http.MultipartFile.fromBytes(
-              'attachments',
-              bytes,
-              filename: file.path.split('/').last,
-            ),
-          );
-        }
-      }
+      final files = _multipartFiles('attachments', attachments);
 
       await _pb.collection(Collections.posts).create(body: body, files: files);
 
@@ -149,12 +137,17 @@ class PostsStore {
     bool? sendPushNotification,
     String? startAt,
     String? endAt,
+    List<PlatformFile> newAttachments = const [],
+    List<String> removedAttachments = const [],
   }) async {
     _loading.value = true;
     try {
       final body = <String, dynamic>{
         'title': title,
         'description': description,
+        // `attachments-` removes the named files; `attachments+` (below) adds
+        // files instead of replacing the existing ones.
+        if (removedAttachments.isNotEmpty) 'attachments-': removedAttachments,
       };
 
       if (commentsAllowed != null) body['comments_allowed'] = commentsAllowed;
@@ -166,7 +159,13 @@ class PostsStore {
       if (startAt != null) body['start_at'] = startAt;
       if (endAt != null) body['end_at'] = endAt;
 
-      await _pb.collection(Collections.posts).update(id, body: body);
+      await _pb
+          .collection(Collections.posts)
+          .update(
+            id,
+            body: body,
+            files: _multipartFiles('attachments+', newAttachments),
+          );
       await getPost(id);
       await getAllPosts();
       return true;
@@ -177,6 +176,15 @@ class PostsStore {
       _loading.value = false;
     }
   }
+
+  static List<http.MultipartFile> _multipartFiles(
+    String field,
+    List<PlatformFile> files,
+  ) => [
+    for (final f in files)
+      if (f.bytes != null)
+        http.MultipartFile.fromBytes(field, f.bytes!, filename: f.name),
+  ];
 
   Future<bool> deletePost(String id) async {
     _loading.value = true;

@@ -374,14 +374,46 @@ class AuthStore {
     }
   }
 
+  // Built-in roles in the order boards are usually presented, then the
+  // association's own roles A–Ö (same as the web, utils/roleTypes.ts).
+  static const _builtInRoleOrder = [
+    'chairman',
+    'viceChairman',
+    'secretary',
+    'treasurer',
+    'boardMember',
+    'deputy',
+    'nominationCommittee',
+    'propertyCaretaker',
+    'propertyManager',
+  ];
+
+  static List<AssociationRoleTypesRecord> _sortRoleTypes(
+    List<AssociationRoleTypesRecord> roles,
+  ) {
+    int rank(AssociationRoleTypesRecord role) {
+      if (role.isCustom) return 1000;
+      final index = _builtInRoleOrder.indexOf(role.name);
+      return index == -1 ? 500 : index;
+    }
+
+    return [...roles]..sort((a, b) {
+      final byRank = rank(a).compareTo(rank(b));
+      if (byRank != 0) return byRank;
+      return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+    });
+  }
+
   Future<void> loadAssociationRoleTypes() async {
     try {
       final records = await _pb
           .collection(Collections.associationRoleTypes)
           .getFullList();
-      _associationRoleTypes.value = records
-          .map((r) => AssociationRoleTypesRecord.fromJson(r.toJson()))
-          .toList();
+      _associationRoleTypes.value = _sortRoleTypes(
+        records
+            .map((r) => AssociationRoleTypesRecord.fromJson(r.toJson()))
+            .toList(),
+      );
     } catch (e) {
       debugPrint('AuthStore: Error loading association role types: $e');
     }

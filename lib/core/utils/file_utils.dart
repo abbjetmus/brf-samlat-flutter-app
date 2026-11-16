@@ -40,7 +40,9 @@ FileInfo parseFilename(String filename) {
   final underscoreParts = name.split('_');
   if (underscoreParts.length > 1) {
     final lastPart = underscoreParts.last;
-    if (lastPart.length >= 10 && RegExp(r'^[a-zA-Z0-9]+$').hasMatch(lastPart)) {
+    // The suffix is always exactly 10 characters; a longer last word
+    // ("min_dokumentation.pdf") is part of the real name.
+    if (lastPart.length == 10 && RegExp(r'^[a-zA-Z0-9]+$').hasMatch(lastPart)) {
       name = underscoreParts.sublist(0, underscoreParts.length - 1).join('_');
     }
   }
@@ -100,3 +102,15 @@ String byteToMegabyte(int bytes) {
 /// Mirrors the PocketBase `folders_and_files.files` field `maxSize`
 /// (migration 1790901420_raise_file_limits.js); keep the two in sync.
 const int kMaxUploadBytes = 50 * 1024 * 1024;
+
+/// The original file name for display: PocketBase's random `_xxxxxxxxxx`
+/// suffix removed, extension kept ("protokoll_ab12cd34ef.pdf" → "protokoll.pdf").
+String displayFileName(String filename) {
+  final info = parseFilename(filename);
+  return info.extension.isEmpty ? info.name : '${info.name}.${info.extension}';
+}
+
+/// Max upload size per attachment (posts, issues, calendar events, chat), in
+/// bytes (25 MiB). Mirrors the PocketBase `attachments` fields' `maxSize`
+/// (migration 1790901420_raise_file_limits.js); keep the two in sync.
+const int kMaxAttachmentBytes = 25 * 1024 * 1024;

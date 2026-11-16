@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/calendar_export.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
@@ -11,6 +13,7 @@ import '../../../shared/widgets/help_tip.dart';
 import '../../../shared/widgets/rich_description.dart';
 import '../../signatures/widgets/meeting_signatures_section.dart';
 import '../board_meeting_pdf.dart';
+import 'create_board_meeting_page.dart';
 
 class BoardMeetingDetailPage extends CompositionWidget {
   static const String path = '/board/detail';
@@ -25,9 +28,18 @@ class BoardMeetingDetailPage extends CompositionWidget {
     final authStore = inject(authStoreKey);
     final signaturesStore = inject(signaturesStoreKey);
     final contextRef = useContext();
+    // Protokollet är låst efter den första signaturen (som i webben); då går
+    // mötet inte längre att redigera. null = inte inläst än.
+    final locked = ref<bool?>(null);
+
+    Future<void> loadLock() async {
+      final signatures = await signaturesStore.getForMeeting(meetingId);
+      locked.value = signatures?.isLocked ?? false;
+    }
 
     onMounted(() {
       boardStore.getBoardMeeting(meetingId);
+      loadLock();
     });
 
     return (context) {
@@ -37,6 +49,9 @@ class BoardMeetingDetailPage extends CompositionWidget {
         'board_meetings',
         CrudOperation.delete,
       );
+      final canEdit =
+          locked.value == false &&
+          authStore.hasPermission('board_meetings', CrudOperation.update);
 
       if (loading && meeting == null) {
         return const GradientScaffold(
@@ -63,6 +78,41 @@ class BoardMeetingDetailPage extends CompositionWidget {
         actions: [
           EntityActionMenu.header(
             actions: [
+              if (canEdit)
+                EntityAction.update(() async {
+                  await context.push(
+                    CreateBoardMeetingPage.editPath(meeting.id),
+                  );
+                  // Mallbyte kan ha ersatt protokollet; läs om låsstatus.
+                  await loadLock();
+                }, label: 'Redigera möte'),
+              EntityAction(
+                icon: Icons.event_available_outlined,
+                label: 'Lägg till i kalender',
+                onSelected: () async {
+                  final start = DateTime.tryParse(meeting.startAt);
+                  if (start == null) return;
+                  final ok = await CalendarExport.addEvent(
+                    title: authStore.association.value?.name != null
+                        ? 'Styrelsemöte – ${authStore.association.value!.name}'
+                        : 'Styrelsemöte',
+                    start: start,
+                    end: DateTime.tryParse(meeting.endAt),
+                    location: address,
+                    url: CalendarExport.webUrl(
+                      '/portal/board/meetings/${meeting.id}',
+                    ),
+                  );
+                  final ctx = contextRef.value;
+                  if (!ok && ctx != null && ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(
+                        content: Text('Kunde inte öppna kalendern.'),
+                      ),
+                    );
+                  }
+                },
+              ),
               EntityAction(
                 icon: Icons.picture_as_pdf_outlined,
                 label: 'Generera PDF',

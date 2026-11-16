@@ -31,7 +31,40 @@ class ChatRoomsPage extends CompositionWidget {
       chatStore.unsubscribeAll();
     });
 
+    final openingBoardRoom = ref<bool>(false);
+
+    // "Skriv till styrelsen": find-or-create the member's board room on the
+    // server, then open it.
+    Future<void> openBoardRoom(BuildContext context) async {
+      if (openingBoardRoom.value) return;
+      openingBoardRoom.value = true;
+      final roomId = await chatStore.openBoardRoom();
+      openingBoardRoom.value = false;
+      if (!context.mounted) return;
+      if (roomId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              chatStore.lastError ?? 'Kunde inte öppna styrelsechatten.',
+            ),
+          ),
+        );
+        return;
+      }
+      context.push('${ChatRoomPage.path}/$roomId', extra: 'Styrelsen');
+    }
+
+    String preview(ChatMessagesRecord? last) {
+      if (last == null) return 'Inga meddelanden';
+      if (last.deleted) return 'Meddelandet har tagits bort';
+      final content = last.content ?? '';
+      if (content.isEmpty && last.files.isNotEmpty) return '📎 Bilaga';
+      return content;
+    }
+
     void showRoomOptions(BuildContext context, ChatRoomsRecord room) {
+      // The board room is managed by the server: no leave/delete.
+      if (room.isBoardRoom) return;
       final currentUserId = authStore.currentUser.value?.id;
       final isCreator = room.createdBy == currentUserId;
       final title = chatStore.roomTitle(room);
@@ -130,29 +163,93 @@ class ChatRoomsPage extends CompositionWidget {
     }
 
     return (context) {
-      final rooms = chatStore.rooms.value;
+      final me = authStore.currentUser.value?.id;
+      // Members (not the board) always get a pinned "Skriv till styrelsen"
+      // entry; their own board room is shown there instead of in the list.
+      final showBoardEntry = !authStore.isBoardMember.value;
+      final boardOnly = chatStore.boardOnlyRestricted;
+      final allRooms = chatStore.rooms.value;
+      final myBoardRoom = showBoardEntry
+          ? allRooms.where((r) => r.boardContactUser == me).firstOrNull
+          : null;
+      final rooms = myBoardRoom == null
+          ? allRooms
+          : allRooms.where((r) => r.id != myBoardRoom.id).toList();
       final loading = chatStore.loadingRooms.value;
+      final boardUnread =
+          myBoardRoom == null ? 0 : chatStore.unreadCount(myBoardRoom.id);
+
+      final boardEntry = showBoardEntry
+          ? Card(
+              margin: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: AppTheme.primaryColor,
+                  child: const Icon(
+                    Icons.groups_outlined,
+                    color: Colors.white,
+                  ),
+                ),
+                title: const Text(
+                  'Skriv till styrelsen',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  myBoardRoom == null
+                      ? 'Når hela styrelsen på en gång'
+                      : preview(chatStore.lastMessages.value[myBoardRoom.id]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: openingBoardRoom.value
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : boardUnread > 0
+                        ? Badge(label: Text('$boardUnread'))
+                        : const Icon(Icons.chevron_right),
+                onTap: () => openBoardRoom(context),
+              ),
+            )
+          : null;
 
       return GradientScaffold(
         title: 'Meddelanden',
-        floatingActionButton: FloatingActionButton(
-          onPressed: () => context.push(NewChatPage.path),
-          child: const Icon(Icons.add_comment_outlined),
-        ),
+        // With chat_mode 'board_only', members can't start conversations.
+        floatingActionButton: boardOnly
+            ? null
+            : FloatingActionButton(
+                onPressed: () => context.push(NewChatPage.path),
+                child: const Icon(Icons.add_comment_outlined),
+              ),
         body: Column(
           children: [
-            const HelpTip(
+            HelpTip(
               id: 'chat',
-              text:
-                'Tryck på + och välj en eller flera personer för att starta '
-                'en konversation. Håll fingret på en konversation för att '
-                'lämna den, eller radera den om du startade den.',
+              text: boardOnly
+                  ? 'Föreningen har valt att medlemmar bara kan skriva till '
+                      'styrelsen. Tryck på Skriv till styrelsen för att nå '
+                      'hela styrelsen. Du kan svara när styrelsen skriver '
+                      'till dig.'
+                  : 'Tryck på + och välj en eller flera personer för att '
+                      'starta en konversation. Skriv till styrelsen når hela '
+                      'styrelsen på en gång. Håll fingret på en konversation '
+                      'för att lämna den, eller radera den om du startade den.',
             ),
+            ?boardEntry,
             Expanded(
               child: loading && rooms.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : rooms.isEmpty
-                ? const Center(child: Text('Inga konversationer ännu.'))
+                ? Center(
+                    child: Text(
+                      showBoardEntry
+                          ? 'Inga andra konversationer ännu.'
+                          : 'Inga konversationer ännu.',
+                    ),
+                  )
                 : RefreshIndicator(
                     onRefresh: () => chatStore.getRooms(),
                     child: ListView.separated(
@@ -171,15 +268,11 @@ class ChatRoomsPage extends CompositionWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          subtitle: last != null
-                              ? Text(
-                                  last.deleted
-                                      ? 'Meddelandet har tagits bort'
-                                      : (last.content ?? ''),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                )
-                              : const Text('Inga meddelanden'),
+                          subtitle: Text(
+                            preview(last),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           trailing: unread > 0
                               ? Badge(label: Text('$unread'))
                               : const Icon(Icons.chevron_right),
@@ -218,7 +311,9 @@ class _RoomAvatar extends StatelessWidget {
     return CircleAvatar(
       backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.15),
       child: Icon(
-        room.isGroup ? Icons.group_outlined : Icons.person_outline,
+        room.isBoardRoom
+            ? Icons.groups_outlined
+            : (room.isGroup ? Icons.group_outlined : Icons.person_outline),
         color: AppTheme.primaryColor,
       ),
     );

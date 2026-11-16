@@ -1,7 +1,9 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/file_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/rich_text_editor.dart';
 
@@ -28,6 +30,20 @@ class CreatePostPage extends CompositionWidget {
     final addToCalendar = ref(existing?.addToCalendar ?? false);
     final loading = ref(false);
     final contextRef = useContext();
+
+    // Attachments: the post's stored files minus the ones removed here, plus
+    // newly picked files (uploaded on save).
+    final storedAttachments = ref<List<String>>(
+      existing?.attachments ?? const [],
+    );
+    final removedAttachments = ref<List<String>>([]);
+    final newAttachments = ref<List<PlatformFile>>([]);
+    final keptAttachments = computed(
+      () => [
+        for (final f in storedAttachments.value)
+          if (!removedAttachments.value.contains(f)) f,
+      ],
+    );
 
     // Calendar start/end, shown only when "Lägg till i kalender" is on.
     // Stored as UTC ISO strings; held here as local DateTimes for the pickers.
@@ -61,6 +77,7 @@ class CreatePostPage extends CompositionWidget {
           addToCalendar.value = post.addToCalendar;
           startDate.value = parseStored(post.startAt);
           endDate.value = parseStored(post.endAt);
+          storedAttachments.value = post.attachments;
         }
         descriptionReady.value = true;
       }
@@ -110,6 +127,30 @@ class CreatePostPage extends CompositionWidget {
       }
     }
 
+    Future<void> pickAttachments() async {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+      final tooLarge = result.files
+          .where((f) => f.size > kMaxAttachmentBytes)
+          .map((f) => f.name)
+          .toList();
+      if (tooLarge.isNotEmpty) {
+        showError(
+          '${tooLarge.join(', ')} är för stor. Max '
+          '${kMaxAttachmentBytes ~/ (1024 * 1024)} MB per fil.',
+        );
+      }
+      newAttachments.value = [
+        ...newAttachments.value,
+        ...result.files.where(
+          (f) => f.bytes != null && f.size <= kMaxAttachmentBytes,
+        ),
+      ];
+    }
+
     Future<void> savePost() async {
       if (titleController.text.trim().isEmpty) return;
       if (htmlIsEmpty(descriptionHtml)) return;
@@ -145,6 +186,8 @@ class CreatePostPage extends CompositionWidget {
               addToCalendar: addToCalendar.value,
               startAt: startIso,
               endAt: endIso,
+              newAttachments: newAttachments.value,
+              removedAttachments: removedAttachments.value,
             )
           : await postsStore.createPost(
               title: titleController.text.trim(),
@@ -154,6 +197,7 @@ class CreatePostPage extends CompositionWidget {
               addToCalendar: addToCalendar.value,
               startAt: startIso,
               endAt: endIso,
+              attachments: newAttachments.value,
             );
       loading.value = false;
 
@@ -215,6 +259,63 @@ class CreatePostPage extends CompositionWidget {
                 child: Center(child: CircularProgressIndicator()),
               ),
             const SizedBox(height: 16),
+            Text(
+              'Bilagor',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).hintColor,
+              ),
+            ),
+            for (final f in keptAttachments.value)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(parseFilename(f).icon),
+                title: Text(
+                  displayFileName(f),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Ta bort bilagan',
+                  onPressed: loading.value
+                      ? null
+                      : () => removedAttachments.value = [
+                          ...removedAttachments.value,
+                          f,
+                        ],
+                ),
+              ),
+            for (final f in newAttachments.value)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(parseFilename(f.name).icon),
+                title: Text(
+                  f.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                trailing: IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Ta bort',
+                  onPressed: loading.value
+                      ? null
+                      : () => newAttachments.value = [
+                          for (final a in newAttachments.value)
+                            if (a != f) a,
+                        ],
+                ),
+              ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: loading.value ? null : pickAttachments,
+                icon: const Icon(Icons.attach_file),
+                label: const Text('Bifoga fil'),
+              ),
+            ),
+            const SizedBox(height: 8),
             SwitchListTile(
               title: const Text('Tillåt kommentarer'),
               value: commentsAllowed.value,

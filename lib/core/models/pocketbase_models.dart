@@ -146,6 +146,20 @@ class AssociationsRecord {
   /// Feature tokens this association has switched off (denylist). Empty = all on.
   final List<String> disabledFeatures;
 
+  /// Raw `dashboard_config` JSON (startsidan). Parse with
+  /// `DashboardConfig.fromJson` (core/utils/dashboard_widgets.dart); null = the
+  /// default layout.
+  final Object? dashboardConfig;
+
+  /// The association's own public website (`website_url`), '' when unset.
+  final String websiteUrl;
+
+  /// `chat_mode`: 'all' (default, also when unset) or 'board_only' — members
+  /// who are neither board nor admin may then only write to the board.
+  final String chatMode;
+
+  bool get chatBoardOnly => chatMode == 'board_only';
+
   AssociationsRecord({
     required this.id,
     this.created,
@@ -158,6 +172,9 @@ class AssociationsRecord {
     this.email,
     this.permissions,
     this.disabledFeatures = const [],
+    this.dashboardConfig,
+    this.websiteUrl = '',
+    this.chatMode = 'all',
   });
 
   factory AssociationsRecord.fromJson(Map<String, dynamic> json) {
@@ -177,6 +194,9 @@ class AssociationsRecord {
                 .map((e) => e.toString())
                 .toList()
           : const [],
+      dashboardConfig: json['dashboard_config'],
+      websiteUrl: (json['website_url'] as String? ?? '').trim(),
+      chatMode: json['chat_mode'] == 'board_only' ? 'board_only' : 'all',
     );
   }
 }
@@ -220,6 +240,13 @@ class AssociationRoleTypesRecord {
   /// as valberedning or fastighetsskötare. Permissions use the role id either way.
   final bool isBoardRole;
 
+  /// Empty for the built-in roles shared by every association; otherwise the
+  /// association that created this role (Inställningar → Roller on the web).
+  /// The API only returns built-in roles and the user's own association's.
+  final String association;
+
+  bool get isCustom => association.isNotEmpty;
+
   AssociationRoleTypesRecord({
     required this.id,
     this.created,
@@ -227,6 +254,7 @@ class AssociationRoleTypesRecord {
     required this.name,
     this.displayName = '',
     this.isBoardRole = false,
+    this.association = '',
   });
 
   factory AssociationRoleTypesRecord.fromJson(Map<String, dynamic> json) {
@@ -237,6 +265,7 @@ class AssociationRoleTypesRecord {
       name: json['name'] as String? ?? '',
       displayName: json['displayName'] as String? ?? '',
       isBoardRole: json['is_board_role'] as bool? ?? false,
+      association: json['association'] as String? ?? '',
     );
   }
 }
@@ -1458,8 +1487,10 @@ class FaqRecord {
   final String? updated;
   final String title;
   final String description;
+
   /// Kategori, samma namn som menyposterna (t.ex. "Inlägg", "Enkäter").
   final String? tags;
+
   /// Ordningen på hjälpsidan; kategorierna kommer i menyordning.
   final int? position;
 
@@ -1621,6 +1652,12 @@ class ChatRoomsRecord {
   // Expanded member user records (when fetched with expand=members).
   final List<UsersRecord> memberUsers;
 
+  /// Set = the member's "Styrelsen" room (member + whole board), created and
+  /// kept in sync by the server (POST /api/chat/board-room).
+  final String? boardContactUser;
+
+  bool get isBoardRoom => boardContactUser?.isNotEmpty ?? false;
+
   ChatRoomsRecord({
     required this.id,
     this.created,
@@ -1632,6 +1669,7 @@ class ChatRoomsRecord {
     this.members = const [],
     this.avatar,
     this.memberUsers = const [],
+    this.boardContactUser,
   });
 
   factory ChatRoomsRecord.fromJson(Map<String, dynamic> json) {
@@ -1656,6 +1694,7 @@ class ChatRoomsRecord {
               ?.map((e) => UsersRecord.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      boardContactUser: json['board_contact_user'] as String?,
     );
   }
 }

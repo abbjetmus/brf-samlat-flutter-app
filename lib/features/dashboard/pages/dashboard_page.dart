@@ -3,12 +3,14 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/dashboard_widgets.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/notification_link_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../dashboard_store.dart';
 import '../../settings/pages/settings_page.dart';
 import '../../posts/pages/post_detail_page.dart';
+import '../../association/pages/association_info_page.dart';
 
 class _MenuItem {
   final String label;
@@ -56,6 +58,33 @@ class DashboardPage extends CompositionWidget {
         signaturesStore.getMine();
       }
     }, immediate: true);
+
+    // Startsidan: which counts/lists to show (associations.dashboard_config),
+    // limited to what this viewer may see. Same rules as the web's Översikt.
+    final dashboardConfig = computed(
+      () => DashboardConfig.fromJson(
+        authStore.association.value?.dashboardConfig,
+      ),
+    );
+    final visibleWidgets = computed(
+      () => dashboardConfig.value.visibleWidgets(
+        isFeatureEnabled: authStore.isFeatureEnabled,
+        canRead: (permission) =>
+            authStore.hasPermission(permission, CrudOperation.read),
+      ),
+    );
+    // Only fetch data for the widgets that are shown; refetch when the
+    // association, config or the viewer's permissions change.
+    watch(
+      () =>
+          '${authStore.association.value?.id ?? ''}|'
+          '${visibleWidgets.value.map((w) => w.key).join(',')}',
+      (key, previous) {
+        if ((authStore.association.value?.id ?? '').isEmpty) return;
+        dashboardStore.loadWidgets(visibleWidgets.value);
+      },
+      immediate: true,
+    );
 
     const menuItems = [
       _MenuItem(
@@ -205,6 +234,12 @@ class DashboardPage extends CompositionWidget {
         permissionName: 'forms',
       ),
       _MenuItem(
+        label: 'Om\nföreningen',
+        icon: Icons.apartment_outlined,
+        path: AssociationInfoPage.path,
+        color: Color(0xFF16A34A),
+      ),
+      _MenuItem(
         label: 'Hjälp',
         icon: Icons.help_outline,
         path: '/help',
@@ -219,6 +254,18 @@ class DashboardPage extends CompositionWidget {
       final generalInfoList = dashboardStore.generalInfoList.value;
       final mySignatures = signaturesStore.mine.value;
       final pendingSignatures = mySignatures.where((s) => !s.isSigned).length;
+      final showGeneralInfo = dashboardConfig.value.showGeneralInfo;
+      final countWidgets = visibleWidgets.value
+          .where((w) => w.format == DashboardWidgetFormat.count)
+          .toList();
+      final listWidgets = visibleWidgets.value
+          .where((w) => w.format == DashboardWidgetFormat.list)
+          .toList();
+      final widgetCounts = dashboardStore.widgetCounts.value;
+      final widgetLists = dashboardStore.widgetLists.value;
+      final isAdmin = authStore.isAdmin.value;
+      String? linkFor(DashboardWidget w) =>
+          w.definition.adminOnlyLink && !isAdmin ? null : w.definition.route;
 
       // Filter menu items: association feature toggles, then per-role read
       // permission.
@@ -284,11 +331,29 @@ class DashboardPage extends CompositionWidget {
                         ),
                         const SizedBox(height: 14),
                       ],
+                      if (countWidgets.isNotEmpty) ...[
+                        _StatGrid(
+                          widgets: countWidgets,
+                          counts: widgetCounts,
+                          linkFor: linkFor,
+                          onTap: (path) => context.push(path),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
                       _MenuGrid(
                         items: visibleItems,
                         onTap: (item) => context.push(item.path),
                       ),
-                      if (generalInfoList.isNotEmpty) ...[
+                      for (final w in listWidgets) ...[
+                        const SizedBox(height: 28),
+                        _ListWidgetSection(
+                          widget: w,
+                          entries: widgetLists[w.type],
+                          allPath: linkFor(w),
+                          onTap: (path) => context.push(path),
+                        ),
+                      ],
+                      if (showGeneralInfo && generalInfoList.isNotEmpty) ...[
                         const SizedBox(height: 28),
                         const _SectionTitle('Allmän information'),
                         const SizedBox(height: 14),
@@ -490,6 +555,177 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
+/// Counts (räknare) — two compact tiles per row.
+class _StatGrid extends StatelessWidget {
+  final List<DashboardWidget> widgets;
+  final Map<String, int> counts;
+  final String? Function(DashboardWidget) linkFor;
+  final void Function(String path) onTap;
+
+  const _StatGrid({
+    required this.widgets,
+    required this.counts,
+    required this.linkFor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: widgets.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        mainAxisExtent: 84,
+      ),
+      itemBuilder: (context, index) {
+        final w = widgets[index];
+        final def = w.definition;
+        final link = linkFor(w);
+        final count = counts[w.type];
+        return Material(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: link == null ? null : () => onTap(link),
+            child: Ink(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(color: theme.colorScheme.outline),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: def.color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(def.icon, color: def.color, size: 21),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          count == null ? '–' : '$count',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          w.heading,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            height: 1.15,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// A short list (latest/upcoming) with a "Visa alla" link.
+class _ListWidgetSection extends StatelessWidget {
+  final DashboardWidget widget;
+  final List<DashboardListEntry>? entries;
+  final String? allPath;
+  final void Function(String path) onTap;
+
+  const _ListWidgetSection({
+    required this.widget,
+    required this.entries,
+    required this.allPath,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final def = widget.definition;
+    final rows = entries;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: _SectionTitle(widget.heading)),
+            if (allPath != null)
+              TextButton(
+                onPressed: () => onTap(allPath!),
+                style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                ),
+                child: const Text('Visa alla'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (rows == null)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: LinearProgressIndicator(),
+          )
+        else if (rows.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: theme.colorScheme.outline),
+            ),
+            child: Text(
+              widget.type == 'issues'
+                  ? 'Inga felanmälningar eller ärenden. Bra jobbat!'
+                  : 'Inget att visa just nu.',
+              style: TextStyle(
+                fontSize: 13.5,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          )
+        else
+          ...rows.map((entry) {
+            final path = entry.path;
+            return _InfoCard(
+              title: entry.title,
+              subtitle: entry.subtitle,
+              icon: entry.icon ?? def.icon,
+              iconColor: entry.color ?? def.color,
+              chipText: entry.chipText,
+              chipColor: entry.chipColor,
+              onTap: path == null ? null : () => onTap(path),
+            );
+          }),
+      ],
+    );
+  }
+}
+
 class _MenuGrid extends StatelessWidget {
   final List<_MenuItem> items;
   final void Function(_MenuItem) onTap;
@@ -578,12 +814,18 @@ class _InfoCard extends StatelessWidget {
   final String subtitle;
   final VoidCallback? onTap;
   final IconData icon;
+  final Color? iconColor;
+  final String? chipText;
+  final Color? chipColor;
 
   const _InfoCard({
     required this.title,
     required this.subtitle,
     this.onTap,
     this.icon = Icons.campaign_outlined,
+    this.iconColor,
+    this.chipText,
+    this.chipColor,
   });
 
   @override
@@ -607,12 +849,13 @@ class _InfoCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: AppTheme.surfaceLight,
+                  color: iconColor?.withValues(alpha: 0.12) ??
+                      AppTheme.surfaceLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   icon,
-                  color: AppTheme.primaryDarken1,
+                  color: iconColor ?? AppTheme.primaryDarken1,
                   size: 22,
                 ),
               ),
@@ -631,17 +874,44 @@ class _InfoCard extends StatelessWidget {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        color: theme.colorScheme.onSurfaceVariant,
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
+              if (chipText != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (chipColor ?? AppTheme.primaryDarken1).withValues(
+                      alpha: 0.12,
+                    ),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    chipText!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: chipColor ?? AppTheme.primaryDarken1,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

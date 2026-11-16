@@ -71,6 +71,7 @@ dependencies:
   # Regular dependency (not dev_dependency): its Android plugin must be present in
   # release builds, otherwise GeneratedPluginRegistrant references a missing class.
   flutter_native_splash: ^2.4.7
+  add_2_calendar: ^3.1.1
 
 dev_dependencies:
   flutter_test:

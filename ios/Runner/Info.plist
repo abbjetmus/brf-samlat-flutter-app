@@ -28,6 +28,12 @@
 	<true/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCalendarsUsageDescription</key>
+	<string>BRF Samlat behöver åtkomst till kalendern för att lägga till föreningens möten och händelser.</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>BRF Samlat behöver åtkomst till kalendern för att lägga till föreningens möten och händelser.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Kalendern använder kontakter för att föreslå platser när du lägger till en händelse.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>BRF Samlat behöver åtkomst till kameran så att du kan ta en bild att ladda upp.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

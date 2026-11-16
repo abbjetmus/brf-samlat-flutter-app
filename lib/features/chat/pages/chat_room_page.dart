@@ -1,14 +1,16 @@
-import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:flutter_chat_core/flutter_chat_core.dart';
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/models/pocketbase_models.dart';
 import '../../../core/utils/file_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
+import '../chat_store.dart';
 
 class ChatRoomPage extends CompositionWidget {
   static const String path = '/chat/room';
@@ -43,18 +45,113 @@ class ChatRoomPage extends CompositionWidget {
       controller.dispose();
     });
 
-    Future<void> pickImages() async {
-      final picker = ImagePicker();
-      final picked = await picker.pickMultiImage();
-      if (picked.isEmpty) return;
-      final files = picked.map((x) => File(x.path)).toList();
-      await chatStore.sendMessage(
+    void showSnack(BuildContext context, String message) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    }
+
+    Future<void> sendAttachments(
+      BuildContext context,
+      List<ChatAttachment> picked,
+      int skippedTooLarge,
+    ) async {
+      final attachments = picked.take(kChatMaxFiles).toList();
+      final notes = <String>[
+        if (skippedTooLarge > 0)
+          '$skippedTooLarge fil(er) var för stora (max '
+              '${byteToMegabyte(kChatMaxFileBytes)} MB per fil).',
+        if (picked.length > kChatMaxFiles)
+          'Högst $kChatMaxFiles filer per meddelande.',
+      ];
+      if (notes.isNotEmpty) showSnack(context, notes.join(' '));
+      if (attachments.isEmpty) return;
+      final ok = await chatStore.sendMessage(
         roomId,
         '',
-        imageFiles: files,
+        attachments: attachments,
         replyToId: replyingTo.value?.id,
       );
+      if (!ok) {
+        if (context.mounted) {
+          showSnack(
+            context,
+            chatStore.lastError ?? 'Kunde inte skicka meddelandet.',
+          );
+        }
+        return;
+      }
       replyingTo.value = null;
+    }
+
+    Future<void> pickImages(BuildContext context) async {
+      final picked = await ImagePicker().pickMultiImage();
+      if (picked.isEmpty) return;
+      final attachments = <ChatAttachment>[];
+      var skipped = 0;
+      for (final x in picked) {
+        final bytes = await x.readAsBytes();
+        if (bytes.length > kChatMaxFileBytes) {
+          skipped++;
+          continue;
+        }
+        attachments.add(ChatAttachment(filename: x.name, bytes: bytes));
+      }
+      if (!context.mounted) return;
+      await sendAttachments(context, attachments, skipped);
+    }
+
+    Future<void> pickFiles(BuildContext context) async {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        withData: true,
+      );
+      if (result == null) return;
+      final attachments = <ChatAttachment>[];
+      var skipped = 0;
+      for (final f in result.files) {
+        final bytes = f.bytes;
+        if (bytes == null) continue;
+        if (f.size > kChatMaxFileBytes) {
+          skipped++;
+          continue;
+        }
+        attachments.add(ChatAttachment(filename: f.name, bytes: bytes));
+      }
+      if (!context.mounted) return;
+      await sendAttachments(context, attachments, skipped);
+    }
+
+    // "Bifoga": choose between images (gallery) and any file.
+    void chooseAttachment(BuildContext context) {
+      showModalBottomSheet(
+        context: context,
+        useRootNavigator: true,
+        builder: (ctx) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Bild'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  pickImages(context);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.attach_file),
+                title: const Text('Fil'),
+                subtitle: const Text('PDF, dokument och andra filer'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  pickFiles(context);
+                },
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     void showMessageOptions(BuildContext context, Message message, String currentUserId) {
@@ -188,14 +285,15 @@ class ChatRoomPage extends CompositionWidget {
                     showRenameDialog(context, room);
                   },
                 ),
-                ListTile(
-                  leading: const Icon(Icons.person_add_outlined),
-                  title: const Text('Lägg till deltagare'),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    showAddMembersDialog(context, room);
-                  },
-                ),
+                if (!chatStore.boardOnlyRestricted)
+                  ListTile(
+                    leading: const Icon(Icons.person_add_outlined),
+                    title: const Text('Lägg till deltagare'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      showAddMembersDialog(context, room);
+                    },
+                  ),
                 ListTile(
                   leading: const Icon(Icons.exit_to_app_outlined),
                   title: const Text('Lämna chatt'),
@@ -236,7 +334,11 @@ class ChatRoomPage extends CompositionWidget {
       return GradientScaffold(
         title: title,
         actions: [
-          if (room != null && (room.isGroup || room.createdBy == currentUserId))
+          // The board room is managed by the server (members follow the
+          // board), so it has no room options.
+          if (room != null &&
+              !room.isBoardRoom &&
+              (room.isGroup || room.createdBy == currentUserId))
             HeaderIconButton(
               icon: Icons.more_vert,
               onPressed: () => showRoomOptions(context, room, currentUserId),
@@ -246,7 +348,7 @@ class ChatRoomPage extends CompositionWidget {
           chatController: controller,
           currentUserId: currentUserId,
           theme: _chatTheme(context),
-          onAttachmentTap: () => pickImages(),
+          onAttachmentTap: () => chooseAttachment(context),
           onMessageLongPress: (ctx, message, {required index, required details}) {
             showMessageOptions(context, message, currentUserId);
           },
@@ -266,16 +368,26 @@ class ChatRoomPage extends CompositionWidget {
             ),
             emptyChatListBuilder: (ctx) =>
                 const EmptyChatList(text: 'Inga meddelanden än'),
+            customMessageBuilder: (ctx, message, index,
+                    {required isSentByMe, groupStatus}) =>
+                _AttachmentsBubble(message: message, isSentByMe: isSentByMe),
           ),
-          onMessageSend: (text) {
+          onMessageSend: (text) async {
             final trimmed = text.trim();
             if (trimmed.isEmpty && replyingTo.value == null) return;
-            chatStore.sendMessage(
+            final replyTo = replyingTo.value?.id;
+            replyingTo.value = null;
+            final ok = await chatStore.sendMessage(
               roomId,
               trimmed,
-              replyToId: replyingTo.value?.id,
+              replyToId: replyTo,
             );
-            replyingTo.value = null;
+            if (!ok && context.mounted) {
+              showSnack(
+                context,
+                chatStore.lastError ?? 'Kunde inte skicka meddelandet.',
+              );
+            }
           },
           resolveUser: (UserID id) async {
             final user = await chatStore.resolveUser(id);
@@ -315,17 +427,35 @@ class ChatRoomPage extends CompositionWidget {
     final text = m.deleted ? 'Meddelandet har tagits bort' : (m.content ?? '');
 
     if (!m.deleted && m.files.isNotEmpty) {
-      final first = m.files.first;
-      if (parseFilename(first).isImage) {
+      // A single image keeps flutter_chat_ui's own image bubble.
+      if (m.files.length == 1 && parseFilename(m.files.first).isImage) {
         return ImageMessage(
           id: m.id,
           authorId: m.sender,
           createdAt: createdAt,
-          source: getImageUrl(Collections.chatMessages, m.id, first),
+          source: getImageUrl(Collections.chatMessages, m.id, m.files.first),
           text: m.content,
           replyToMessageId: m.replyTo,
         );
       }
+      // Several files, or any non-image file: every file is shown
+      // (_AttachmentsBubble) — images as thumbnails, other files as chips.
+      return CustomMessage(
+        id: m.id,
+        authorId: m.sender,
+        createdAt: createdAt,
+        replyToMessageId: m.replyTo,
+        metadata: {
+          'text': m.content ?? '',
+          'files': [
+            for (final f in m.files)
+              {
+                'name': f,
+                'url': getImageUrl(Collections.chatMessages, m.id, f),
+              },
+          ],
+        },
+      );
     }
 
     return TextMessage(
@@ -334,6 +464,110 @@ class ChatRoomPage extends CompositionWidget {
       createdAt: createdAt,
       text: text,
       replyToMessageId: m.replyTo,
+    );
+  }
+}
+
+/// Chat bubble for a message with several files or non-image files: image
+/// thumbnails and tappable file chips (opened in the browser/system viewer),
+/// then the message text.
+class _AttachmentsBubble extends StatelessWidget {
+  final CustomMessage message;
+  final bool isSentByMe;
+
+  const _AttachmentsBubble({required this.message, required this.isSentByMe});
+
+  Future<void> _open(String url) async {
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+    // Same colors as ChatRoomPage._chatTheme (sent = primary).
+    final background = isSentByMe
+        ? colorScheme.primary
+        : (isDark ? const Color(0xFF1E2A40) : const Color(0xFFE8F0EC));
+    final foreground = isSentByMe ? colorScheme.onPrimary : colorScheme.onSurface;
+
+    final metadata = message.metadata ?? const {};
+    final text = (metadata['text'] as String?) ?? '';
+    final files = ((metadata['files'] as List?) ?? const [])
+        .whereType<Map>()
+        .map((f) => (name: '${f['name']}', url: '${f['url']}'))
+        .toList();
+    final images = files.where((f) => parseFilename(f.name).isImage).toList();
+    final others = files.where((f) => !parseFilename(f.name).isImage).toList();
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.sizeOf(context).width * 0.75,
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (images.isNotEmpty)
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  for (final img in images)
+                    GestureDetector(
+                      onTap: () => _open(img.url),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.network(
+                          img.url,
+                          width: 110,
+                          height: 110,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => Container(
+                            width: 110,
+                            height: 110,
+                            color: colorScheme.surfaceContainerHighest,
+                            child: const Icon(Icons.broken_image_outlined),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            if (images.isNotEmpty && others.isNotEmpty)
+              const SizedBox(height: 6),
+            for (final file in others)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: ActionChip(
+                  avatar: Icon(parseFilename(file.name).icon, size: 18),
+                  label: Text(
+                    () {
+                      final info = parseFilename(file.name);
+                      return info.extension.isEmpty
+                          ? info.name
+                          : '${info.name}.${info.extension}';
+                    }(),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: () => _open(file.url),
+                ),
+              ),
+            if (text.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(4, 6, 4, 2),
+                child: Text(text, style: TextStyle(color: foreground)),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

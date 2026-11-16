@@ -1,10 +1,24 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
-import 'package:pocketbase/pocketbase.dart' show PocketBase, UnsubscribeFunc;
+import 'package:pocketbase/pocketbase.dart'
+    show ClientException, PocketBase, UnsubscribeFunc;
 import 'package:http/http.dart' as http;
 import '../../core/models/pocketbase_models.dart';
 import '../auth/auth_store.dart' as auth;
+
+/// A file to upload with a chat message (image or any other file).
+class ChatAttachment {
+  final String filename;
+  final Uint8List bytes;
+
+  const ChatAttachment({required this.filename, required this.bytes});
+}
+
+/// Max size per chat file (chat_messages.files maxSize, 25 MB).
+const int kChatMaxFileBytes = 25 * 1024 * 1024;
+
+/// Max files per chat message (chat_messages.files maxSelect).
+const int kChatMaxFiles = 10;
 
 /// Backs the chat feature against the shared PocketBase chat_* collections.
 /// Holds raw [ChatMessagesRecord]/[ChatRoomsRecord] data reactively; the
@@ -48,6 +62,32 @@ class ChatStore {
   Ref<bool> get hasMoreMessages => _hasMoreMessages;
 
   String? get _myId => _authStore.currentUser.value?.id;
+
+  /// The server's message from the last failed write (e.g. the association
+  /// only lets members write to the board), for a snackbar.
+  String? lastError;
+
+  String _errorMessage(Object e, String fallback) {
+    if (e is ClientException) {
+      final message = e.response['message'];
+      if (message is String && message.isNotEmpty) return message;
+    }
+    return fallback;
+  }
+
+  /// Members who are neither board nor admin may only write to the board when
+  /// the association's chat_mode is 'board_only' (enforced server-side too).
+  bool get boardOnlyRestricted =>
+      (_authStore.association.value?.chatBoardOnly ?? false) &&
+      !_authStore.isAdmin.value &&
+      !_authStore.isBoardMember.value;
+
+  /// The current user's own "Styrelsen" room, if it exists yet.
+  ChatRoomsRecord? get myBoardRoom {
+    final me = _myId;
+    if (me == null) return null;
+    return _rooms.value.where((r) => r.boardContactUser == me).firstOrNull;
+  }
 
   // --- Rooms ------------------------------------------------------------
 
@@ -128,6 +168,18 @@ class ChatStore {
   }
 
   String roomTitle(ChatRoomsRecord room) {
+    // Board room: "Styrelsen" for the member, "Styrelsen – <member>" for the
+    // board.
+    if (room.isBoardRoom) {
+      if (room.boardContactUser == _myId) return 'Styrelsen';
+      final owner = room.memberUsers
+          .where((u) => u.id == room.boardContactUser)
+          .firstOrNull;
+      final ownerName = owner == null
+          ? 'medlem'
+          : (owner.name.isNotEmpty ? owner.name : (owner.email ?? 'medlem'));
+      return 'Styrelsen – $ownerName';
+    }
     if (room.isGroup) {
       return (room.name?.isNotEmpty ?? false) ? room.name! : 'Grupp';
     }
@@ -189,6 +241,36 @@ class ChatStore {
       return room.id;
     } catch (e) {
       debugPrint('ChatStore: Error creating room: $e');
+      lastError = _errorMessage(e, 'Kunde inte starta chatten.');
+      return null;
+    }
+  }
+
+  /// "Skriv till styrelsen": gets (or creates) the current member's board
+  /// room via POST /api/chat/board-room. The server sets its members (the
+  /// member + the whole board). Returns the room id, or null ([lastError]).
+  Future<String?> openBoardRoom() async {
+    try {
+      final json = await _pb.send<Map<String, dynamic>>(
+        '/api/chat/board-room',
+        method: 'POST',
+      );
+      final room = ChatRoomsRecord.fromJson(json);
+      final list = [..._rooms.value];
+      final idx = list.indexWhere((r) => r.id == room.id);
+      if (idx != -1) {
+        list[idx] = room;
+      } else {
+        list.insert(0, room);
+      }
+      _rooms.value = list;
+      for (final u in room.memberUsers) {
+        _userCache[u.id] = u;
+      }
+      return room.id;
+    } catch (e) {
+      debugPrint('ChatStore: Error opening board room: $e');
+      lastError = _errorMessage(e, 'Kunde inte öppna styrelsechatten.');
       return null;
     }
   }
@@ -275,25 +357,16 @@ class ChatStore {
   Future<bool> sendMessage(
     String roomId,
     String content, {
-    List<File>? imageFiles,
+    List<ChatAttachment>? attachments,
     String? replyToId,
   }) async {
     final me = _myId;
     if (me == null) return false;
     try {
-      final files = <http.MultipartFile>[];
-      if (imageFiles != null) {
-        for (final file in imageFiles) {
-          final bytes = await file.readAsBytes();
-          files.add(
-            http.MultipartFile.fromBytes(
-              'files',
-              bytes,
-              filename: file.path.split('/').last,
-            ),
-          );
-        }
-      }
+      final files = <http.MultipartFile>[
+        for (final a in attachments ?? const <ChatAttachment>[])
+          http.MultipartFile.fromBytes('files', a.bytes, filename: a.filename),
+      ];
       final body = <String, dynamic>{
         'room': roomId,
         'sender': me,
@@ -308,6 +381,7 @@ class ChatStore {
       return true;
     } catch (e) {
       debugPrint('ChatStore: Error sending message: $e');
+      lastError = _errorMessage(e, 'Kunde inte skicka meddelandet.');
       return false;
     }
   }

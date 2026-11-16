@@ -3,6 +3,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:go_router/go_router.dart';
 import 'package:syncfusion_flutter_calendar/calendar.dart';
 import '../../../core/di/injection_keys.dart';
+import '../../../core/utils/calendar_export.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/app_bottom_sheet.dart';
 import '../../../shared/widgets/entity_action_menu.dart';
@@ -11,6 +12,7 @@ import '../../../shared/widgets/help_tip.dart';
 import '../../../shared/widgets/rich_description.dart';
 import '../../board/pages/board_meeting_detail_page.dart';
 import '../calendar_store.dart';
+import '../widgets/calendar_subscription_sheet.dart';
 
 class CalendarPage extends CompositionWidget {
   static const String path = '/calendar';
@@ -213,6 +215,20 @@ class CalendarPage extends CompositionWidget {
 
       return GradientScaffold(
         title: 'Kalender',
+        actions: [
+          EntityActionMenu.header(
+            actions: [
+              EntityAction(
+                icon: Icons.event_repeat,
+                label: 'Prenumerera på kalendern',
+                onSelected: () => showAppBottomSheet<void>(
+                  context: context,
+                  builder: (_) => const CalendarSubscriptionSheet(),
+                ),
+              ),
+            ],
+          ),
+        ],
         // Keep the calendar at full height when the keyboard opens for the
         // create-event dialog. Resizing the body squeezes SfCalendar into a
         // tiny height, which makes Syncfusion throw a layout assertion and
@@ -421,6 +437,15 @@ void _showEventDetails(
             ],
           ),
         ],
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: () => _addToDeviceCalendar(pageContext, event),
+            icon: const Icon(Icons.event_available_outlined),
+            label: const Text('Lägg till i kalender'),
+          ),
+        ),
         if (event.boardMeetingId != null) ...[
           const SizedBox(height: 16),
           if (canOpenMeetings)
@@ -447,6 +472,31 @@ void _showEventDetails(
       ],
     ),
   );
+}
+
+/// Öppnar telefonens "ny händelse"-vy ifylld med händelsen.
+Future<void> _addToDeviceCalendar(
+  BuildContext context,
+  CalendarItem event,
+) async {
+  final path = event.isPost
+      ? '/portal/posts/${event.id}'
+      : event.boardMeetingId != null
+      ? '/portal/board/meetings/${event.boardMeetingId}'
+      : '/portal/calendar';
+  final ok = await CalendarExport.addEvent(
+    title: event.title,
+    start: event.start,
+    end: event.end,
+    description: event.description,
+    location: event.location,
+    url: CalendarExport.webUrl(path),
+  );
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Kunde inte öppna kalendern.')),
+    );
+  }
 }
 
 String _formatEventTime(CalendarItem event) {

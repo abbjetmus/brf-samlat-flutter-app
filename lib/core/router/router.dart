@@ -49,6 +49,7 @@ import '../../features/residence_applications/pages/create_residence_application
 import '../../features/residence_applications/pages/residence_application_detail_page.dart';
 import '../../features/invoice_overview/pages/invoice_overview_page.dart';
 import '../../features/contractors/pages/contractors_page.dart';
+import '../../features/association/pages/association_info_page.dart';
 import 'auth_guard.dart';
 
 final router = GoRouter(
@@ -228,7 +229,10 @@ final router = GoRouter(
     ),
     GoRoute(
       path: CreateBoardMeetingPage.path,
-      builder: (context, state) => const CreateBoardMeetingPage(),
+      // ?id=<mötes-id> öppnar sidan för att redigera ett befintligt möte.
+      builder: (context, state) => CreateBoardMeetingPage(
+        meetingId: state.uri.queryParameters['id'],
+      ),
     ),
     // E-signing
     GoRoute(
@@ -339,6 +343,11 @@ final router = GoRouter(
     GoRoute(
       path: HelpPage.path,
       builder: (context, state) => const HelpPage(),
+    ),
+    // Om föreningen
+    GoRoute(
+      path: AssociationInfoPage.path,
+      builder: (context, state) => const AssociationInfoPage(),
     ),
   ],
 );

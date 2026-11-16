@@ -45,7 +45,18 @@ class NewChatPage extends CompositionWidget {
         isGroup: group,
       );
       creating.value = false;
-      if (roomId == null || !context.mounted) return;
+      if (!context.mounted) return;
+      if (roomId == null) {
+        // E.g. the association only lets members write to the board.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              chatStore.lastError ?? 'Kunde inte starta chatten.',
+            ),
+          ),
+        );
+        return;
+      }
       final title = group
           ? groupName.value.trim()
           : (allUsers.value
