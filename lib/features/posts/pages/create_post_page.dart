@@ -26,7 +26,10 @@ class CreatePostPage extends CompositionWidget {
 
     final (titleController, _, __) = useTextEditingController();
     final commentsAllowed = ref(existing?.commentsAllowed ?? true);
-    final sendPushNotification = ref(existing?.sendPushNotification ?? false);
+    // Nya inlägg skickar push som standard (samma som webben).
+    final sendPushNotification = ref(
+      existing == null ? true : (existing.sendPushNotification ?? false),
+    );
     final addToCalendar = ref(existing?.addToCalendar ?? false);
     final loading = ref(false);
     final contextRef = useContext();

@@ -38,6 +38,7 @@ class Collections {
   static const String chatRooms = 'chat_rooms';
   static const String chatMessages = 'chat_messages';
   static const String chatReadReceipts = 'chat_read_receipts';
+  static const String chatMutes = 'chat_mutes';
   static const String annualWheelActivities = 'annual_wheel_activities';
   static const String annualWheelCompletions = 'annual_wheel_completions';
   static const String maintenancePlanItems = 'maintenance_plan_items';
@@ -1775,6 +1776,43 @@ class ChatReadReceiptsRecord {
       room: json['room'] as String? ?? '',
       user: json['user'] as String? ?? '',
       lastReadMessage: json['last_read_message'] as String?,
+    );
+  }
+}
+
+/// A user's "Stäng av notiser" for one chat room (chat_mutes). Only stops push
+/// notifications for that room; unread counts work as before. Unique per
+/// (user, room).
+class ChatMutesRecord {
+  final String id;
+  final String? created;
+  final String? updated;
+  final String user;
+  final String room;
+
+  /// Muted until this (local) time; null = muted until further notice.
+  final DateTime? until;
+
+  ChatMutesRecord({
+    required this.id,
+    this.created,
+    this.updated,
+    required this.user,
+    required this.room,
+    this.until,
+  });
+
+  /// A row with an [until] in the past no longer mutes the room.
+  bool get isActive => until == null || until!.isAfter(DateTime.now());
+
+  factory ChatMutesRecord.fromJson(Map<String, dynamic> json) {
+    return ChatMutesRecord(
+      id: json['id'] as String? ?? '',
+      created: json['created'] as String?,
+      updated: json['updated'] as String?,
+      user: json['user'] as String? ?? '',
+      room: json['room'] as String? ?? '',
+      until: DateTime.tryParse(json['until'] as String? ?? '')?.toLocal(),
     );
   }
 }

@@ -11,6 +11,7 @@ import '../../../core/models/pocketbase_models.dart';
 import '../../../core/utils/file_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../chat_store.dart';
+import '../widgets/chat_mute_options.dart';
 
 class ChatRoomPage extends CompositionWidget {
   static const String path = '/chat/room';
@@ -268,6 +269,9 @@ class ChatRoomPage extends CompositionWidget {
     }
 
     void showRoomOptions(BuildContext context, ChatRoomsRecord room, String currentUserId) {
+      // The board room is managed by the server (members follow the board),
+      // so it only offers muting.
+      final boardRoom = room.isBoardRoom;
       final isCreator = room.createdBy == currentUserId;
       showModalBottomSheet(
         context: context,
@@ -276,7 +280,12 @@ class ChatRoomPage extends CompositionWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (room.isGroup) ...[
+              ChatMuteTile(
+                hostContext: context,
+                chatStore: chatStore,
+                roomId: room.id,
+              ),
+              if (room.isGroup && !boardRoom) ...[
                 ListTile(
                   leading: const Icon(Icons.edit_outlined),
                   title: const Text('Byt namn'),
@@ -303,7 +312,7 @@ class ChatRoomPage extends CompositionWidget {
                   },
                 ),
               ],
-              if (isCreator)
+              if (isCreator && !boardRoom)
                 ListTile(
                   leading: Icon(
                     Icons.delete_outline,
@@ -330,17 +339,21 @@ class ChatRoomPage extends CompositionWidget {
           .where((r) => r.id == roomId)
           .firstOrNull;
       final replying = replyingTo.value;
+      final mute = chatStore.activeMute(roomId);
 
       return GradientScaffold(
         title: title,
+        // "Notiser avstängda till 18 nov 14:30" while the room is muted.
+        subtitle: mute == null
+            ? null
+            : 'Notiser avstängda ${chatMuteUntilText(mute)}',
         actions: [
-          // The board room is managed by the server (members follow the
-          // board), so it has no room options.
-          if (room != null &&
-              !room.isBoardRoom &&
-              (room.isGroup || room.createdBy == currentUserId))
+          // Every room can be muted; rename/members/leave/delete are added in
+          // the sheet where allowed (never for the board room).
+          if (room != null)
             HeaderIconButton(
               icon: Icons.more_vert,
+              tooltip: 'Alternativ',
               onPressed: () => showRoomOptions(context, room, currentUserId),
             ),
         ],

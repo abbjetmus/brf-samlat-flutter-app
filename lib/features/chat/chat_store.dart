@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart'
-    show ClientException, PocketBase, UnsubscribeFunc;
+    show ClientException, PocketBase, RecordModel, UnsubscribeFunc;
 import 'package:http/http.dart' as http;
 import '../../core/models/pocketbase_models.dart';
 import '../auth/auth_store.dart' as auth;
@@ -34,6 +34,7 @@ class ChatStore {
   final _rooms = ref<List<ChatRoomsRecord>>([]);
   final _lastMessages = ref<Map<String, ChatMessagesRecord>>({});
   final _readReceipts = ref<List<ChatReadReceiptsRecord>>([]);
+  final _mutes = ref<List<ChatMutesRecord>>([]);
   final _messages = ref<List<ChatMessagesRecord>>([]);
   final _currentRoomId = ref<String?>(null);
   final _loadingRooms = ref<bool>(false);
@@ -53,6 +54,9 @@ class ChatStore {
   Ref<List<ChatRoomsRecord>> get rooms => _rooms;
   Ref<Map<String, ChatMessagesRecord>> get lastMessages => _lastMessages;
   Ref<List<ChatMessagesRecord>> get messages => _messages;
+
+  /// The current user's chat_mutes rows (loaded with [getRooms]).
+  Ref<List<ChatMutesRecord>> get mutes => _mutes;
   Ref<String?> get currentRoomId => _currentRoomId;
   Ref<bool> get loadingRooms => _loadingRooms;
   Ref<bool> get loadingMessages => _loadingMessages;
@@ -121,6 +125,8 @@ class ChatStore {
       _readReceipts.value = receipts
           .map((r) => ChatReadReceiptsRecord.fromJson(r.toJson()))
           .toList();
+
+      await _loadMutes(me);
 
       // Latest message per room for the list preview.
       final previews = <String, ChatMessagesRecord>{};
@@ -499,6 +505,135 @@ class ChatStore {
       }
     } catch (e) {
       debugPrint('ChatStore: Error marking as read: $e');
+    }
+  }
+
+  // --- Mute ("Stäng av notiser") ---------------------------------------
+
+  /// One list call for all of the user's mutes. A failure only hides the
+  /// muted state; the room list still loads.
+  Future<void> _loadMutes(String me) async {
+    try {
+      final result = await _pb
+          .collection(Collections.chatMutes)
+          .getFullList(filter: 'user = "$me"');
+      _mutes.value = result
+          .map((r) => ChatMutesRecord.fromJson(r.toJson()))
+          .toList();
+    } catch (e) {
+      debugPrint('ChatStore: Error fetching chat mutes: $e');
+    }
+  }
+
+  ChatMutesRecord? _muteRow(String roomId) {
+    final me = _myId;
+    return _mutes.value
+        .where((m) => m.room == roomId && m.user == me)
+        .firstOrNull;
+  }
+
+  /// The mute for [roomId] if it is currently in effect (an expired row
+  /// doesn't count).
+  ChatMutesRecord? activeMute(String roomId) {
+    final mute = _muteRow(roomId);
+    return mute != null && mute.isActive ? mute : null;
+  }
+
+  bool isMuted(String roomId) => activeMute(roomId) != null;
+
+  List<ChatMutesRecord> _withMute(String roomId, ChatMutesRecord? mute) => [
+    ..._mutes.value.where((m) => !(m.room == roomId && m.user == _myId)),
+    ?mute,
+  ];
+
+  /// Mutes push notifications for [roomId] for [duration], or until further
+  /// notice when null. Updates the existing row for (user, room) or creates
+  /// one. Optimistic; reverts on failure ([lastError]).
+  Future<bool> muteRoom(String roomId, Duration? duration) async {
+    final me = _myId;
+    if (me == null) return false;
+    final until = duration == null ? null : DateTime.now().add(duration);
+    final untilValue = until == null ? '' : until.toUtc().toIso8601String();
+    final previous = _mutes.value;
+    final existing = _muteRow(roomId);
+    _mutes.value = _withMute(
+      roomId,
+      ChatMutesRecord(
+        id: existing?.id ?? '',
+        user: me,
+        room: roomId,
+        until: until,
+      ),
+    );
+    final collection = _pb.collection(Collections.chatMutes);
+    final body = {'until': untilValue};
+    try {
+      RecordModel? record;
+      if (existing != null && existing.id.isNotEmpty) {
+        try {
+          record = await collection.update(existing.id, body: body);
+        } on ClientException catch (e) {
+          // Removed elsewhere since we loaded it: create a new row below.
+          if (e.statusCode != 404) rethrow;
+        }
+      }
+      if (record == null) {
+        try {
+          record = await collection.create(
+            body: {'user': me, 'room': roomId, ...body},
+          );
+        } on ClientException catch (e) {
+          // A row for (user, room) was created elsewhere: overwrite it.
+          if (e.statusCode != 400) rethrow;
+          final found = await collection.getFirstListItem(
+            'user = "$me" && room = "$roomId"',
+          );
+          record = await collection.update(found.id, body: body);
+        }
+      }
+      _mutes.value = _withMute(
+        roomId,
+        ChatMutesRecord.fromJson(record.toJson()),
+      );
+      return true;
+    } catch (e) {
+      debugPrint('ChatStore: Error muting room: $e');
+      _mutes.value = previous;
+      lastError = _errorMessage(e, 'Kunde inte stänga av notiserna.');
+      return false;
+    }
+  }
+
+  /// "Slå på notiser": deletes the user's mute row for [roomId].
+  Future<bool> unmuteRoom(String roomId) async {
+    final me = _myId;
+    if (me == null) return false;
+    final existing = _muteRow(roomId);
+    if (existing == null) return true;
+    final previous = _mutes.value;
+    _mutes.value = _withMute(roomId, null);
+    final collection = _pb.collection(Collections.chatMutes);
+    try {
+      var id = existing.id;
+      if (id.isEmpty) {
+        // Optimistic row whose create hasn't returned yet.
+        id = (await collection.getFirstListItem(
+          'user = "$me" && room = "$roomId"',
+        )).id;
+      }
+      await collection.delete(id);
+      return true;
+    } on ClientException catch (e) {
+      if (e.statusCode == 404) return true; // Already gone.
+      debugPrint('ChatStore: Error unmuting room: $e');
+      _mutes.value = previous;
+      lastError = _errorMessage(e, 'Kunde inte slå på notiserna.');
+      return false;
+    } catch (e) {
+      debugPrint('ChatStore: Error unmuting room: $e');
+      _mutes.value = previous;
+      lastError = 'Kunde inte slå på notiserna.';
+      return false;
     }
   }
 

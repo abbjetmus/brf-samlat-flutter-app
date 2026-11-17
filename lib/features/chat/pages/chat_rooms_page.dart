@@ -7,6 +7,7 @@ import '../../../core/utils/file_utils.dart';
 import '../../../core/models/pocketbase_models.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/help_tip.dart';
+import '../widgets/chat_mute_options.dart';
 import 'chat_room_page.dart';
 import 'new_chat_page.dart';
 
@@ -21,6 +22,7 @@ class ChatRoomsPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final chatStore = inject(chatStoreKey);
     final authStore = inject(authStoreKey);
+    final theme = useTheme();
 
     onMounted(() {
       chatStore.getRooms();
@@ -63,8 +65,8 @@ class ChatRoomsPage extends CompositionWidget {
     }
 
     void showRoomOptions(BuildContext context, ChatRoomsRecord room) {
-      // The board room is managed by the server: no leave/delete.
-      if (room.isBoardRoom) return;
+      // The board room is managed by the server: no leave/delete, only mute.
+      final boardRoom = room.isBoardRoom;
       final currentUserId = authStore.currentUser.value?.id;
       final isCreator = room.createdBy == currentUserId;
       final title = chatStore.roomTitle(room);
@@ -91,7 +93,12 @@ class ChatRoomsPage extends CompositionWidget {
                   context.push('${ChatRoomPage.path}/${room.id}', extra: title);
                 },
               ),
-              if (room.isGroup)
+              ChatMuteTile(
+                hostContext: context,
+                chatStore: chatStore,
+                roomId: room.id,
+              ),
+              if (room.isGroup && !boardRoom)
                 ListTile(
                   leading: const Icon(Icons.exit_to_app_outlined),
                   title: const Text('Lämna chatt'),
@@ -119,7 +126,7 @@ class ChatRoomsPage extends CompositionWidget {
                     }
                   },
                 ),
-              if (isCreator)
+              if (isCreator && !boardRoom)
                 ListTile(
                   leading: Icon(
                     Icons.delete_outline,
@@ -178,6 +185,26 @@ class ChatRoomsPage extends CompositionWidget {
       final loading = chatStore.loadingRooms.value;
       final boardUnread =
           myBoardRoom == null ? 0 : chatStore.unreadCount(myBoardRoom.id);
+      final mutedIcon = Icon(
+        Icons.notifications_off_outlined,
+        size: 16,
+        color: theme.value.colorScheme.onSurfaceVariant,
+      );
+
+      // Title with a small bell-off icon when the room's push is muted.
+      Widget roomTitle(String text, bool muted, {TextStyle? style}) => Row(
+        children: [
+          Flexible(
+            child: Text(
+              text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
+          if (muted) ...[const SizedBox(width: 4), mutedIcon],
+        ],
+      );
 
       final boardEntry = showBoardEntry
           ? Card(
@@ -190,9 +217,10 @@ class ChatRoomsPage extends CompositionWidget {
                     color: Colors.white,
                   ),
                 ),
-                title: const Text(
+                title: roomTitle(
                   'Skriv till styrelsen',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                  myBoardRoom != null && chatStore.isMuted(myBoardRoom.id),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
                   myBoardRoom == null
@@ -211,6 +239,9 @@ class ChatRoomsPage extends CompositionWidget {
                         ? Badge(label: Text('$boardUnread'))
                         : const Icon(Icons.chevron_right),
                 onTap: () => openBoardRoom(context),
+                onLongPress: myBoardRoom == null
+                    ? null
+                    : () => showRoomOptions(context, myBoardRoom),
               ),
             )
           : null;
@@ -236,7 +267,8 @@ class ChatRoomsPage extends CompositionWidget {
                   : 'Tryck på + och välj en eller flera personer för att '
                       'starta en konversation. Skriv till styrelsen når hela '
                       'styrelsen på en gång. Håll fingret på en konversation '
-                      'för att lämna den, eller radera den om du startade den.',
+                      'för att stänga av notiser, lämna den, eller radera den '
+                      'om du startade den.',
             ),
             ?boardEntry,
             Expanded(
@@ -263,11 +295,7 @@ class ChatRoomsPage extends CompositionWidget {
                         final unread = chatStore.unreadCount(room.id);
                         return ListTile(
                           leading: _RoomAvatar(room: room, title: title),
-                          title: Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          title: roomTitle(title, chatStore.isMuted(room.id)),
                           subtitle: Text(
                             preview(last),
                             maxLines: 1,

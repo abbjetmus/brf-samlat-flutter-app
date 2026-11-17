@@ -90,10 +90,10 @@ class SettingsPage extends CompositionWidget {
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             child: Text(
               notificationSettings.hasPushToken.value
-                  ? 'Välj push-notis och/eller e-post för varje område. '
-                        'Notiserna finns alltid kvar i notislistan.'
+                  ? 'Välj push-notis och/eller e-post för varje område. Du har '
+                        'appen, så e-post är avslaget som standard.'
                   : 'Du har inga push-notiser registrerade, så e-post är på '
-                        'som standard. Notiserna finns alltid kvar i notislistan.',
+                        'som standard — då missar du inget.',
               style: const TextStyle(fontSize: 13),
             ),
           ),
@@ -112,9 +112,9 @@ class SettingsPage extends CompositionWidget {
               id: 'notification-preferences',
               padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
               text:
-                  'Slå av det du inte vill bli meddelad om. Viktiga '
-                  'e-postmeddelanden, som engångskoder för signering och '
-                  'lösenordsåterställning, skickas alltid.',
+                  'Allt utom chattmeddelanden hamnar också i notislistan, '
+                  'oavsett vad du väljer här. En enskild chatt kan du stänga '
+                  'av inne i chatten.',
             ),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
@@ -187,8 +187,8 @@ class SettingsPage extends CompositionWidget {
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Text(
-                'Signeringsförfrågningar, inbjudningar, lösenordsåterställning '
-                'och fakturor skickas alltid.',
+                'Signeringar av protokoll, inbjudningar, lösenordsåterställning '
+                'och fakturor som föreningen mejlar skickas alltid.',
                 style: TextStyle(fontSize: 12),
               ),
             ),
