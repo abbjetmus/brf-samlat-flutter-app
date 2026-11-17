@@ -138,6 +138,8 @@ class RegisterPage extends CompositionWidget {
     }
 
     return (context) => GradientScaffold(
+      // Utloggad: ingen sidomeny.
+      showMenu: false,
       title: 'Registrera',
       body: SafeArea(
         child: Center(

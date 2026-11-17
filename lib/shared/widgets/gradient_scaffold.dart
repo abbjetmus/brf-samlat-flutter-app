@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
+import 'app_menu_drawer.dart';
 
 /// A circular, translucent icon button used inside [AppGradientHeader].
 ///
@@ -106,6 +107,10 @@ class AppGradientHeader extends StatelessWidget {
     // notification deep link — the handler below falls back to the dashboard.
     // Pages can still opt out with `showBack: false`.
     final canPop = showBack ?? true;
+    // ☰ längst till höger öppnar sidomenyn (GradientScaffold.endDrawer), så att
+    // den inte krockar med bakåtknappen till vänster.
+    final scaffold = Scaffold.maybeOf(context);
+    final showMenu = scaffold?.hasEndDrawer ?? false;
 
     return Container(
       width: double.infinity,
@@ -132,7 +137,9 @@ class AppGradientHeader extends StatelessWidget {
                   },
             ),
             const SizedBox(width: 8),
-          ],
+          ] else if (showMenu && actions.isEmpty)
+            // Mirror the menu button's width so the title stays centred.
+            const SizedBox(width: 46),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -164,13 +171,17 @@ class AppGradientHeader extends StatelessWidget {
               ],
             ),
           ),
-          if (actions.isNotEmpty)
-            for (final action in actions) ...[
-              const SizedBox(width: 6),
-              action,
-            ]
+          for (final action in actions) ...[const SizedBox(width: 6), action],
+          if (showMenu) ...[
+            const SizedBox(width: 6),
+            HeaderIconButton(
+              icon: Icons.menu,
+              tooltip: 'Meny',
+              onPressed: scaffold!.openEndDrawer,
+            ),
+          ]
           // Mirror the back button's width so the title stays centred on screen.
-          else if (canPop)
+          else if (actions.isEmpty && canPop)
             const SizedBox(width: 48),
         ],
       ),
@@ -199,6 +210,10 @@ class GradientScaffold extends StatelessWidget {
   final VoidCallback? onBack;
   final bool resizeToAvoidBottomInset;
 
+  /// Shows the ☰ side menu button in the header. Off on pages for logged-out
+  /// users (register, forgot password).
+  final bool showMenu;
+
   const GradientScaffold({
     super.key,
     required this.title,
@@ -210,6 +225,7 @@ class GradientScaffold extends StatelessWidget {
     this.showBack,
     this.onBack,
     this.resizeToAvoidBottomInset = true,
+    this.showMenu = true,
   });
 
   @override
@@ -218,6 +234,7 @@ class GradientScaffold extends StatelessWidget {
       resizeToAvoidBottomInset: resizeToAvoidBottomInset,
       floatingActionButton: floatingActionButton,
       bottomNavigationBar: bottomNavigationBar,
+      endDrawer: showMenu ? const AppMenuDrawer() : null,
       body: Column(
         children: [
           AppGradientHeader(

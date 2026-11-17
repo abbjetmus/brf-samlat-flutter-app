@@ -8,30 +8,8 @@ import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/notification_link_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../dashboard_store.dart';
-import '../../settings/pages/settings_page.dart';
 import '../../posts/pages/post_detail_page.dart';
-import '../../association/pages/association_info_page.dart';
-
-class _MenuItem {
-  final String label;
-  final IconData icon;
-  final String path;
-  final Color color;
-  final String? permissionName;
-
-  /// Feature toggle token for show/hide. Defaults to [permissionName] when null
-  /// (set explicitly when the section's feature token differs, e.g. board).
-  final String? featureName;
-
-  const _MenuItem({
-    required this.label,
-    required this.icon,
-    required this.path,
-    required this.color,
-    this.permissionName,
-    this.featureName,
-  });
-}
+import '../../../shared/widgets/app_menu_drawer.dart';
 
 class DashboardPage extends CompositionWidget {
   static const String path = '/';
@@ -86,167 +64,6 @@ class DashboardPage extends CompositionWidget {
       immediate: true,
     );
 
-    const menuItems = [
-      _MenuItem(
-        label: 'Inlägg',
-        icon: Icons.article_outlined,
-        path: '/posts',
-        color: Color(0xFF3B82F6),
-        permissionName: 'posts',
-      ),
-      _MenuItem(
-        label: 'Meddelanden',
-        icon: Icons.forum_outlined,
-        path: '/chat',
-        color: Color(0xFF06B6D4),
-        permissionName: 'chat',
-      ),
-      _MenuItem(
-        label: 'Ärenden &\nFelanmälan',
-        icon: Icons.report_problem_outlined,
-        path: '/issues',
-        color: Color(0xFFF59E0B),
-        permissionName: 'issues',
-      ),
-      _MenuItem(
-        label: 'Kalender',
-        icon: Icons.calendar_month_outlined,
-        path: '/calendar',
-        color: Color(0xFF8B5CF6),
-        permissionName: 'calendar_events',
-      ),
-      _MenuItem(
-        label: 'Lokaler',
-        icon: Icons.meeting_room_outlined,
-        path: '/places',
-        color: Color(0xFF10B981),
-        permissionName: 'places',
-      ),
-      _MenuItem(
-        label: 'Prylar',
-        icon: Icons.handyman_outlined,
-        path: '/gadgets',
-        color: Color(0xFFF97316),
-        permissionName: 'gadgets',
-      ),
-      _MenuItem(
-        label: 'Bostäder',
-        icon: Icons.home_outlined,
-        path: '/residences',
-        color: Color(0xFF14B8A6),
-        permissionName: 'residences',
-      ),
-      _MenuItem(
-        label: 'Parkeringar',
-        icon: Icons.local_parking_outlined,
-        path: '/parking',
-        color: Color(0xFF6366F1),
-        permissionName: 'parking_lots',
-      ),
-      _MenuItem(
-        label: 'Dokument',
-        icon: Icons.folder_outlined,
-        path: '/folders',
-        color: Color(0xFFEAB308),
-        permissionName: 'folders_and_files',
-      ),
-      _MenuItem(
-        label: 'Styrelsen',
-        icon: Icons.groups_outlined,
-        path: '/board',
-        color: Color(0xFF0EA5E9),
-        // Members with `board` read see the roster; meetings/protocols are gated
-        // separately inside the page by `board_meetings`.
-        permissionName: 'board',
-        featureName: 'board',
-      ),
-      _MenuItem(
-        label: 'Årshjul',
-        icon: Icons.donut_large_outlined,
-        path: '/annual-wheel',
-        color: Color(0xFF22C55E),
-        permissionName: 'annual_wheel',
-      ),
-      _MenuItem(
-        label: 'Förenings-\nstämma',
-        icon: Icons.gavel_outlined,
-        path: '/general-meetings',
-        color: Color(0xFFA855F7),
-        permissionName: 'general_meetings',
-      ),
-      _MenuItem(
-        label: 'Underhållsplan',
-        icon: Icons.construction_outlined,
-        path: '/maintenance-plan',
-        color: Color(0xFFB45309),
-        permissionName: 'maintenance_plan',
-      ),
-      _MenuItem(
-        label: 'Ansökningar',
-        icon: Icons.assignment_outlined,
-        path: '/residence-applications',
-        color: Color(0xFF0D9488),
-        permissionName: 'residence_applications',
-      ),
-      _MenuItem(
-        label: 'Leverantörer',
-        icon: Icons.engineering_outlined,
-        path: '/contractors',
-        color: Color(0xFF78716C),
-        permissionName: 'contractors',
-        // Part of Felanmälan & ärenden on the web (feature token `issues`).
-        featureName: 'issues',
-      ),
-      _MenuItem(
-        label: 'Användare',
-        icon: Icons.people_outlined,
-        path: '/users',
-        color: Color(0xFFEC4899),
-        permissionName: 'users',
-      ),
-      _MenuItem(
-        label: 'Rättigheter',
-        icon: Icons.admin_panel_settings_outlined,
-        path: '/permissions',
-        color: Color(0xFF64748B),
-        permissionName: 'user_role_types',
-      ),
-      _MenuItem(
-        label: 'Fakturor',
-        icon: Icons.receipt_long_outlined,
-        path: '/invoices',
-        color: Color(0xFFEF4444),
-        permissionName: 'invoices',
-      ),
-      _MenuItem(
-        label: 'Faktura-\növersikt',
-        icon: Icons.table_chart_outlined,
-        path: '/invoice-overview',
-        color: Color(0xFFDC2626),
-        permissionName: 'invoice_payments',
-        featureName: 'invoices',
-      ),
-      _MenuItem(
-        label: 'Enkäter',
-        icon: Icons.fact_check_outlined,
-        path: '/forms',
-        color: Color(0xFF7C3AED),
-        permissionName: 'forms',
-      ),
-      _MenuItem(
-        label: 'Om\nföreningen',
-        icon: Icons.apartment_outlined,
-        path: AssociationInfoPage.path,
-        color: Color(0xFF16A34A),
-      ),
-      _MenuItem(
-        label: 'Hjälp',
-        icon: Icons.help_outline,
-        path: '/help',
-        color: Color(0xFF059669),
-      ),
-    ];
-
     return (context) {
       final user = authStore.currentUser.value;
       final association = authStore.association.value;
@@ -267,32 +84,15 @@ class DashboardPage extends CompositionWidget {
       String? linkFor(DashboardWidget w) =>
           w.definition.adminOnlyLink && !isAdmin ? null : w.definition.route;
 
-      // Filter menu items: association feature toggles, then per-role read
-      // permission.
-      final visibleItems = menuItems.where((item) {
-        final permission = item.permissionName;
-        if (permission == null) return true;
-        // Feature toggle token may differ from the permission token (e.g. board).
-        if (!authStore.isFeatureEnabled(item.featureName ?? permission)) {
-          return false;
-        }
-        return authStore.hasPermission(permission, CrudOperation.read);
-      }).toList();
-
-      // "Att signera" only for those who have been asked to sign something.
-      if (mySignatures.isNotEmpty) {
-        visibleItems.insert(
-          0,
-          const _MenuItem(
-            label: 'Att signera',
-            icon: Icons.draw_outlined,
-            path: '/signatures',
-            color: Color(0xFFF97316),
-          ),
-        );
-      }
+      // Allt i appen nås via sidomenyn (☰ i headern); startsidan visar bara
+      // det föreningen har valt under Inställningar → Startsida.
+      final hasContent =
+          countWidgets.isNotEmpty ||
+          listWidgets.isNotEmpty ||
+          (showGeneralInfo && generalInfoList.isNotEmpty);
 
       return Scaffold(
+        endDrawer: const AppMenuDrawer(),
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -303,7 +103,6 @@ class DashboardPage extends CompositionWidget {
               notSeenCount: notSeenCount,
               onNotifications: () =>
                   _showNotificationsDialog(context, dashboardStore),
-              onSettings: () => context.push(SettingsPage.path),
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -340,12 +139,24 @@ class DashboardPage extends CompositionWidget {
                         ),
                         const SizedBox(height: 14),
                       ],
-                      _MenuGrid(
-                        items: visibleItems,
-                        onTap: (item) => context.push(item.path),
-                      ),
-                      for (final w in listWidgets) ...[
-                        const SizedBox(height: 28),
+                      if (!hasContent)
+                        // Builder: Scaffold.of behöver en context under sidans Scaffold.
+                        Builder(
+                          builder: (inner) => _InfoCard(
+                            icon: Icons.menu,
+                            title: 'Hitta allt i appen i menyn',
+                            subtitle:
+                                'Tryck på ☰ uppe till höger för inlägg, '
+                                'meddelanden, kalender och mer.',
+                            onTap: () => Scaffold.of(inner).openEndDrawer(),
+                          ),
+                        ),
+                      for (final (i, w) in listWidgets.indexed) ...[
+                        // 28 mellan sektioner; räknarrutnätet har redan 14 under sig.
+                        if (i > 0)
+                          const SizedBox(height: 28)
+                        else if (countWidgets.isNotEmpty)
+                          const SizedBox(height: 14),
                         _ListWidgetSection(
                           widget: w,
                           entries: widgetLists[w.type],
@@ -354,7 +165,10 @@ class DashboardPage extends CompositionWidget {
                         ),
                       ],
                       if (showGeneralInfo && generalInfoList.isNotEmpty) ...[
-                        const SizedBox(height: 28),
+                        if (listWidgets.isNotEmpty)
+                          const SizedBox(height: 28)
+                        else if (countWidgets.isNotEmpty)
+                          const SizedBox(height: 14),
                         const _SectionTitle('Allmän information'),
                         const SizedBox(height: 14),
                         ...generalInfoList.map(
@@ -384,20 +198,17 @@ class _HeroHeader extends StatelessWidget {
   final String? associationName;
   final int notSeenCount;
   final VoidCallback onNotifications;
-  final VoidCallback onSettings;
 
   const _HeroHeader({
     required this.userName,
     required this.associationName,
     required this.notSeenCount,
     required this.onNotifications,
-    required this.onSettings,
   });
 
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
-    final initial = (userName.isNotEmpty ? userName[0] : '?').toUpperCase();
 
     return Container(
       width: double.infinity,
@@ -409,25 +220,6 @@ class _HeroHeader extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: 50,
-            height: 50,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.18),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
-            ),
-            child: Text(
-              initial,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -471,9 +263,11 @@ class _HeroHeader extends StatelessWidget {
             onPressed: onNotifications,
           ),
           const SizedBox(width: 6),
+          // ☰ öppnar sidomenyn (Scaffold.endDrawer) — samma plats som på
+          // alla andra sidor. Inställningar finns i menyn under Konto.
           _HeaderIconButton(
-            icon: Icons.settings_outlined,
-            onPressed: onSettings,
+            icon: Icons.menu,
+            onPressed: () => Scaffold.of(context).openEndDrawer(),
           ),
         ],
       ),
@@ -722,89 +516,6 @@ class _ListWidgetSection extends StatelessWidget {
             );
           }),
       ],
-    );
-  }
-}
-
-class _MenuGrid extends StatelessWidget {
-  final List<_MenuItem> items;
-  final void Function(_MenuItem) onTap;
-
-  const _MenuGrid({required this.items, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
-      itemCount: items.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 0.92,
-      ),
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return _MenuCard(item: item, onTap: () => onTap(item));
-      },
-    );
-  }
-}
-
-class _MenuCard extends StatelessWidget {
-  final _MenuItem item;
-  final VoidCallback onTap;
-
-  const _MenuCard({required this.item, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surface,
-      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Ink(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            border: Border.all(color: theme.colorScheme.outline),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: item.color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(item.icon, color: item.color, size: 26),
-              ),
-              const SizedBox(height: 10),
-              Flexible(
-                child: Text(
-                  item.label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    height: 1.15,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

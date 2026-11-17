@@ -54,6 +54,8 @@ class ForgotPasswordPage extends CompositionWidget {
     }
 
     return (context) => GradientScaffold(
+      // Utloggad: ingen sidomeny.
+      showMenu: false,
       title: 'Glömt lösenord',
       body: SafeArea(
         child: Center(
