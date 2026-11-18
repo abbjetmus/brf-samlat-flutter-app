@@ -147,7 +147,7 @@ class DashboardPage extends CompositionWidget {
                         ],
                         if (generalInfoList.isNotEmpty) ...[
                           if (lists.isNotEmpty) const SizedBox(height: 28),
-                          const _SectionTitle('Allmän information'),
+                          const _SectionTitle('Generell information'),
                           const SizedBox(height: 14),
                           ...generalInfoList.map(
                             (post) => _InfoCard(

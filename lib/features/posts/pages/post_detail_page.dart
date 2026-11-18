@@ -101,7 +101,7 @@ class PostDetailPage extends CompositionWidget {
                         padding: EdgeInsets.only(bottom: 8),
                         child: StatusChip(
                           icon: Icons.push_pin,
-                          label: 'Allmän information',
+                          label: 'Generell information',
                           tone: StatusTone.warning,
                         ),
                       ),
