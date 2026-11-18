@@ -147,11 +147,6 @@ class AssociationsRecord {
   /// Feature tokens this association has switched off (denylist). Empty = all on.
   final List<String> disabledFeatures;
 
-  /// Raw `dashboard_config` JSON (startsidan). Parse with
-  /// `DashboardConfig.fromJson` (core/utils/dashboard_widgets.dart); null = the
-  /// default layout.
-  final Object? dashboardConfig;
-
   /// The association's own public website (`website_url`), '' when unset.
   final String websiteUrl;
 
@@ -173,7 +168,6 @@ class AssociationsRecord {
     this.email,
     this.permissions,
     this.disabledFeatures = const [],
-    this.dashboardConfig,
     this.websiteUrl = '',
     this.chatMode = 'all',
   });
@@ -195,7 +189,6 @@ class AssociationsRecord {
                 .map((e) => e.toString())
                 .toList()
           : const [],
-      dashboardConfig: json['dashboard_config'],
       websiteUrl: (json['website_url'] as String? ?? '').trim(),
       chatMode: json['chat_mode'] == 'board_only' ? 'board_only' : 'all',
     );

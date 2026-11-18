@@ -8,6 +8,7 @@ import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/notification_link_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../dashboard_store.dart';
+import '../widgets/dashboard_tasks.dart';
 import '../../posts/pages/post_detail_page.dart';
 import '../../../shared/widgets/app_menu_drawer.dart';
 
@@ -33,33 +34,27 @@ class DashboardPage extends CompositionWidget {
     watch(() => authStore.association.value?.id, (assocId, _) {
       if (assocId != null && assocId.isNotEmpty) {
         dashboardStore.getGeneralInfoList();
+        dashboardStore.loadTasks();
         signaturesStore.getMine();
       }
     }, immediate: true);
 
-    // Startsidan: which counts/lists to show (associations.dashboard_config),
-    // limited to what this viewer may see. Same rules as the web's Översikt.
-    final dashboardConfig = computed(
-      () => DashboardConfig.fromJson(
-        authStore.association.value?.dashboardConfig,
-      ),
-    );
-    final visibleWidgets = computed(
-      () => dashboardConfig.value.visibleWidgets(
+    // Senaste inläggen och kommande händelser — de som den inloggade får se.
+    // Hämtas igen när föreningen eller behörigheterna ändras.
+    final visibleLists = computed(
+      () => visibleDashboardLists(
         isFeatureEnabled: authStore.isFeatureEnabled,
         canRead: (permission) =>
             authStore.hasPermission(permission, CrudOperation.read),
       ),
     );
-    // Only fetch data for the widgets that are shown; refetch when the
-    // association, config or the viewer's permissions change.
     watch(
       () =>
           '${authStore.association.value?.id ?? ''}|'
-          '${visibleWidgets.value.map((w) => w.key).join(',')}',
+          '${visibleLists.value.map((d) => d.type).join(',')}',
       (key, previous) {
         if ((authStore.association.value?.id ?? '').isEmpty) return;
-        dashboardStore.loadWidgets(visibleWidgets.value);
+        dashboardStore.loadLists(visibleLists.value);
       },
       immediate: true,
     );
@@ -69,27 +64,13 @@ class DashboardPage extends CompositionWidget {
       final association = authStore.association.value;
       final notSeenCount = dashboardStore.notSeenCount.value;
       final generalInfoList = dashboardStore.generalInfoList.value;
-      final mySignatures = signaturesStore.mine.value;
-      final pendingSignatures = mySignatures.where((s) => !s.isSigned).length;
-      final showGeneralInfo = dashboardConfig.value.showGeneralInfo;
-      final countWidgets = visibleWidgets.value
-          .where((w) => w.format == DashboardWidgetFormat.count)
-          .toList();
-      final listWidgets = visibleWidgets.value
-          .where((w) => w.format == DashboardWidgetFormat.list)
-          .toList();
-      final widgetCounts = dashboardStore.widgetCounts.value;
-      final widgetLists = dashboardStore.widgetLists.value;
-      final isAdmin = authStore.isAdmin.value;
-      String? linkFor(DashboardWidget w) =>
-          w.definition.adminOnlyLink && !isAdmin ? null : w.definition.route;
+      final tasks = dashboardStore.tasks.value;
+      final lists = visibleLists.value;
+      final listRows = dashboardStore.widgetLists.value;
 
-      // Allt i appen nås via sidomenyn (☰ i headern); startsidan visar bara
-      // det föreningen har valt under Inställningar → Startsida.
+      // Allt i appen nås via sidomenyn (☰ i headern).
       final hasContent =
-          countWidgets.isNotEmpty ||
-          listWidgets.isNotEmpty ||
-          (showGeneralInfo && generalInfoList.isNotEmpty);
+          !tasks.isEmpty || lists.isNotEmpty || generalInfoList.isNotEmpty;
 
       return Scaffold(
         endDrawer: const AppMenuDrawer(),
@@ -105,83 +86,81 @@ class DashboardPage extends CompositionWidget {
                   _showNotificationsDialog(context, dashboardStore),
             ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.zero,
-                child: Padding(
-                  // Add the Android system nav-bar inset so the last cards don't
-                  // sit under the bottom bar.
-                  padding: EdgeInsets.fromLTRB(
-                    20,
-                    24,
-                    20,
-                    28 + MediaQuery.of(context).padding.bottom,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (pendingSignatures > 0) ...[
-                        _InfoCard(
-                          icon: Icons.draw_outlined,
-                          title: pendingSignatures == 1
-                              ? 'Du har ett protokoll att signera'
-                              : 'Du har $pendingSignatures protokoll att signera',
-                          subtitle: 'Tryck för att läsa och signera',
-                          onTap: () => context.push('/signatures'),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-                      if (countWidgets.isNotEmpty) ...[
-                        _StatGrid(
-                          widgets: countWidgets,
-                          counts: widgetCounts,
-                          linkFor: linkFor,
-                          onTap: (path) => context.push(path),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-                      if (!hasContent)
-                        // Builder: Scaffold.of behöver en context under sidans Scaffold.
-                        Builder(
-                          builder: (inner) => _InfoCard(
-                            icon: Icons.menu,
-                            title: 'Hitta allt i appen i menyn',
-                            subtitle:
-                                'Tryck på ☰ uppe till höger för inlägg, '
-                                'meddelanden, kalender och mer.',
-                            onTap: () => Scaffold.of(inner).openEndDrawer(),
-                          ),
-                        ),
-                      for (final (i, w) in listWidgets.indexed) ...[
-                        // 28 mellan sektioner; räknarrutnätet har redan 14 under sig.
-                        if (i > 0)
-                          const SizedBox(height: 28)
-                        else if (countWidgets.isNotEmpty)
-                          const SizedBox(height: 14),
-                        _ListWidgetSection(
-                          widget: w,
-                          entries: widgetLists[w.type],
-                          allPath: linkFor(w),
-                          onTap: (path) => context.push(path),
-                        ),
-                      ],
-                      if (showGeneralInfo && generalInfoList.isNotEmpty) ...[
-                        if (listWidgets.isNotEmpty)
-                          const SizedBox(height: 28)
-                        else if (countWidgets.isNotEmpty)
-                          const SizedBox(height: 14),
-                        const _SectionTitle('Allmän information'),
-                        const SizedBox(height: 14),
-                        ...generalInfoList.map(
-                          (post) => _InfoCard(
-                            title: post.title,
-                            subtitle: AppDateUtils.formatDate(post.created),
-                            onTap: () => context.push(
-                              '${PostDetailPage.path}/${post.id}',
+              child: RefreshIndicator(
+                onRefresh: () => Future.wait([
+                  dashboardStore.loadTasks(),
+                  dashboardStore.loadLists(visibleLists.value),
+                  dashboardStore.getGeneralInfoList(),
+                ]),
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  child: Padding(
+                    // Add the Android system nav-bar inset so the last cards don't
+                    // sit under the bottom bar.
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      24,
+                      20,
+                      28 + MediaQuery.of(context).padding.bottom,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // För dig / Kräver åtgärd: fasta, döljs när de är
+                        // tomma. Efter att man har varit inne på en rad (t.ex.
+                        // signerat) hämtas de igen.
+                        for (final (title, rows) in [
+                          ('För dig', tasks.personal),
+                          ('Kräver åtgärd', tasks.board),
+                        ])
+                          if (rows.isNotEmpty) ...[
+                            DashboardTaskSection(
+                              title: title,
+                              tasks: rows,
+                              onTap: (task) async {
+                                await context.push(task.path);
+                                dashboardStore.loadTasks();
+                              },
+                            ),
+                            const SizedBox(height: 28),
+                          ],
+                        if (!hasContent)
+                          // Builder: Scaffold.of behöver en context under sidans Scaffold.
+                          Builder(
+                            builder: (inner) => _InfoCard(
+                              icon: Icons.menu,
+                              title: 'Hitta allt i appen i menyn',
+                              subtitle:
+                                  'Tryck på ☰ uppe till höger för inlägg, '
+                                  'meddelanden, kalender och mer.',
+                              onTap: () => Scaffold.of(inner).openEndDrawer(),
                             ),
                           ),
-                        ),
+                        for (final (i, d) in lists.indexed) ...[
+                          if (i > 0) const SizedBox(height: 28),
+                          _ListWidgetSection(
+                            definition: d,
+                            entries: listRows[d.type],
+                            onTap: (path) => context.push(path),
+                          ),
+                        ],
+                        if (generalInfoList.isNotEmpty) ...[
+                          if (lists.isNotEmpty) const SizedBox(height: 28),
+                          const _SectionTitle('Allmän information'),
+                          const SizedBox(height: 14),
+                          ...generalInfoList.map(
+                            (post) => _InfoCard(
+                              title: post.title,
+                              subtitle: AppDateUtils.formatDate(post.created),
+                              onTap: () => context.push(
+                                '${PostDetailPage.path}/${post.id}',
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -349,132 +328,34 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-/// Counts (räknare) — two compact tiles per row.
-class _StatGrid extends StatelessWidget {
-  final List<DashboardWidget> widgets;
-  final Map<String, int> counts;
-  final String? Function(DashboardWidget) linkFor;
-  final void Function(String path) onTap;
-
-  const _StatGrid({
-    required this.widgets,
-    required this.counts,
-    required this.linkFor,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: EdgeInsets.zero,
-      itemCount: widgets.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        mainAxisExtent: 84,
-      ),
-      itemBuilder: (context, index) {
-        final w = widgets[index];
-        final def = w.definition;
-        final link = linkFor(w);
-        final count = counts[w.type];
-        return Material(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: link == null ? null : () => onTap(link),
-            child: Ink(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                border: Border.all(color: theme.colorScheme.outline),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: def.color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(def.icon, color: def.color, size: 21),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          count == null ? '–' : '$count',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                        ),
-                        Text(
-                          w.heading,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            height: 1.15,
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
 /// A short list (latest/upcoming) with a "Visa alla" link.
 class _ListWidgetSection extends StatelessWidget {
-  final DashboardWidget widget;
+  final DashboardWidgetDefinition definition;
   final List<DashboardListEntry>? entries;
-  final String? allPath;
   final void Function(String path) onTap;
 
   const _ListWidgetSection({
-    required this.widget,
+    required this.definition,
     required this.entries,
-    required this.allPath,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final def = widget.definition;
+    final def = definition;
     final rows = entries;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Expanded(child: _SectionTitle(widget.heading)),
-            if (allPath != null)
-              TextButton(
-                onPressed: () => onTap(allPath!),
-                style: TextButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                ),
-                child: const Text('Visa alla'),
-              ),
+            Expanded(child: _SectionTitle(def.heading)),
+            TextButton(
+              onPressed: () => onTap(def.route),
+              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+              child: const Text('Visa alla'),
+            ),
           ],
         ),
         const SizedBox(height: 10),
@@ -493,9 +374,9 @@ class _ListWidgetSection extends StatelessWidget {
               border: Border.all(color: theme.colorScheme.outline),
             ),
             child: Text(
-              widget.type == 'issues'
-                  ? 'Inga felanmälningar eller ärenden. Bra jobbat!'
-                  : 'Inget att visa just nu.',
+              def.type == 'posts'
+                  ? 'Inga inlägg har publicerats än.'
+                  : 'Inget inplanerat i kalendern just nu.',
               style: TextStyle(
                 fontSize: 13.5,
                 color: theme.colorScheme.onSurfaceVariant,
@@ -560,7 +441,8 @@ class _InfoCard extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: iconColor?.withValues(alpha: 0.12) ??
+                  color:
+                      iconColor?.withValues(alpha: 0.12) ??
                       AppTheme.surfaceLight,
                   borderRadius: BorderRadius.circular(12),
                 ),
