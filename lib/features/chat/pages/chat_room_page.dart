@@ -281,6 +281,36 @@ class ChatRoomPage extends CompositionWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Styrelsens inkorg: en medlems tråd till styrelsen.
+              if (chatStore.isInboxThread(room))
+                ListTile(
+                  leading: Icon(
+                    room.isBoardHandled
+                        ? Icons.unarchive_outlined
+                        : Icons.check_circle_outline,
+                  ),
+                  title: Text(
+                    room.isBoardHandled ? 'Öppna igen' : 'Markera som hanterad',
+                  ),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final handled = !room.isBoardHandled;
+                    final ok = await chatStore.setBoardHandled(room.id, handled);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          ok
+                              ? (handled
+                                    ? 'Markerad som hanterad.'
+                                    : 'Tråden är öppen igen.')
+                              : (chatStore.lastError ??
+                                    'Kunde inte uppdatera tråden.'),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ChatMuteTile(
                 hostContext: context,
                 chatStore: chatStore,
@@ -295,7 +325,7 @@ class ChatRoomPage extends CompositionWidget {
                     showRenameDialog(context, room);
                   },
                 ),
-                if (!chatStore.boardOnlyRestricted)
+                if (!chatStore.boardOnly)
                   ListTile(
                     leading: const Icon(Icons.person_add_outlined),
                     title: const Text('Lägg till deltagare'),

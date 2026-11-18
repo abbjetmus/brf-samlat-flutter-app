@@ -3,6 +3,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/models/pocketbase_models.dart';
+import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/rich_description.dart';
 import '../../../shared/widgets/search_field.dart';
@@ -37,6 +38,34 @@ const Map<String, IconData> _categoryIcons = {
 
 IconData _iconFor(String category) =>
     _categoryIcons[category] ?? Icons.help_outline;
+
+/// Vem som ser vilken kategori — samma tabell som webbens HELP_CATEGORY_ACCESS
+/// (brf-samlat-nuxt-app/app/utils/helpContent.ts). Värdet är funktionerna
+/// (feature- och läsbehörighetstoken) varav minst en måste vara påslagen och
+/// läsbar; [_adminOnly] betyder bara administratörer. Kategorier som saknas här
+/// (Kom igång, Konto & inställningar, Appen, Signering, nya) syns för alla.
+const _adminOnly = <String>['__admin__'];
+const Map<String, List<String>> _categoryAccess = {
+  'Inlägg': ['posts'],
+  'Meddelanden': ['chat'],
+  'Kalender': ['calendar_events'],
+  'Enkäter': ['forms'],
+  'Felanmälan': ['issues'],
+  'Lokaler': ['places'],
+  'Prylar': ['gadgets'],
+  'Parkeringar': ['parking_lots'],
+  'Bostäder': ['residences'],
+  'Ansökningar': ['residence_applications'],
+  'Underhållsplan': ['maintenance_plan'],
+  'Dokument': ['folders_and_files'],
+  'Fakturor': ['invoices'],
+  'Styrelsen': ['board', 'board_meetings'],
+  'Årshjul': ['annual_wheel'],
+  'Föreningsstämma': ['general_meetings'],
+  'Användare': _adminOnly,
+  'Rättigheter': _adminOnly,
+  'Föreningen': _adminOnly,
+};
 
 /// Hjälp: vanliga frågor ur PocketBase-samlingen `faq` — samma innehåll som
 /// webbens /portal/help, så texterna sköts på ett ställe (i databasen).
@@ -74,11 +103,29 @@ class HelpPage extends CompositionWidget {
 
     onMounted(load);
 
-    /// Sökningen tittar på frågan, kategorin och svaret (utan HTML).
+    /// Bara kategorier för påslagna funktioner som användaren får läsa, och
+    /// administratörskategorierna bara för administratörer.
+    bool categoryVisible(String? category) {
+      final access = _categoryAccess[category ?? ''];
+      if (access == null) return true;
+      if (identical(access, _adminOnly)) return authStore.isAdmin.value;
+      return access.any(
+        (token) =>
+            authStore.isFeatureEnabled(token) &&
+            authStore.hasPermission(token, CrudOperation.read),
+      );
+    }
+
+    final allowed = computed(
+      () => faqs.value.where((faq) => categoryVisible(faq.tags)).toList(),
+    );
+
+    /// Sökningen tittar på frågan, kategorin och svaret (utan HTML), bland de
+    /// frågor användaren får se.
     final visible = computed(() {
       final term = query.value.trim().toLowerCase();
-      if (term.isEmpty) return faqs.value;
-      return faqs.value.where((faq) {
+      if (term.isEmpty) return allowed.value;
+      return allowed.value.where((faq) {
         final answer = faq.description.replaceAll(RegExp(r'<[^>]+>'), ' ');
         return [faq.title, faq.tags ?? '', answer]
             .any((v) => v.toLowerCase().contains(term));
@@ -137,7 +184,7 @@ class HelpPage extends CompositionWidget {
             child: Center(child: CircularProgressIndicator()),
           );
         }
-        if (failed.value || faqs.value.isEmpty) {
+        if (failed.value || allowed.value.isEmpty) {
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 32),
             child: Text(

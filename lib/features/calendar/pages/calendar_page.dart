@@ -14,6 +14,9 @@ import '../../board/pages/board_meeting_detail_page.dart';
 import '../calendar_store.dart';
 import '../widgets/calendar_subscription_sheet.dart';
 
+/// Dag- och veckovyn öppnar på den här timmen (som på webben).
+const _dayStartHour = 8;
+
 class CalendarPage extends CompositionWidget {
   static const String path = '/calendar';
 
@@ -286,7 +289,23 @@ class CalendarPage extends CompositionWidget {
                     final mode = modes.first;
                     viewMode.value = mode;
                     final view = _toCalendarView(mode);
-                    if (view != null) calendarController.view = view;
+                    if (view == null) return;
+                    calendarController.view = view;
+                    if (view == CalendarView.day || view == CalendarView.week) {
+                      // Dag/vecka visar hela dygnet men öppnar på 08:00;
+                      // tidigare tider nås genom att scrolla upp. displayDate
+                      // med klockslag scrollar tidsvyn dit.
+                      final d =
+                          calendarController.displayDate ?? DateTime.now();
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        calendarController.displayDate = DateTime(
+                          d.year,
+                          d.month,
+                          d.day,
+                          _dayStartHour,
+                        );
+                      });
+                    }
                   },
                 ),
               ),
@@ -314,8 +333,8 @@ class CalendarPage extends CompositionWidget {
                         showAgenda: true,
                       ),
                       timeSlotViewSettings: const TimeSlotViewSettings(
-                        startHour: 6,
-                        endHour: 23,
+                        startHour: 0,
+                        endHour: 24,
                         timeFormat: 'HH:mm',
                       ),
                       onTap: (details) {

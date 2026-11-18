@@ -22,6 +22,11 @@ class AppMenuItem {
   /// (set explicitly when the section's feature token differs, e.g. board).
   final String? featureName;
 
+  /// Another read permission (and feature token) that also shows the item.
+  /// Styrelsen: board roles may only read board_meetings, and the meetings are
+  /// on the board page.
+  final String? alsoPermissionName;
+
   const AppMenuItem({
     required this.label,
     required this.icon,
@@ -29,6 +34,7 @@ class AppMenuItem {
     required this.color,
     this.permissionName,
     this.featureName,
+    this.alsoPermissionName,
   });
 
   /// The label on one line, for search ("Förenings-\nstämma" → "Föreningsstämma").
@@ -42,14 +48,6 @@ class AppMenuSection {
 
   const AppMenuSection(this.heading, this.items);
 }
-
-/// Shown first (in its own section) when the user has something to sign.
-const signaturesMenuItem = AppMenuItem(
-  label: 'Att signera',
-  icon: Icons.draw_outlined,
-  path: '/signatures',
-  color: Color(0xFFF97316),
-);
 
 /// The whole app menu, grouped like the web portal's sidebar
 /// (brf-samlat-nuxt-app/app/layouts/admin.vue).
@@ -181,9 +179,11 @@ const appMenuSections = [
       path: '/board',
       color: Color(0xFF0EA5E9),
       // Members with `board` read see the roster; meetings/protocols are gated
-      // separately inside the page by `board_meetings`.
+      // separately inside the page by `board_meetings`. Board roles that may
+      // only read meetings still need the menu item to reach them.
       permissionName: 'board',
       featureName: 'board',
+      alsoPermissionName: 'board_meetings',
     ),
     AppMenuItem(
       label: 'Årshjul',
@@ -227,22 +227,22 @@ const appMenuSections = [
 ];
 
 /// The menu sections this user may see: association feature toggles, then
-/// per-role read permission. Empty sections are dropped. "Att signera" comes
-/// first when [hasSignatures].
+/// per-role read permission. Empty sections are dropped. Things to do (e.g.
+/// protocols to sign) are on the start page under "För dig", not in the menu.
 List<AppMenuSection> visibleAppMenuSections({
   required bool Function(String feature) isFeatureEnabled,
   required bool Function(String permission) canRead,
-  required bool hasSignatures,
 }) {
   bool visible(AppMenuItem item) {
     final permission = item.permissionName;
     if (permission == null) return true;
+    final also = item.alsoPermissionName;
+    if (also != null && isFeatureEnabled(also) && canRead(also)) return true;
     if (!isFeatureEnabled(item.featureName ?? permission)) return false;
     return canRead(permission);
   }
 
   return [
-    if (hasSignatures) const AppMenuSection('Att göra', [signaturesMenuItem]),
     for (final section in appMenuSections)
       if (section.items.any(visible))
         AppMenuSection(section.heading, section.items.where(visible).toList()),
@@ -277,7 +277,6 @@ class AppMenuDrawer extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final authStore = inject(authStoreKey);
-    final signaturesStore = inject(signaturesStoreKey);
     final theme = useTheme();
     final (searchController, query, _) = useTextEditingController();
 
@@ -286,7 +285,6 @@ class AppMenuDrawer extends CompositionWidget {
         isFeatureEnabled: authStore.isFeatureEnabled,
         canRead: (permission) =>
             authStore.hasPermission(permission, CrudOperation.read),
-        hasSignatures: signaturesStore.mine.value.isNotEmpty,
       ),
     );
 

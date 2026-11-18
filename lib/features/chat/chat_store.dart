@@ -79,18 +79,48 @@ class ChatStore {
     return fallback;
   }
 
-  /// Members who are neither board nor admin may only write to the board when
-  /// the association's chat_mode is 'board_only' (enforced server-side too).
-  bool get boardOnlyRestricted =>
-      (_authStore.association.value?.chatBoardOnly ?? false) &&
-      !_authStore.isAdmin.value &&
-      !_authStore.isBoardMember.value;
+  /// The association's chat_mode is 'board_only': chat is only used between
+  /// members and the board. Members only see their "Styrelsen" thread, the
+  /// board only "Till styrelsen", and nobody can start other chats (enforced
+  /// server-side too, pb_hooks/collections/chat_rooms.pb.js).
+  bool get boardOnly => _authStore.association.value?.chatBoardOnly ?? false;
 
   /// The current user's own "Styrelsen" room, if it exists yet.
   ChatRoomsRecord? get myBoardRoom {
     final me = _myId;
     if (me == null) return null;
     return _rooms.value.where((r) => r.boardContactUser == me).firstOrNull;
+  }
+
+  /// A member's board room seen from the board ("Till styrelsen").
+  bool isInboxThread(ChatRoomsRecord room) =>
+      room.isBoardRoom && room.boardContactUser != _myId;
+
+  /// "Markera som hanterad" / "Öppna igen" on a member's board room (board
+  /// only). The server sets the time and who.
+  Future<bool> setBoardHandled(String roomId, bool handled) async {
+    try {
+      final record = await _pb
+          .collection(Collections.chatRooms)
+          .update(
+            roomId,
+            body: {
+              'board_handled_at': handled
+                  ? DateTime.now().toUtc().toIso8601String()
+                  : '',
+            },
+            expand: 'members',
+          );
+      final updated = ChatRoomsRecord.fromJson(record.toJson());
+      _rooms.value = [
+        for (final r in _rooms.value) r.id == roomId ? updated : r,
+      ];
+      return true;
+    } catch (e) {
+      lastError = _errorMessage(e, 'Kunde inte uppdatera tråden.');
+      debugPrint('ChatStore: Error updating board room: $e');
+      return false;
+    }
   }
 
   // --- Rooms ------------------------------------------------------------

@@ -40,18 +40,33 @@ class CreateIssuePage extends CompositionWidget {
     // residence (only its residents and admins can see it) or is shared with
     // the whole association. Offer the choice only when both are allowed;
     // otherwise the one permitted kind is used.
-    final ownResidenceId = authStore.residence.value?.id;
+    final ownResidence = authStore.residence.value;
+    final ownResidenceId = ownResidence?.id;
     final canCreateShared = authStore.hasPermission(
       'issues',
       CrudOperation.create,
     );
     final canCreateForOwnResidence =
         ownResidenceId != null &&
+        authStore.isFeatureEnabled('residence_issues') &&
         authStore.hasPermission('residence_issues', CrudOperation.create);
     final choosesResidence = !isEdit && residenceId == null;
     final showResidenceChoice =
         choosesResidence && canCreateShared && canCreateForOwnResidence;
     final forOwnResidence = ref(choosesResidence && canCreateForOwnResidence);
+    // Master-key consent only makes sense for an issue in a residence.
+    final concernsResidence = computed(
+      () =>
+          residenceId != null ||
+          (isEdit
+              ? (issuesStore.currentIssue.value?.residence ?? '').isNotEmpty
+              : forOwnResidence.value),
+    );
+    final ownAddress = [
+      ownResidence?.streetAddress,
+      ownResidence?.zipCode,
+      ownResidence?.locality,
+    ].where((v) => v != null && v.isNotEmpty).join(', ');
 
     // Description is rich text (HTML). Hold the current HTML and only mount the
     // editor once the initial content is known (it can load late on deep-links).
@@ -179,30 +194,63 @@ class CreateIssuePage extends CompositionWidget {
                   child: Center(child: CircularProgressIndicator()),
                 ),
               const SizedBox(height: 16),
-              if (showResidenceChoice)
-                SwitchListTile(
-                  title: const Text('Gäller min bostad'),
-                  subtitle: Text(
-                    forOwnResidence.value
-                        ? 'Syns bara för bostadens boende och administratörer.'
-                        : 'Syns för alla i föreningen.',
+              if (showResidenceChoice) ...[
+                Text(
+                  'Gäller',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).hintColor,
                   ),
-                  value: forOwnResidence.value,
-                  onChanged: (v) => forOwnResidence.value = v,
                 ),
+                RadioGroup<bool>(
+                  groupValue: forOwnResidence.value,
+                  onChanged: (v) {
+                    if (v == null) return;
+                    forOwnResidence.value = v;
+                    if (!v) consentToMasterKey.value = false;
+                  },
+                  child: Column(
+                    children: [
+                      const RadioListTile<bool>(
+                        contentPadding: EdgeInsets.zero,
+                        value: false,
+                        activeColor: AppTheme.primaryColor,
+                        title: Text('Gemensamma utrymmen'),
+                        subtitle: Text(
+                          'T.ex. trapphus, tvättstuga, gården. Syns för alla i föreningen.',
+                        ),
+                      ),
+                      RadioListTile<bool>(
+                        contentPadding: EdgeInsets.zero,
+                        value: true,
+                        activeColor: AppTheme.primaryColor,
+                        title: Text(
+                          ownAddress.isEmpty
+                              ? 'Min bostad'
+                              : 'Min bostad ($ownAddress)',
+                        ),
+                        subtitle: const Text(
+                          'Syns bara för dig, ditt hushåll och styrelsen/administratörer.',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
               SwitchListTile(
                 title: const Text('Tillåt kommentarer'),
                 value: commentsAllowed.value,
                 onChanged: (v) => commentsAllowed.value = v,
               ),
-              SwitchListTile(
-                title: const Text('Samtycke till huvudnyckel'),
-                subtitle: const Text(
-                  'Ge tillgång med huvudnyckel till bostaden',
+              if (concernsResidence.value)
+                SwitchListTile(
+                  title: const Text('Samtycke till huvudnyckel'),
+                  subtitle: const Text(
+                    'Ge tillgång med huvudnyckel till bostaden',
+                  ),
+                  value: consentToMasterKey.value,
+                  onChanged: (v) => consentToMasterKey.value = v,
                 ),
-                value: consentToMasterKey.value,
-                onChanged: (v) => consentToMasterKey.value = v,
-              ),
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: loading.value ? null : saveIssue,

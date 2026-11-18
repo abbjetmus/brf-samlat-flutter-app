@@ -1650,7 +1650,14 @@ class ChatRoomsRecord {
   /// kept in sync by the server (POST /api/chat/board-room).
   final String? boardContactUser;
 
+  /// Set when someone on the board marked this board room as handled
+  /// ("Till styrelsen" → Hanterade). Cleared by the server when the member
+  /// writes again.
+  final String? boardHandledAt;
+  final String? boardHandledBy;
+
   bool get isBoardRoom => boardContactUser?.isNotEmpty ?? false;
+  bool get isBoardHandled => boardHandledAt?.isNotEmpty ?? false;
 
   ChatRoomsRecord({
     required this.id,
@@ -1664,6 +1671,8 @@ class ChatRoomsRecord {
     this.avatar,
     this.memberUsers = const [],
     this.boardContactUser,
+    this.boardHandledAt,
+    this.boardHandledBy,
   });
 
   factory ChatRoomsRecord.fromJson(Map<String, dynamic> json) {
@@ -1689,6 +1698,8 @@ class ChatRoomsRecord {
               .toList() ??
           const [],
       boardContactUser: json['board_contact_user'] as String?,
+      boardHandledAt: json['board_handled_at'] as String?,
+      boardHandledBy: json['board_handled_by'] as String?,
     );
   }
 }

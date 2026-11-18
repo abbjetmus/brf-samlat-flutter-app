@@ -35,6 +35,12 @@ class ChatRoomsPage extends CompositionWidget {
 
     final openingBoardRoom = ref<bool>(false);
 
+    // Styrelsens inkorg: medlemmarnas styrelsechattar ligger under "Till
+    // styrelsen" (bara trådar med meddelanden); hanterade trådar under
+    // "Hanterade" tills medlemmen skriver igen.
+    final chatTab = ref<String>('mine');
+    final inboxFilter = ref<String>('open');
+
     // "Skriv till styrelsen": find-or-create the member's board room on the
     // server, then open it.
     Future<void> openBoardRoom(BuildContext context) async {
@@ -93,6 +99,32 @@ class ChatRoomsPage extends CompositionWidget {
                   context.push('${ChatRoomPage.path}/${room.id}', extra: title);
                 },
               ),
+              if (chatStore.isInboxThread(room))
+                ListTile(
+                  leading: Icon(
+                    room.isBoardHandled
+                        ? Icons.unarchive_outlined
+                        : Icons.check_circle_outline,
+                  ),
+                  title: Text(
+                    room.isBoardHandled ? 'Öppna igen' : 'Markera som hanterad',
+                  ),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final ok = await chatStore.setBoardHandled(
+                      room.id,
+                      !room.isBoardHandled,
+                    );
+                    if (!context.mounted || ok) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          chatStore.lastError ?? 'Kunde inte uppdatera tråden.',
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ChatMuteTile(
                 hostContext: context,
                 chatStore: chatStore,
@@ -174,14 +206,46 @@ class ChatRoomsPage extends CompositionWidget {
       // Members (not the board) always get a pinned "Skriv till styrelsen"
       // entry; their own board room is shown there instead of in the list.
       final showBoardEntry = !authStore.isBoardMember.value;
-      final boardOnly = chatStore.boardOnlyRestricted;
+      final boardOnly = chatStore.boardOnly;
       final allRooms = chatStore.rooms.value;
       final myBoardRoom = showBoardEntry
           ? allRooms.where((r) => r.boardContactUser == me).firstOrNull
           : null;
-      final rooms = myBoardRoom == null
-          ? allRooms
-          : allRooms.where((r) => r.id != myBoardRoom.id).toList();
+      final ownRooms = (myBoardRoom == null
+              ? allRooms
+              : allRooms.where((r) => r.id != myBoardRoom.id))
+          .where((r) => !chatStore.isInboxThread(r))
+          .toList();
+      // Medlemmarnas trådar till styrelsen, bara de där någon har skrivit.
+      final inboxThreads = allRooms
+          .where(
+            (r) =>
+                chatStore.isInboxThread(r) &&
+                chatStore.lastMessages.value[r.id] != null,
+          )
+          .toList();
+      final inboxOpen = inboxThreads.where((r) => !r.isBoardHandled).toList();
+      final inboxHandled = inboxThreads.where((r) => r.isBoardHandled).toList();
+      final inboxUnread = inboxOpen
+          .where((r) => chatStore.unreadCount(r.id) > 0)
+          .length;
+      final showInbox =
+          authStore.isBoardMember.value ||
+          allRooms.any(chatStore.isInboxThread);
+      // "Bara styrelsen": styrelsen ser bara inkorgen och medlemmen bara sin
+      // tråd med styrelsen (raden Skriv till styrelsen), så inga flikar.
+      final showInboxTabs = showInbox && !boardOnly;
+      final onInboxTab = showInbox && (boardOnly || chatTab.value == 'board');
+      // Eget id per läge, så att rätt text syns även för den som har stängt
+      // en annan variant.
+      final helpId = boardOnly
+          ? (showInbox ? 'chat-board-only-inbox' : 'chat-board-only')
+          : (showInboxTabs ? 'chat-board-inbox' : 'chat');
+      final rooms = onInboxTab
+          ? (inboxFilter.value == 'open' ? inboxOpen : inboxHandled)
+          : boardOnly
+          ? <ChatRoomsRecord>[]
+          : ownRooms;
       final loading = chatStore.loadingRooms.value;
       final boardUnread =
           myBoardRoom == null ? 0 : chatStore.unreadCount(myBoardRoom.id);
@@ -258,26 +322,92 @@ class ChatRoomsPage extends CompositionWidget {
         body: Column(
           children: [
             HelpTip(
-              id: 'chat',
-              text: boardOnly
-                  ? 'Föreningen har valt att medlemmar bara kan skriva till '
-                      'styrelsen. Tryck på Skriv till styrelsen för att nå '
-                      'hela styrelsen. Du kan svara när styrelsen skriver '
-                      'till dig.'
+              // Eget id för styrelsens text, så att den syns även för den som
+              // har stängt den vanliga hjälpen. Nyckeln bygger om tipset när
+              // läget ändras (rummen laddas efter första ritningen).
+              key: ValueKey(helpId),
+              id: helpId,
+              text: boardOnly && showInbox
+                  ? 'Föreningen använder chatten bara för kontakt mellan '
+                        'medlemmar och styrelsen. Här ser du medlemmarnas '
+                        'meddelanden till styrelsen. Håll fingret på en tråd '
+                        'och välj Markera som hanterad när ni är klara. Den '
+                        'kommer tillbaka om medlemmen skriver igen.'
+                  : boardOnly
+                  ? 'Föreningen använder chatten bara för kontakt mellan '
+                        'medlemmar och styrelsen. Tryck på Skriv till '
+                        'styrelsen för att nå hela styrelsen.'
+                  : showInboxTabs
+                  ? 'Medlemmarnas meddelanden till styrelsen samlas under '
+                        'Till styrelsen. Håll fingret på en tråd och välj '
+                        'Markera som hanterad när ni är klara. Den kommer '
+                        'tillbaka om medlemmen skriver igen.'
                   : 'Tryck på + och välj en eller flera personer för att '
                       'starta en konversation. Skriv till styrelsen når hela '
                       'styrelsen på en gång. Håll fingret på en konversation '
                       'för att stänga av notiser, lämna den, eller radera den '
                       'om du startade den.',
             ),
-            ?boardEntry,
+            if (showInboxTabs)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<String>(
+                    segments: [
+                      const ButtonSegment(
+                        value: 'mine',
+                        label: Text('Mina chattar'),
+                      ),
+                      ButtonSegment(
+                        value: 'board',
+                        label: Text(
+                          inboxUnread > 0
+                              ? 'Till styrelsen ($inboxUnread)'
+                              : 'Till styrelsen',
+                        ),
+                      ),
+                    ],
+                    selected: {chatTab.value},
+                    showSelectedIcon: false,
+                    onSelectionChanged: (v) => chatTab.value = v.first,
+                  ),
+                ),
+              ),
+            if (onInboxTab)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+                child: Row(
+                  children: [
+                    ChoiceChip(
+                      label: Text('Att hantera (${inboxOpen.length})'),
+                      selected: inboxFilter.value == 'open',
+                      onSelected: (_) => inboxFilter.value = 'open',
+                    ),
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: Text('Hanterade (${inboxHandled.length})'),
+                      selected: inboxFilter.value == 'handled',
+                      onSelected: (_) => inboxFilter.value = 'handled',
+                    ),
+                  ],
+                ),
+              ),
+            if (!onInboxTab) ?boardEntry,
             Expanded(
               child: loading && rooms.isEmpty
             ? const Center(child: CircularProgressIndicator())
+            // "Bara styrelsen": medlemmen har bara raden Skriv till styrelsen.
+            : boardOnly && !onInboxTab
+                ? const SizedBox.shrink()
             : rooms.isEmpty
                 ? Center(
                     child: Text(
-                      showBoardEntry
+                      onInboxTab
+                          ? (inboxFilter.value == 'open'
+                                ? 'Inget att hantera.'
+                                : 'Inga hanterade meddelanden.')
+                          : showBoardEntry
                           ? 'Inga andra konversationer ännu.'
                           : 'Inga konversationer ännu.',
                     ),

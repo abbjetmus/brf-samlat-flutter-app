@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
+import '../../../core/models/pocketbase_models.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/app_features.dart';
 import '../../../core/utils/permissions_utils.dart';
@@ -41,6 +42,9 @@ const _menuLabels = <String, String>{
   'form_builder': 'Formulärbyggaren',
 };
 
+/// Användarrollen "user" har alla i föreningen.
+const _allMembersLabel = 'Alla medlemmar';
+
 class PermissionsPage extends CompositionWidget {
   static const String path = '/permissions';
 
@@ -66,20 +70,48 @@ class PermissionsPage extends CompositionWidget {
       }
     });
 
+    // Rättigheterna sparas per roll och kategori (användarroll eller
+    // föreningsroll), men här visas bara "roller": Alla medlemmar
+    // (användarrollen "user"), styrelsens roller och övriga roller.
+    String userRoleLabel(UserRoleTypesRecord role) {
+      if (role.name == 'user') return _allMembersLabel;
+      return role.displayName.isNotEmpty ? role.displayName : role.name;
+    }
+
+    String assocRoleLabel(AssociationRoleTypesRecord role) =>
+        role.displayName.isNotEmpty ? role.displayName : role.name;
+
     String roleName(RolePermission p) {
       if (p.roleCategory == RoleCategory.user.value) {
         final match = authStore.userRoleTypes.value
             .where((r) => r.id == p.roleTypeId)
             .firstOrNull;
-        if (match == null) return 'Okänd användarroll';
-        return match.displayName.isNotEmpty ? match.displayName : match.name;
+        return match == null ? 'Okänd roll' : userRoleLabel(match);
       }
       final match = authStore.associationRoleTypes.value
           .where((r) => r.id == p.roleTypeId)
           .firstOrNull;
-      if (match == null) return 'Okänd föreningsroll';
-      return match.displayName.isNotEmpty ? match.displayName : match.name;
+      return match == null ? 'Okänd roll' : assocRoleLabel(match);
     }
+
+    // Ordning i listan: admin, alla medlemmar, styrelsen, övriga roller.
+    // associationRoleTypes är redan sorterad (AuthStore._sortRoleTypes).
+    int roleRank(RolePermission p) {
+      if (p.roleCategory == RoleCategory.user.value) {
+        final match = authStore.userRoleTypes.value
+            .where((r) => r.id == p.roleTypeId)
+            .firstOrNull;
+        return match?.name == 'admin' ? 0 : 1;
+      }
+      final roles = authStore.associationRoleTypes.value;
+      final index = roles.indexWhere((r) => r.id == p.roleTypeId);
+      if (index == -1) return 5000;
+      return (roles[index].isBoardRole ? 10 : 1000) + index;
+    }
+
+    List<RolePermission> sortedPermissions(DashboardMenuPermission menu) =>
+        [...menu.permissions]
+          ..sort((a, b) => roleRank(a).compareTo(roleRank(b)));
 
     // The admin user role always has full access (see AuthStore.hasPermission,
     // which short-circuits to true for admins). Its matrix entries are therefore
@@ -255,6 +287,13 @@ class PermissionsPage extends CompositionWidget {
         final assocRoles = authStore.associationRoleTypes.value
             .where((r) => !assignedAssocIds.contains(r.id))
             .toList();
+        final boardRoles = assocRoles.where((r) => r.isBoardRole).toList();
+        final otherRoles = assocRoles.where((r) => !r.isBoardRole).toList();
+        final memberIds = userRoles
+            .where((r) => r.name == 'user')
+            .map((r) => r.id)
+            .toSet();
+        final boardIds = boardRoles.map((r) => r.id).toSet();
 
         if (userRoles.isEmpty && assocRoles.isEmpty) {
           showResult(
@@ -269,6 +308,17 @@ class PermissionsPage extends CompositionWidget {
         final selectedAssocIds = <String>{};
         final selectedOps = <String>{};
 
+        // Snabbval: är alla redan valda tas de bort, annars läggs de till.
+        bool allIn(Set<String> selected, Set<String> ids) =>
+            ids.isNotEmpty && selected.containsAll(ids);
+        void toggleAll(Set<String> selected, Set<String> ids) {
+          if (allIn(selected, ids)) {
+            selected.removeAll(ids);
+          } else {
+            selected.addAll(ids);
+          }
+        }
+
         await showAppBottomSheet<void>(
           context: context,
           builder: (sheetContext) {
@@ -277,6 +327,17 @@ class PermissionsPage extends CompositionWidget {
             final labelStyle = Theme.of(
               sheetContext,
             ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.bold);
+            Widget roleTile({
+              required String label,
+              required bool selected,
+              required ValueChanged<bool>? onChanged,
+            }) => CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: Text(label),
+              value: selected,
+              onChanged: onChanged == null ? null : (v) => onChanged(v == true),
+            );
             return StatefulBuilder(
               builder: (sheetContext, setSheetState) {
                 return Column(
@@ -294,50 +355,77 @@ class PermissionsPage extends CompositionWidget {
                           ?.copyWith(color: Theme.of(sheetContext).hintColor),
                     ),
                     const SizedBox(height: 8),
-                    if (userRoles.isNotEmpty) ...[
-                      Text('Användarroller', style: labelStyle),
-                      for (final r in userRoles)
-                        CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          title: Text(
-                            r.displayName.isNotEmpty ? r.displayName : r.name,
-                          ),
-                          value: selectedUserIds.contains(r.id),
-                          onChanged: saving
-                              ? null
-                              : (v) => setSheetState(() {
-                                  error = false;
-                                  if (v == true) {
-                                    selectedUserIds.add(r.id);
-                                  } else {
-                                    selectedUserIds.remove(r.id);
-                                  }
-                                }),
-                        ),
+                    if (memberIds.isNotEmpty || boardIds.isNotEmpty) ...[
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          if (memberIds.isNotEmpty)
+                            FilterChip(
+                              label: const Text(_allMembersLabel),
+                              selected: allIn(selectedUserIds, memberIds),
+                              onSelected: saving
+                                  ? null
+                                  : (_) => setSheetState(() {
+                                      error = false;
+                                      toggleAll(selectedUserIds, memberIds);
+                                    }),
+                            ),
+                          if (boardIds.isNotEmpty)
+                            FilterChip(
+                              label: const Text('Hela styrelsen'),
+                              selected: allIn(selectedAssocIds, boardIds),
+                              onSelected: saving
+                                  ? null
+                                  : (_) => setSheetState(() {
+                                      error = false;
+                                      toggleAll(selectedAssocIds, boardIds);
+                                    }),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
                     ],
-                    if (assocRoles.isNotEmpty) ...[
-                      Text('Föreningsroller', style: labelStyle),
-                      for (final r in assocRoles)
-                        CheckboxListTile(
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          title: Text(
-                            r.displayName.isNotEmpty ? r.displayName : r.name,
-                          ),
-                          value: selectedAssocIds.contains(r.id),
-                          onChanged: saving
-                              ? null
-                              : (v) => setSheetState(() {
-                                  error = false;
-                                  if (v == true) {
-                                    selectedAssocIds.add(r.id);
-                                  } else {
-                                    selectedAssocIds.remove(r.id);
-                                  }
-                                }),
+                    for (final r in userRoles)
+                      roleTile(
+                        label: userRoleLabel(r),
+                        selected: selectedUserIds.contains(r.id),
+                        onChanged: saving
+                            ? null
+                            : (v) => setSheetState(() {
+                                error = false;
+                                if (v) {
+                                  selectedUserIds.add(r.id);
+                                } else {
+                                  selectedUserIds.remove(r.id);
+                                }
+                              }),
+                      ),
+                    for (final group in [
+                      ('Styrelse', boardRoles),
+                      ('Övriga roller', otherRoles),
+                    ])
+                      if (group.$2.isNotEmpty) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(group.$1, style: labelStyle),
                         ),
-                    ],
+                        for (final r in group.$2)
+                          roleTile(
+                            label: assocRoleLabel(r),
+                            selected: selectedAssocIds.contains(r.id),
+                            onChanged: saving
+                                ? null
+                                : (v) => setSheetState(() {
+                                    error = false;
+                                    if (v) {
+                                      selectedAssocIds.add(r.id);
+                                    } else {
+                                      selectedAssocIds.remove(r.id);
+                                    }
+                                  }),
+                          ),
+                      ],
                     const Divider(height: 24),
                     Text('Rättigheter', style: labelStyle),
                     for (final op in CrudOperation.values)
@@ -590,7 +678,7 @@ class PermissionsPage extends CompositionWidget {
                                 ),
                               )
                             else
-                              for (final p in menu.permissions) ...[
+                              for (final p in sortedPermissions(menu)) ...[
                                 Builder(
                                   builder: (context) {
                                     final isAdmin = isAdminRole(p);
@@ -689,7 +777,8 @@ class PermissionsPage extends CompositionWidget {
                 text:
                     'Under Funktioner slår du av delar av appen som föreningen '
                     'inte använder. Under Rättigheter väljer du vilka roller som '
-                    'får läsa, skapa, uppdatera och radera i varje funktion. '
+                    'får läsa, skapa, uppdatera och radera i varje funktion: '
+                    'alla medlemmar, hela styrelsen eller enskilda roller. '
                     'Administratörer har alltid full åtkomst.',
               ),
               const TabBar(

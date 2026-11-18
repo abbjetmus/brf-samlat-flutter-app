@@ -21,7 +21,6 @@ class DashboardPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final authStore = inject(authStoreKey);
     final dashboardStore = inject(dashboardStoreKey);
-    final signaturesStore = inject(signaturesStoreKey);
 
     onMounted(() {
       dashboardStore.getNotSeenCount();
@@ -35,7 +34,6 @@ class DashboardPage extends CompositionWidget {
       if (assocId != null && assocId.isNotEmpty) {
         dashboardStore.getGeneralInfoList();
         dashboardStore.loadTasks();
-        signaturesStore.getMine();
       }
     }, immediate: true);
 
