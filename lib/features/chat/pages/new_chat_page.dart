@@ -5,6 +5,7 @@ import '../../../core/di/injection_keys.dart';
 import '../../../core/models/pocketbase_models.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import 'chat_room_page.dart';
+import '../reserved_room_name.dart';
 
 /// Pick one or more association members and start a DM (single user) or a named
 /// group chat (multiple users or the group toggle).
@@ -37,7 +38,11 @@ class NewChatPage extends CompositionWidget {
       final ids = selected.value.toList();
       if (ids.isEmpty) return;
       final group = isGroup.value || ids.length > 1;
-      if (group && groupName.value.trim().isEmpty) return;
+      if (group &&
+          (groupName.value.trim().isEmpty ||
+              isReservedRoomName(groupName.value))) {
+        return;
+      }
       creating.value = true;
       final roomId = await chatStore.createRoom(
         ids,
@@ -79,7 +84,9 @@ class NewChatPage extends CompositionWidget {
           .toList();
       final group = isGroup.value || selected.value.length > 1;
       final canCreate = selected.value.isNotEmpty &&
-          (!group || groupName.value.trim().isNotEmpty) &&
+          (!group ||
+              (groupName.value.trim().isNotEmpty &&
+                  !isReservedRoomName(groupName.value))) &&
           !creating.value;
 
       return GradientScaffold(
@@ -95,9 +102,13 @@ class NewChatPage extends CompositionWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: TextField(
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Gruppnamn',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
+                    errorText: isReservedRoomName(groupName.value)
+                        ? reservedRoomNameMessage
+                        : null,
+                    errorMaxLines: 3,
                   ),
                   onChanged: (v) => groupName.value = v,
                 ),

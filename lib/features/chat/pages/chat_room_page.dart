@@ -12,6 +12,7 @@ import '../../../core/utils/file_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../chat_store.dart';
 import '../widgets/chat_mute_options.dart';
+import '../reserved_room_name.dart';
 
 class ChatRoomPage extends CompositionWidget {
   static const String path = '/chat/room';
@@ -656,12 +657,23 @@ class _RenameRoomDialog extends CompositionWidget {
     final (ctrl, name, _) = useTextEditingController(text: initialName);
     final saving = ref(false);
 
+    // Ett gammalt rum som redan heter "Styrelsen" får behålla namnet.
+    final reserved = computed(
+      () =>
+          isReservedRoomName(name.value) &&
+          name.value.trim() != initialName.trim(),
+    );
+
     return (context) => AlertDialog(
           title: const Text('Byt namn'),
           content: TextField(
             controller: ctrl,
             autofocus: true,
-            decoration: const InputDecoration(labelText: 'Gruppnamn'),
+            decoration: InputDecoration(
+              labelText: 'Gruppnamn',
+              errorText: reserved.value ? reservedRoomNameMessage : null,
+              errorMaxLines: 3,
+            ),
           ),
           actions: [
             TextButton(
@@ -669,7 +681,8 @@ class _RenameRoomDialog extends CompositionWidget {
               child: const Text('Avbryt'),
             ),
             FilledButton(
-              onPressed: saving.value || name.value.trim().isEmpty
+              onPressed:
+                  saving.value || name.value.trim().isEmpty || reserved.value
                   ? null
                   : () async {
                       saving.value = true;
