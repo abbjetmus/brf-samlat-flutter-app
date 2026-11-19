@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_html/flutter_html.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'rich_image.dart';
 
 /// Renders rich-text HTML descriptions (Tiptap output from the admin) with
 /// consistent typography across detail screens (posts, issues, places,
@@ -29,8 +30,10 @@ class RichDescription extends StatelessWidget {
     caseSensitive: false,
   );
 
-  static String normalize(String html) =>
-      html.replaceAllMapped(_emptyParagraph, (m) => '<p${m[1] ?? ''}>\u200B</p>');
+  static String normalize(String html) => html.replaceAllMapped(
+    _emptyParagraph,
+    (m) => '<p${m[1] ?? ''}>\u200B</p>',
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +44,21 @@ class RichDescription extends StatelessWidget {
 
     return Html(
       data: normalize(html),
+      // Bilder från webbens editor (inlägg): i sparad bredd, aldrig bredare än
+      // skärmen, med bibehållna proportioner.
+      extensions: [
+        TagExtension(
+          tagsToExtend: {'img'},
+          builder: (ctx) {
+            final src = ctx.attributes['src'] ?? '';
+            if (!src.startsWith('http')) return const SizedBox.shrink();
+            return RichImage(
+              src: src,
+              width: RichImage.parseWidth(ctx.attributes['width']),
+            );
+          },
+        ),
+      ],
       onLinkTap: (url, _, __) async {
         if (url == null) return;
         final uri = Uri.tryParse(url);
@@ -63,25 +81,19 @@ class RichDescription extends StatelessWidget {
         'li': Style(margin: Margins.only(bottom: 4)),
         // Tiptap wraps list item text in <p>; no paragraph gap inside lists.
         'li p': Style(margin: Margins.zero),
-        'a': Style(
-          color: linkColor,
-          textDecoration: TextDecoration.underline,
-        ),
+        'a': Style(color: linkColor, textDecoration: TextDecoration.underline),
         'strong, b': Style(fontWeight: FontWeight.w700),
         'em, i': Style(fontStyle: FontStyle.italic),
         'blockquote': Style(
           margin: Margins.symmetric(vertical: 8),
           padding: HtmlPaddings.symmetric(vertical: 6, horizontal: 12),
-          backgroundColor:
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-          border: Border(
-            left: BorderSide(color: linkColor, width: 3),
+          backgroundColor: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.4,
           ),
+          border: Border(left: BorderSide(color: linkColor, width: 3)),
           fontStyle: FontStyle.italic,
         ),
-        'table': Style(
-          margin: Margins.symmetric(vertical: 8),
-        ),
+        'table': Style(margin: Margins.symmetric(vertical: 8)),
         'th': Style(
           padding: HtmlPaddings.symmetric(vertical: 4, horizontal: 8),
           backgroundColor: theme.colorScheme.surfaceContainerHigh,

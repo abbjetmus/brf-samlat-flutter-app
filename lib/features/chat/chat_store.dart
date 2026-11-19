@@ -79,11 +79,11 @@ class ChatStore {
     return fallback;
   }
 
-  /// The association's chat_mode is 'board_only': chat is only used between
-  /// members and the board. Members only see their "Styrelsen" thread, the
-  /// board only "Till styrelsen", and nobody can start other chats (enforced
-  /// server-side too, pb_hooks/collections/chat_rooms.pb.js).
-  bool get boardOnly => _authStore.association.value?.chatBoardOnly ?? false;
+  // Chat is only used to contact the board (pb_hooks/collections/chat_rooms.pb.js):
+  // a member has one "Styrelsen" thread with the whole board; the board sees
+  // the members' threads (Att hantera / Hanterade) and has its own chat
+  // ("Bara styrelsen"). Nobody can start other chats; the server creates and
+  // syncs every room.
 
   /// The current user's own "Styrelsen" room, if it exists yet.
   ChatRoomsRecord? get myBoardRoom {
@@ -92,7 +92,11 @@ class ChatStore {
     return _rooms.value.where((r) => r.boardContactUser == me).firstOrNull;
   }
 
-  /// A member's board room seen from the board ("Till styrelsen").
+  /// The board's own chat ("Bara styrelsen"), if loaded.
+  ChatRoomsRecord? get boardInternalRoom =>
+      _rooms.value.where((r) => r.boardInternal).firstOrNull;
+
+  /// A member's board room seen from the board (Att hantera / Hanterade).
   bool isInboxThread(ChatRoomsRecord room) =>
       room.isBoardRoom && room.boardContactUser != _myId;
 
@@ -133,7 +137,11 @@ class ChatStore {
       final result = await _pb
           .collection(Collections.chatRooms)
           .getFullList(
-            filter: 'members.id ?= "$me"',
+            // Only the board rooms. Old ordinary chats are kept in the
+            // database but no longer used.
+            filter:
+                'members.id ?= "$me" && '
+                '(board_contact_user != "" || board_internal = true)',
             sort: '-updated',
             expand: 'members',
           );
@@ -204,6 +212,7 @@ class ChatStore {
   }
 
   String roomTitle(ChatRoomsRecord room) {
+    if (room.boardInternal) return 'Bara styrelsen';
     // Board room: "Styrelsen" for the member, "Styrelsen – <member>" for the
     // board.
     if (room.isBoardRoom) {
@@ -227,70 +236,25 @@ class ChatStore {
     return room.name?.isNotEmpty == true ? room.name! : 'Chatt';
   }
 
-  Future<String?> createRoom(
-    List<String> userIds, {
-    String? name,
-    bool isGroup = false,
-  }) async {
-    final me = _myId;
-    final associationId = _authStore.association.value?.id;
-    if (me == null || associationId == null) return null;
-    try {
-      final allUsers = <String>{
-        me,
-        ...userIds.where((id) => id != me),
-      }.toList();
-
-      // Reuse an existing DM with the same two members.
-      if (!isGroup && allUsers.length == 2) {
-        final existing = _rooms.value.where((r) {
-          if (r.isGroup) return false;
-          return r.members.length == 2 &&
-              r.members.contains(allUsers[0]) &&
-              r.members.contains(allUsers[1]);
-        }).firstOrNull;
-        if (existing != null) return existing.id;
-      }
-
-      final record = await _pb
-          .collection(Collections.chatRooms)
-          .create(
-            body: {
-              'association': associationId,
-              'name': name ?? '',
-              'is_group': isGroup,
-              'created_by': me,
-              'members': allUsers,
-            },
-            expand: 'members',
-          );
-      final room = ChatRoomsRecord.fromJson(record.toJson());
-      // The rooms realtime subscription (subscribeRooms) may already have
-      // inserted this room from its own 'create' event; only prepend if absent
-      // so the new conversation doesn't show up twice in the list.
-      if (!_rooms.value.any((r) => r.id == room.id)) {
-        _rooms.value = [room, ..._rooms.value];
-      }
-      for (final u in room.memberUsers) {
-        _userCache[u.id] = u;
-      }
-      return room.id;
-    } catch (e) {
-      debugPrint('ChatStore: Error creating room: $e');
-      lastError = _errorMessage(e, 'Kunde inte starta chatten.');
-      return null;
-    }
-  }
-
   /// "Skriv till styrelsen": gets (or creates) the current member's board
   /// room via POST /api/chat/board-room. The server sets its members (the
   /// member + the whole board). Returns the room id, or null ([lastError]).
-  Future<String?> openBoardRoom() async {
+  Future<String?> openBoardRoom() => _openServerRoom(
+    '/api/chat/board-room',
+    'Kunde inte öppna styrelsechatten.',
+  );
+
+  /// "Bara styrelsen": gets (or creates) the board's own chat via
+  /// POST /api/chat/board-internal-room (board members only). Returns the
+  /// room id, or null ([lastError]).
+  Future<String?> openBoardInternalRoom() => _openServerRoom(
+    '/api/chat/board-internal-room',
+    'Kunde inte öppna styrelsens chatt.',
+  );
+
+  Future<String?> _openServerRoom(String path, String fallbackError) async {
     try {
-      final json = await _pb.send<Map<String, dynamic>>(
-        '/api/chat/board-room',
-        method: 'POST',
-      );
+      final json = await _pb.send<Map<String, dynamic>>(path, method: 'POST');
       final room = ChatRoomsRecord.fromJson(json);
       final list = [..._rooms.value];
       final idx = list.indexWhere((r) => r.id == room.id);
@@ -305,8 +269,8 @@ class ChatStore {
       }
       return room.id;
     } catch (e) {
-      debugPrint('ChatStore: Error opening board room: $e');
-      lastError = _errorMessage(e, 'Kunde inte öppna styrelsechatten.');
+      debugPrint('ChatStore: Error opening $path: $e');
+      lastError = _errorMessage(e, fallbackError);
       return null;
     }
   }
@@ -424,10 +388,9 @@ class ChatStore {
 
   Future<bool> editMessage(String messageId, String content) async {
     try {
-      await _pb.collection(Collections.chatMessages).update(
-        messageId,
-        body: {'content': content, 'edited': true},
-      );
+      await _pb
+          .collection(Collections.chatMessages)
+          .update(messageId, body: {'content': content, 'edited': true});
       return true;
     } catch (e) {
       debugPrint('ChatStore: Error editing message: $e');
@@ -443,67 +406,6 @@ class ChatStore {
       return true;
     } catch (e) {
       debugPrint('ChatStore: Error deleting message: $e');
-      return false;
-    }
-  }
-
-  Future<bool> updateRoom(String roomId, {String? name}) async {
-    try {
-      final body = <String, dynamic>{};
-      if (name != null) body['name'] = name;
-      await _pb
-          .collection(Collections.chatRooms)
-          .update(roomId, body: body, expand: 'members');
-      return true;
-    } catch (e) {
-      debugPrint('ChatStore: Error updating room: $e');
-      return false;
-    }
-  }
-
-  Future<bool> deleteRoom(String roomId) async {
-    try {
-      await _pb.collection(Collections.chatRooms).delete(roomId);
-      _rooms.value = _rooms.value.where((r) => r.id != roomId).toList();
-      return true;
-    } catch (e) {
-      debugPrint('ChatStore: Error deleting room: $e');
-      return false;
-    }
-  }
-
-  Future<bool> leaveRoom(String roomId) async {
-    final me = _myId;
-    if (me == null) return false;
-    try {
-      final room = _rooms.value.where((r) => r.id == roomId).firstOrNull;
-      if (room == null) return false;
-      final newMembers = room.members.where((id) => id != me).toList();
-      await _pb.collection(Collections.chatRooms).update(
-        roomId,
-        body: {'members': newMembers},
-      );
-      _rooms.value = _rooms.value.where((r) => r.id != roomId).toList();
-      return true;
-    } catch (e) {
-      debugPrint('ChatStore: Error leaving room: $e');
-      return false;
-    }
-  }
-
-  Future<bool> addMembers(String roomId, List<String> userIds) async {
-    try {
-      final room = _rooms.value.where((r) => r.id == roomId).firstOrNull;
-      if (room == null) return false;
-      final updated = {...room.members, ...userIds}.toList();
-      await _pb.collection(Collections.chatRooms).update(
-        roomId,
-        body: {'members': updated},
-        expand: 'members',
-      );
-      return true;
-    } catch (e) {
-      debugPrint('ChatStore: Error adding members: $e');
       return false;
     }
   }
@@ -725,7 +627,12 @@ class ChatStore {
       final room = ChatRoomsRecord.fromJson(record.toJson());
       final list = [..._rooms.value];
       final idx = list.indexWhere((r) => r.id == room.id);
-      if (e.action == 'delete') {
+      // Only the board rooms (see getRooms), and only where I'm a member
+      // (leaving the board removes "Bara styrelsen").
+      final me = _myId;
+      final relevant =
+          room.isSystemRoom && me != null && room.members.contains(me);
+      if (e.action == 'delete' || !relevant) {
         if (idx != -1) list.removeAt(idx);
       } else if (idx != -1) {
         list[idx] = room;

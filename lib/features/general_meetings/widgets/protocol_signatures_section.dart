@@ -25,9 +25,14 @@ class ProtocolSignaturesSection extends CompositionWidget {
     super.key,
     required this.meetingId,
     required this.onLockedChanged,
+    this.beforeSend,
   });
 
   final String meetingId;
+
+  /// Körs innan justeringen skickas, t.ex. för att spara osparade ändringar i
+  /// protokollet. Returnerar den false skickas inget.
+  final Future<bool> Function()? beforeSend;
 
   /// Anropas när protokollet blir låst (minst en signatur) eller upplåst.
   final ValueChanged<bool> onLockedChanged;
@@ -71,6 +76,8 @@ class ProtocolSignaturesSection extends CompositionWidget {
     onMounted(load);
 
     Future<void> openSendSheet() async {
+      final beforeSend = props.value.beforeSend;
+      if (beforeSend != null && !await beforeSend()) return;
       List<UsersRecord> users;
       try {
         users = await store.associationUsers();

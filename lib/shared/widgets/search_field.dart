@@ -23,31 +23,33 @@ class SearchField extends CompositionWidget {
     final (controller, text, _) = useTextEditingController();
 
     return (context) => TextField(
-          controller: controller,
-          onChanged: props.value.onChanged,
-          textInputAction: TextInputAction.search,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: InputDecoration(
-            hintText: props.value.hintText,
-            prefixIcon: const Icon(Icons.search, size: 22),
-            isDense: true,
-            // Use the surface colour (white in light mode) so the field stands
-            // out against the slightly off-white page background.
-            filled: true,
-            fillColor: theme.value.colorScheme.surface,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            suffixIcon: text.value.isEmpty
-                ? null
-                : IconButton(
-                    icon: const Icon(Icons.close, size: 20),
-                    tooltip: 'Rensa',
-                    onPressed: () {
-                      controller.clear();
-                      props.value.onChanged('');
-                    },
-                  ),
-          ),
-        );
+      controller: controller,
+      onChanged: props.value.onChanged,
+      textInputAction: TextInputAction.search,
+      textCapitalization: TextCapitalization.sentences,
+      decoration: InputDecoration(
+        hintText: props.value.hintText,
+        prefixIcon: const Icon(Icons.search, size: 22),
+        isDense: true,
+        // Use the surface colour (white in light mode) so the field stands
+        // out against the slightly off-white page background.
+        filled: true,
+        fillColor: theme.value.colorScheme.surface,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
+        suffixIcon: text.value.isEmpty
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.close, size: 20),
+                tooltip: 'Rensa',
+                onPressed: () {
+                  controller.clear();
+                  props.value.onChanged('');
+                },
+              ),
+      ),
+    );
   }
 }

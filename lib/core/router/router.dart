@@ -35,7 +35,6 @@ import '../../features/forms/pages/forms_list_page.dart';
 import '../../features/forms/pages/form_detail_page.dart';
 import '../../features/chat/pages/chat_rooms_page.dart';
 import '../../features/chat/pages/chat_room_page.dart';
-import '../../features/chat/pages/new_chat_page.dart';
 import '../../features/help/pages/help_page.dart';
 import '../../features/permissions/pages/permissions_page.dart';
 import '../../features/signatures/pages/signatures_list_page.dart';
@@ -87,9 +86,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${PostDetailPage.path}/:id',
-      builder: (context, state) => PostDetailPage(
-        postId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          PostDetailPage(postId: state.pathParameters['id']!),
     ),
     GoRoute(
       path: CreatePostPage.path,
@@ -97,9 +95,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${CreatePostPage.editPath}/:id',
-      builder: (context, state) => CreatePostPage(
-        postId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          CreatePostPage(postId: state.pathParameters['id']!),
     ),
     // Issues
     GoRoute(
@@ -108,9 +105,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${IssueDetailPage.path}/:id',
-      builder: (context, state) => IssueDetailPage(
-        issueId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          IssueDetailPage(issueId: state.pathParameters['id']!),
     ),
     GoRoute(
       path: CreateIssuePage.path,
@@ -120,9 +116,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${CreateIssuePage.editPath}/:id',
-      builder: (context, state) => CreateIssuePage(
-        issueId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          CreateIssuePage(issueId: state.pathParameters['id']!),
     ),
     // Calendar
     GoRoute(
@@ -136,9 +131,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${PlaceDetailPage.path}/:id',
-      builder: (context, state) => PlaceDetailPage(
-        placeId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          PlaceDetailPage(placeId: state.pathParameters['id']!),
     ),
     GoRoute(
       path: CreatePlacePage.path,
@@ -156,9 +150,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${GadgetDetailPage.path}/:id',
-      builder: (context, state) => GadgetDetailPage(
-        gadgetId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          GadgetDetailPage(gadgetId: state.pathParameters['id']!),
     ),
     GoRoute(
       path: CreateGadgetPage.path,
@@ -176,9 +169,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${ResidenceDetailPage.path}/:id',
-      builder: (context, state) => ResidenceDetailPage(
-        residenceId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          ResidenceDetailPage(residenceId: state.pathParameters['id']!),
     ),
     GoRoute(
       path: CreateResidencePage.path,
@@ -186,9 +178,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${CreateResidencePage.editPath}/:id',
-      builder: (context, state) => CreateResidencePage(
-        residenceId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          CreateResidencePage(residenceId: state.pathParameters['id']!),
     ),
     // Parking
     GoRoute(
@@ -197,9 +188,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${ParkingLotDetailPage.path}/:id',
-      builder: (context, state) => ParkingLotDetailPage(
-        parkingLotId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          ParkingLotDetailPage(parkingLotId: state.pathParameters['id']!),
     ),
     GoRoute(
       path: CreateParkingLotPage.path,
@@ -207,9 +197,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${CreateParkingLotPage.editPath}/:id',
-      builder: (context, state) => CreateParkingLotPage(
-        parkingLotId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          CreateParkingLotPage(parkingLotId: state.pathParameters['id']!),
     ),
     // Folders & Files
     GoRoute(
@@ -223,16 +212,14 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${BoardMeetingDetailPage.path}/:id',
-      builder: (context, state) => BoardMeetingDetailPage(
-        meetingId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          BoardMeetingDetailPage(meetingId: state.pathParameters['id']!),
     ),
     GoRoute(
       path: CreateBoardMeetingPage.path,
       // ?id=<mötes-id> öppnar sidan för att redigera ett befintligt möte.
-      builder: (context, state) => CreateBoardMeetingPage(
-        meetingId: state.uri.queryParameters['id'],
-      ),
+      builder: (context, state) =>
+          CreateBoardMeetingPage(meetingId: state.uri.queryParameters['id']),
     ),
     // E-signing
     GoRoute(
@@ -241,9 +228,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${SignaturePage.path}/:id',
-      builder: (context, state) => SignaturePage(
-        signatureId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          SignaturePage(signatureId: state.pathParameters['id']!),
     ),
     // Annual wheel
     GoRoute(
@@ -257,9 +243,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${GeneralMeetingDetailPage.path}/:id',
-      builder: (context, state) => GeneralMeetingDetailPage(
-        meetingId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          GeneralMeetingDetailPage(meetingId: state.pathParameters['id']!),
     ),
     // Maintenance plan (read-only)
     GoRoute(
@@ -303,18 +288,13 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${InvoiceDetailPage.path}/:id',
-      builder: (context, state) => InvoiceDetailPage(
-        invoiceId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          InvoiceDetailPage(invoiceId: state.pathParameters['id']!),
     ),
     // Chat
     GoRoute(
       path: ChatRoomsPage.path,
       builder: (context, state) => const ChatRoomsPage(),
-    ),
-    GoRoute(
-      path: NewChatPage.path,
-      builder: (context, state) => const NewChatPage(),
     ),
     GoRoute(
       path: '${ChatRoomPage.path}/:id',
@@ -330,9 +310,8 @@ final router = GoRouter(
     ),
     GoRoute(
       path: '${FormDetailPage.path}/:id',
-      builder: (context, state) => FormDetailPage(
-        formResponseId: state.pathParameters['id']!,
-      ),
+      builder: (context, state) =>
+          FormDetailPage(formResponseId: state.pathParameters['id']!),
     ),
     // Permissions
     GoRoute(
@@ -340,10 +319,7 @@ final router = GoRouter(
       builder: (context, state) => const PermissionsPage(),
     ),
     // Help
-    GoRoute(
-      path: HelpPage.path,
-      builder: (context, state) => const HelpPage(),
-    ),
+    GoRoute(path: HelpPage.path, builder: (context, state) => const HelpPage()),
     // Om föreningen
     GoRoute(
       path: AssociationInfoPage.path,

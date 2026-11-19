@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show ClientException;
@@ -31,7 +33,14 @@ class ProtocolTab extends CompositionWidget {
     final contextRef = useContext();
 
     final loading = ref(true);
-    final saving = ref(false);
+    // Auto-spara: 'idle' | 'pending' | 'saving' | 'saved' | 'error'.
+    final saveStatus = ref('idle');
+    final lastSavedAt = ref<DateTime?>(null);
+    Timer? debounce;
+    var changeCounter = 0;
+    var savedCounter = 0;
+    var errorCount = 0;
+    Future<bool>? inFlight;
     final protocol = ref<GeneralMeetingProtocol?>(null);
     // Medlem: protokollet är inte justerat än (servern svarar 404).
     final notReady = ref(false);
@@ -54,6 +63,10 @@ class ProtocolTab extends CompositionWidget {
       notes.value = p.notes;
       decisions.value = {for (final i in p.items) i.id: i.decision};
       version.value++;
+      // Det som just lästs in räknas som sparat.
+      debounce?.cancel();
+      savedCounter = changeCounter;
+      errorCount = 0;
     }
 
     Future<void> load() async {
@@ -87,36 +100,98 @@ class ProtocolTab extends CompositionWidget {
 
     watch(() => props.value.meeting.status, (_, _) => load());
 
-    Future<void> save() async {
-      saving.value = true;
-      try {
-        apply(
-          await store.saveProtocol(
+    // --- Auto-spara -----------------------------------------------------------
+    // Sparar 1,5 s efter senaste ändringen och när sidan stängs. Fälten byggs
+    // inte om efter en sparning (version ökas inte), så markören står kvar.
+    bool isDirty() => changeCounter != savedCounter;
+
+    Future<bool> flush() async {
+      debounce?.cancel();
+      if (inFlight != null) await inFlight;
+      if (!editable.value || protocol.value == null || !isDirty()) {
+        return !isDirty();
+      }
+      final counter = changeCounter;
+      saveStatus.value = 'saving';
+      final future = () async {
+        try {
+          final saved = await store.saveProtocol(
             props.value.meeting.id,
             notes: notes.value,
             decisions: decisions.value,
-          ),
-        );
-        final ctx = contextRef.value;
-        if (ctx != null && ctx.mounted) {
-          ScaffoldMessenger.of(ctx).showSnackBar(
-            const SnackBar(content: Text('Protokollet är sparat')),
           );
+          protocol.value = saved;
+          savedCounter = counter;
+          errorCount = 0;
+          lastSavedAt.value = DateTime.now();
+          saveStatus.value = 'saved';
+          return true;
+        } catch (e) {
+          errorCount++;
+          saveStatus.value = 'error';
+          // Nytt försök: 5 s, 10 s, 20 s … högst en minut.
+          final wait = (5 * (1 << (errorCount - 1))).clamp(5, 60);
+          debounce = Timer(Duration(seconds: wait), () => flush());
+          return false;
+        } finally {
+          inFlight = null;
         }
-      } catch (e) {
+      }();
+      inFlight = future;
+      final ok = await future;
+      if (ok && isDirty()) {
+        debounce = Timer(const Duration(milliseconds: 1500), () => flush());
+      }
+      return ok;
+    }
+
+    void changed() {
+      changeCounter++;
+      if (saveStatus.value != 'saving') saveStatus.value = 'pending';
+      if (errorCount > 0) return; // ett nytt försök väntar redan
+      debounce?.cancel();
+      debounce = Timer(const Duration(milliseconds: 1500), () => flush());
+    }
+
+    // Lämnar man sidan med osparat sparas det ändå (utan att vänta på svaret).
+    // Widgeten finns inte kvar efteråt, så bara skicka (rör inga refs).
+    onUnmounted(() {
+      debounce?.cancel();
+      if (isDirty() && editable.value && protocol.value != null) {
+        unawaited(
+          store
+              .saveProtocol(
+                props.value.meeting.id,
+                notes: notes.value,
+                decisions: decisions.value,
+              )
+              .then(
+                (_) {},
+                onError: (Object e) {
+                  debugPrint('Protokollet kunde inte sparas vid stängning: $e');
+                },
+              ),
+        );
+      }
+    });
+
+    Future<bool> saveBeforeSigning() async {
+      if (!editable.value) return true;
+      final ok = await flush();
+      if (!ok) {
         final ctx = contextRef.value;
         if (ctx != null && ctx.mounted) {
           ScaffoldMessenger.of(ctx).showSnackBar(
-            SnackBar(
+            const SnackBar(
               content: Text(
-                generalMeetingErrorMessage(e, 'Kunde inte spara protokollet'),
+                'Protokollet kunde inte sparas. Försök igen innan du skickar '
+                'det för justering.',
               ),
             ),
           );
         }
-      } finally {
-        saving.value = false;
       }
+      return ok;
     }
 
     void onLocked(bool value) {
@@ -174,8 +249,9 @@ class ProtocolTab extends CompositionWidget {
                 id: 'general-meeting-protocol-board',
                 padding: EdgeInsets.only(bottom: 12),
                 text:
-                    'Skriv stämmans beslut under varje punkt och tryck på '
-                    'Spara. Röstresultaten kommer från Omröstning. När stämman '
+                    'Skriv stämmans beslut under varje punkt. Allt sparas '
+                    'automatiskt medan du skriver. Röstresultaten kommer från '
+                    'Omröstning. När stämman '
                     'är avslutad skickar du protokollet för justering. Efter '
                     'den första signaturen är protokollet låst, och när alla '
                     'har signerat kan alla medlemmar läsa det.',
@@ -193,6 +269,7 @@ class ProtocolTab extends CompositionWidget {
                   ProtocolSignaturesSection(
                     meetingId: meeting.id,
                     onLockedChanged: onLocked,
+                    beforeSend: saveBeforeSigning,
                   )
                 else
                   Text(
@@ -228,8 +305,10 @@ class ProtocolTab extends CompositionWidget {
                     key: ValueKey('${item.id}-${version.value}'),
                     initial: item.decision,
                     hint: 'Stämmans beslut',
-                    onChanged: (v) =>
-                        decisions.value = {...decisions.value, item.id: v},
+                    onChanged: (v) {
+                      decisions.value = {...decisions.value, item.id: v};
+                      changed();
+                    },
                   )
                 else
                   Text(
@@ -245,7 +324,10 @@ class ProtocolTab extends CompositionWidget {
                     key: ValueKey('notes-${version.value}'),
                     initial: p.notes,
                     hint: 'T.ex. närvaro, tider, övrigt',
-                    onChanged: (v) => notes.value = v,
+                    onChanged: (v) {
+                      notes.value = v;
+                      changed();
+                    },
                   )
                 else
                   Text(p.notes.trim()),
@@ -254,16 +336,10 @@ class ProtocolTab extends CompositionWidget {
               if (canEdit)
                 Align(
                   alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    onPressed: saving.value ? null : save,
-                    icon: saving.value
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save_outlined),
-                    label: const Text('Spara'),
+                  child: _AutoSaveStatus(
+                    status: saveStatus.value,
+                    lastSavedAt: lastSavedAt.value,
+                    onRetry: () => flush(),
                   ),
                 ),
               if (!canManage && p.signatures.isNotEmpty) ...[
@@ -344,5 +420,80 @@ class _TextArea extends CompositionWidget {
         isDense: true,
       ),
     );
+  }
+}
+
+/// Status för auto-spara under protokollet.
+class _AutoSaveStatus extends StatelessWidget {
+  const _AutoSaveStatus({
+    required this.status,
+    required this.lastSavedAt,
+    required this.onRetry,
+  });
+
+  final String status;
+  final DateTime? lastSavedAt;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final muted = TextStyle(color: Colors.grey[600], fontSize: 13);
+    String two(int n) => n.toString().padLeft(2, '0');
+    switch (status) {
+      case 'saving':
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 6),
+            Text('Sparar…', style: muted),
+          ],
+        );
+      case 'pending':
+        return Text('Osparade ändringar', style: muted);
+      case 'error':
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_outlined, size: 16, color: Colors.red),
+            const SizedBox(width: 6),
+            const Text(
+              'Kunde inte spara',
+              style: TextStyle(color: Colors.red, fontSize: 13),
+            ),
+            TextButton(onPressed: onRetry, child: const Text('Försök igen')),
+          ],
+        );
+      case 'saved':
+        final t = lastSavedAt;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.cloud_done_outlined,
+              size: 16,
+              color: AppTheme.primaryColor,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              t == null ? 'Sparat' : 'Sparat ${two(t.hour)}:${two(t.minute)}',
+              style: muted,
+            ),
+          ],
+        );
+      default:
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.cloud_outlined, size: 16, color: Colors.grey[600]),
+            const SizedBox(width: 6),
+            Text('Sparas automatiskt', style: muted),
+          ],
+        );
+    }
   }
 }

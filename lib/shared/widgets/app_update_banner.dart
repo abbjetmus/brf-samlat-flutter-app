@@ -97,10 +97,7 @@ class AppUpdateBanner extends CompositionWidget {
                         'För att fortsätta använda BRF Samlat behöver du '
                         'uppdatera till den senaste versionen.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 15,
-                        ),
+                        style: TextStyle(color: Colors.white70, fontSize: 15),
                       ),
                       const SizedBox(height: 32),
                       SizedBox(

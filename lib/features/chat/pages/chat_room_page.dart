@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:flutter_chat_core/flutter_chat_core.dart';
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/di/injection_keys.dart';
@@ -12,7 +11,6 @@ import '../../../core/utils/file_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../chat_store.dart';
 import '../widgets/chat_mute_options.dart';
-import '../reserved_room_name.dart';
 
 class ChatRoomPage extends CompositionWidget {
   static const String path = '/chat/room';
@@ -26,7 +24,6 @@ class ChatRoomPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final chatStore = inject(chatStoreKey);
     final authStore = inject(authStoreKey);
-    final usersStore = inject(usersStoreKey);
     final controller = InMemoryChatController();
     final replyingTo = ref<ChatMessagesRecord?>(null);
 
@@ -49,8 +46,9 @@ class ChatRoomPage extends CompositionWidget {
 
     void showSnack(BuildContext context, String message) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     }
 
     Future<void> sendAttachments(
@@ -156,7 +154,11 @@ class ChatRoomPage extends CompositionWidget {
       );
     }
 
-    void showMessageOptions(BuildContext context, Message message, String currentUserId) {
+    void showMessageOptions(
+      BuildContext context,
+      Message message,
+      String currentUserId,
+    ) {
       final isMe = message.authorId == currentUserId;
       showModalBottomSheet(
         context: context,
@@ -184,7 +186,9 @@ class ChatRoomPage extends CompositionWidget {
                   ),
                   title: Text(
                     'Ta bort meddelande',
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -197,83 +201,9 @@ class ChatRoomPage extends CompositionWidget {
       );
     }
 
-    void showRenameDialog(BuildContext context, ChatRoomsRecord room) {
-      showDialog(
-        context: context,
-        builder: (_) => _RenameRoomDialog(
-          initialName: room.name ?? '',
-          onConfirm: (name) => chatStore.updateRoom(room.id, name: name),
-        ),
-      );
-    }
-
-    void showAddMembersDialog(BuildContext context, ChatRoomsRecord room) {
-      usersStore.getUsers();
-      showDialog(
-        context: context,
-        builder: (_) => _AddMembersDialog(
-          room: room,
-          onConfirm: (ids) => chatStore.addMembers(room.id, ids),
-        ),
-      );
-    }
-
-    Future<void> showLeaveConfirm(BuildContext context) async {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Lämna chatt'),
-          content: const Text('Vill du lämna den här konversationen?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Avbryt'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Lämna'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed == true && context.mounted) {
-        await chatStore.leaveRoom(roomId);
-        if (context.mounted) context.pop();
-      }
-    }
-
-    Future<void> showDeleteConfirm(BuildContext context) async {
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Radera chatt'),
-          content: const Text('Vill du permanent radera den här konversationen?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Avbryt'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: Theme.of(ctx).colorScheme.error,
-              ),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Radera'),
-            ),
-          ],
-        ),
-      );
-      if (confirmed == true && context.mounted) {
-        await chatStore.deleteRoom(roomId);
-        if (context.mounted) context.pop();
-      }
-    }
-
-    void showRoomOptions(BuildContext context, ChatRoomsRecord room, String currentUserId) {
-      // The board room is managed by the server (members follow the board),
-      // so it only offers muting.
-      final boardRoom = room.isBoardRoom;
-      final isCreator = room.createdBy == currentUserId;
+    void showRoomOptions(BuildContext context, ChatRoomsRecord room) {
+      // All rooms are managed by the server (members follow the board), so
+      // they only offer muting, plus "Markera som hanterad" for the board.
       showModalBottomSheet(
         context: context,
         useRootNavigator: true,
@@ -295,7 +225,10 @@ class ChatRoomPage extends CompositionWidget {
                   onTap: () async {
                     Navigator.pop(ctx);
                     final handled = !room.isBoardHandled;
-                    final ok = await chatStore.setBoardHandled(room.id, handled);
+                    final ok = await chatStore.setBoardHandled(
+                      room.id,
+                      handled,
+                    );
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -316,48 +249,6 @@ class ChatRoomPage extends CompositionWidget {
                 chatStore: chatStore,
                 roomId: room.id,
               ),
-              if (room.isGroup && !boardRoom) ...[
-                ListTile(
-                  leading: const Icon(Icons.edit_outlined),
-                  title: const Text('Byt namn'),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    showRenameDialog(context, room);
-                  },
-                ),
-                if (!chatStore.boardOnly)
-                  ListTile(
-                    leading: const Icon(Icons.person_add_outlined),
-                    title: const Text('Lägg till deltagare'),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      showAddMembersDialog(context, room);
-                    },
-                  ),
-                ListTile(
-                  leading: const Icon(Icons.exit_to_app_outlined),
-                  title: const Text('Lämna chatt'),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    showLeaveConfirm(context);
-                  },
-                ),
-              ],
-              if (isCreator && !boardRoom)
-                ListTile(
-                  leading: Icon(
-                    Icons.delete_outline,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                  title: Text(
-                    'Radera chatt',
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
-                  ),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    showDeleteConfirm(context);
-                  },
-                ),
             ],
           ),
         ),
@@ -379,13 +270,11 @@ class ChatRoomPage extends CompositionWidget {
             ? null
             : 'Notiser avstängda ${chatMuteUntilText(mute)}',
         actions: [
-          // Every room can be muted; rename/members/leave/delete are added in
-          // the sheet where allowed (never for the board room).
           if (room != null)
             HeaderIconButton(
               icon: Icons.more_vert,
               tooltip: 'Alternativ',
-              onPressed: () => showRoomOptions(context, room, currentUserId),
+              onPressed: () => showRoomOptions(context, room),
             ),
         ],
         body: Chat(
@@ -393,9 +282,10 @@ class ChatRoomPage extends CompositionWidget {
           currentUserId: currentUserId,
           theme: _chatTheme(context),
           onAttachmentTap: () => chooseAttachment(context),
-          onMessageLongPress: (ctx, message, {required index, required details}) {
-            showMessageOptions(context, message, currentUserId);
-          },
+          onMessageLongPress:
+              (ctx, message, {required index, required details}) {
+                showMessageOptions(context, message, currentUserId);
+              },
           builders: Builders(
             composerBuilder: (ctx) => Composer(
               topWidget: replying != null
@@ -412,9 +302,12 @@ class ChatRoomPage extends CompositionWidget {
             ),
             emptyChatListBuilder: (ctx) =>
                 const EmptyChatList(text: 'Inga meddelanden än'),
-            customMessageBuilder: (ctx, message, index,
-                    {required isSentByMe, groupStatus}) =>
-                _AttachmentsBubble(message: message, isSentByMe: isSentByMe),
+            customMessageBuilder:
+                (ctx, message, index, {required isSentByMe, groupStatus}) =>
+                    _AttachmentsBubble(
+                      message: message,
+                      isSentByMe: isSentByMe,
+                    ),
           ),
           onMessageSend: (text) async {
             final trimmed = text.trim();
@@ -460,8 +353,9 @@ class ChatRoomPage extends CompositionWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return base.copyWith(
       colors: base.colors.copyWith(
-        surfaceContainer:
-            isDark ? const Color(0xFF1E2A40) : const Color(0xFFE8F0EC),
+        surfaceContainer: isDark
+            ? const Color(0xFF1E2A40)
+            : const Color(0xFFE8F0EC),
       ),
     );
   }
@@ -534,7 +428,9 @@ class _AttachmentsBubble extends StatelessWidget {
     final background = isSentByMe
         ? colorScheme.primary
         : (isDark ? const Color(0xFF1E2A40) : const Color(0xFFE8F0EC));
-    final foreground = isSentByMe ? colorScheme.onPrimary : colorScheme.onSurface;
+    final foreground = isSentByMe
+        ? colorScheme.onPrimary
+        : colorScheme.onSurface;
 
     final metadata = message.metadata ?? const {};
     final text = (metadata['text'] as String?) ?? '';
@@ -592,15 +488,12 @@ class _AttachmentsBubble extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 4),
                 child: ActionChip(
                   avatar: Icon(parseFilename(file.name).icon, size: 18),
-                  label: Text(
-                    () {
-                      final info = parseFilename(file.name);
-                      return info.extension.isEmpty
-                          ? info.name
-                          : '${info.name}.${info.extension}';
-                    }(),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  label: Text(() {
+                    final info = parseFilename(file.name);
+                    return info.extension.isEmpty
+                        ? info.name
+                        : '${info.name}.${info.extension}';
+                  }(), overflow: TextOverflow.ellipsis),
                   onPressed: () => _open(file.url),
                 ),
               ),
@@ -628,17 +521,15 @@ class _ReplyPreview extends StatelessWidget {
     final preview = record.deleted
         ? 'Meddelandet har tagits bort'
         : (record.content?.isNotEmpty == true
-            ? record.content!
-            : record.files.isNotEmpty
-                ? '📎 Bilaga'
-                : '');
+              ? record.content!
+              : record.files.isNotEmpty
+              ? '📎 Bilaga'
+              : '');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest,
-        border: Border(
-          left: BorderSide(color: colorScheme.primary, width: 3),
-        ),
+        border: Border(left: BorderSide(color: colorScheme.primary, width: 3)),
       ),
       child: Row(
         children: [
@@ -659,7 +550,10 @@ class _ReplyPreview extends StatelessWidget {
                   preview,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -673,159 +567,5 @@ class _ReplyPreview extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _RenameRoomDialog extends CompositionWidget {
-  final String initialName;
-  final Future<bool> Function(String) onConfirm;
-
-  const _RenameRoomDialog({required this.initialName, required this.onConfirm});
-
-  @override
-  Widget Function(BuildContext) setup() {
-    final (ctrl, name, _) = useTextEditingController(text: initialName);
-    final saving = ref(false);
-
-    // Ett gammalt rum som redan heter "Styrelsen" får behålla namnet.
-    final reserved = computed(
-      () =>
-          isReservedRoomName(name.value) &&
-          name.value.trim() != initialName.trim(),
-    );
-
-    return (context) => AlertDialog(
-          title: const Text('Byt namn'),
-          content: TextField(
-            controller: ctrl,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: 'Gruppnamn',
-              errorText: reserved.value ? reservedRoomNameMessage : null,
-              errorMaxLines: 3,
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Avbryt'),
-            ),
-            FilledButton(
-              onPressed:
-                  saving.value || name.value.trim().isEmpty || reserved.value
-                  ? null
-                  : () async {
-                      saving.value = true;
-                      await onConfirm(name.value.trim());
-                      if (context.mounted) Navigator.pop(context);
-                    },
-              child: saving.value
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Spara'),
-            ),
-          ],
-        );
-  }
-}
-
-class _AddMembersDialog extends CompositionWidget {
-  final ChatRoomsRecord room;
-  final Future<bool> Function(List<String>) onConfirm;
-
-  const _AddMembersDialog({required this.room, required this.onConfirm});
-
-  @override
-  Widget Function(BuildContext) setup() {
-    final usersStore = inject(usersStoreKey);
-    final authStore = inject(authStoreKey);
-    final (_, query, _) = useTextEditingController();
-    final selected = ref<Set<String>>({});
-    final saving = ref(false);
-
-    return (context) {
-      final meId = authStore.currentUser.value?.id;
-      final existingIds = {...room.members};
-      final q = query.value.toLowerCase();
-      final users = usersStore.users.value
-          .where((u) => u.id != meId && !existingIds.contains(u.id))
-          .where((u) =>
-              q.isEmpty ||
-              u.name.toLowerCase().contains(q) ||
-              (u.email ?? '').toLowerCase().contains(q))
-          .toList();
-
-      return AlertDialog(
-        title: const Text('Lägg till deltagare'),
-        contentPadding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                child: TextField(
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Sök användare',
-                    prefixIcon: Icon(Icons.search),
-                    isDense: true,
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (v) => query.value = v,
-                ),
-              ),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 240),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: users.length,
-                  itemBuilder: (_, i) {
-                    final u = users[i];
-                    final isSelected = selected.value.contains(u.id);
-                    return CheckboxListTile(
-                      dense: true,
-                      value: isSelected,
-                      title: Text(u.name.isNotEmpty ? u.name : (u.email ?? '')),
-                      onChanged: (_) {
-                        final next = {...selected.value};
-                        isSelected ? next.remove(u.id) : next.add(u.id);
-                        selected.value = next;
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Avbryt'),
-          ),
-          FilledButton(
-            onPressed: saving.value || selected.value.isEmpty
-                ? null
-                : () async {
-                    saving.value = true;
-                    await onConfirm(selected.value.toList());
-                    if (context.mounted) Navigator.pop(context);
-                  },
-            child: saving.value
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Lägg till'),
-          ),
-        ],
-      );
-    };
   }
 }

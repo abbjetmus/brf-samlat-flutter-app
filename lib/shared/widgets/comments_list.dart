@@ -23,6 +23,7 @@ class CommentItem {
 class CommentsList extends StatelessWidget {
   final List<CommentItem> comments;
   final String? currentUserId;
+
   /// When null the user may not add comments and the "Kommentera" button hides.
   final Future<void> Function(String comment)? onAddComment;
   final Future<void> Function(String id, String comment)? onEditComment;
@@ -52,7 +53,10 @@ class CommentsList extends StatelessWidget {
               label: const Text('Kommentera'),
               style: FilledButton.styleFrom(
                 minimumSize: const Size(0, 40),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 visualDensity: VisualDensity.compact,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
@@ -80,7 +84,10 @@ class CommentsList extends StatelessWidget {
                   currentUserId != null && comment.userId == currentUserId;
 
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

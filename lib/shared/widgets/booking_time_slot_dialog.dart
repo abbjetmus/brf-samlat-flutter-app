@@ -56,12 +56,15 @@ Future<BookingDialogResult?> showBookingTimeSlotDialog({
   required String slotDurationType,
   List<ExistingBooking> existingBookings = const [],
   bool isAdmin = false,
+
   /// The current user's residence id. A member must have a residence to book
   /// (null/empty disables non-block bookings). Admins can still create blocks.
   String? myResidenceId,
+
   /// Period over which [maxBookingsPerPeriod] applies: 'Dag', 'Vecka', 'Månad'
   /// or 'År'. Null/empty means no period limit.
   String? bookingPeriodType,
+
   /// Max bookings a residence may hold within one [bookingPeriodType]. Null/<=0
   /// means no limit.
   int? maxBookingsPerPeriod,
@@ -175,9 +178,11 @@ class _BookingTimeSlotDialog extends CompositionWidget {
 
     DateTime combine(DateTime date, String time) {
       if (time == '24:00') {
-        return DateTime(date.year, date.month, date.day).add(
-          const Duration(days: 1),
-        );
+        return DateTime(
+          date.year,
+          date.month,
+          date.day,
+        ).add(const Duration(days: 1));
       }
       final parts = time.split(':');
       return DateTime(
@@ -279,7 +284,9 @@ class _BookingTimeSlotDialog extends CompositionWidget {
       if (isDays()) {
         final start = combine(selectedDate.value, props.value.bookingStartTime);
         final end = combine(
-          selectedDate.value.add(Duration(days: props.value.slotDurationLength)),
+          selectedDate.value.add(
+            Duration(days: props.value.slotDurationLength),
+          ),
           props.value.bookingEndTime,
         );
         Navigator.of(context).pop(
@@ -331,8 +338,10 @@ class _BookingTimeSlotDialog extends CompositionWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Bokningstid',
-              style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            'Bokningstid',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 4),
           Text('Incheckning: ${fmt(checkIn)}'),
           Text('Utcheckning: ${fmt(checkOut)}'),

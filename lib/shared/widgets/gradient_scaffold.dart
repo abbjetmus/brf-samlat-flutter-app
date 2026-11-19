@@ -125,7 +125,8 @@ class AppGradientHeader extends StatelessWidget {
           if (canPop) ...[
             HeaderIconButton(
               icon: Icons.arrow_back,
-              onPressed: onBack ??
+              onPressed:
+                  onBack ??
                   () {
                     if (context.canPop()) {
                       context.pop();
@@ -247,12 +248,7 @@ class GradientScaffold extends StatelessWidget {
           // Bottom SafeArea so page content (lists, last cards, etc.) never sits
           // under the Android system nav bar. Top is handled by the header.
           Expanded(
-            child: SafeArea(
-              top: false,
-              left: false,
-              right: false,
-              child: body,
-            ),
+            child: SafeArea(top: false, left: false, right: false, child: body),
           ),
         ],
       ),

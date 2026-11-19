@@ -150,12 +150,6 @@ class AssociationsRecord {
   /// The association's own public website (`website_url`), '' when unset.
   final String websiteUrl;
 
-  /// `chat_mode`: 'all' (default, also when unset) or 'board_only' — members
-  /// who are neither board nor admin may then only write to the board.
-  final String chatMode;
-
-  bool get chatBoardOnly => chatMode == 'board_only';
-
   AssociationsRecord({
     required this.id,
     this.created,
@@ -169,7 +163,6 @@ class AssociationsRecord {
     this.permissions,
     this.disabledFeatures = const [],
     this.websiteUrl = '',
-    this.chatMode = 'all',
   });
 
   factory AssociationsRecord.fromJson(Map<String, dynamic> json) {
@@ -190,7 +183,6 @@ class AssociationsRecord {
                 .toList()
           : const [],
       websiteUrl: (json['website_url'] as String? ?? '').trim(),
-      chatMode: json['chat_mode'] == 'board_only' ? 'board_only' : 'all',
     );
   }
 }
@@ -1352,8 +1344,9 @@ class InvoiceTemplateSnapshot {
     final residence = json['residence'] is Map ? json['residence'] as Map : {};
     return InvoiceTemplateSnapshot(
       source: json['source'] as String? ?? '',
-      associationName:
-          association is Map ? association['name'] as String? : null,
+      associationName: association is Map
+          ? association['name'] as String?
+          : null,
       bankAccountType: json['bank_account_type'] as String?,
       bankAccountNumber: json['bank_account_number'] as String?,
       invoiceItems: json['invoice_items'] as List<dynamic>? ?? const [],
@@ -1651,13 +1644,21 @@ class ChatRoomsRecord {
   final String? boardContactUser;
 
   /// Set when someone on the board marked this board room as handled
-  /// ("Till styrelsen" → Hanterade). Cleared by the server when the member
+  /// (Att hantera → Hanterade). Cleared by the server when the member
   /// writes again.
   final String? boardHandledAt;
   final String? boardHandledBy;
 
+  /// The board's own chat ("Bara styrelsen"): one per association, members =
+  /// the board, created and kept in sync by the server
+  /// (POST /api/chat/board-internal-room).
+  final bool boardInternal;
+
   bool get isBoardRoom => boardContactUser?.isNotEmpty ?? false;
   bool get isBoardHandled => boardHandledAt?.isNotEmpty ?? false;
+
+  /// Rooms the server owns; the only ones in use (no own chats).
+  bool get isSystemRoom => isBoardRoom || boardInternal;
 
   ChatRoomsRecord({
     required this.id,
@@ -1673,6 +1674,7 @@ class ChatRoomsRecord {
     this.boardContactUser,
     this.boardHandledAt,
     this.boardHandledBy,
+    this.boardInternal = false,
   });
 
   factory ChatRoomsRecord.fromJson(Map<String, dynamic> json) {
@@ -1700,6 +1702,7 @@ class ChatRoomsRecord {
       boardContactUser: json['board_contact_user'] as String?,
       boardHandledAt: json['board_handled_at'] as String?,
       boardHandledBy: json['board_handled_by'] as String?,
+      boardInternal: json['board_internal'] as bool? ?? false,
     );
   }
 }
