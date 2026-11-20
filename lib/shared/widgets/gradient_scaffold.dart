@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../core/theme/app_theme.dart';
-import 'app_menu_drawer.dart';
 
-/// A circular, translucent icon button used inside [AppGradientHeader].
-///
-/// Matches the action buttons on the dashboard's hero header. Supports an
-/// optional numeric badge (e.g. unseen notifications).
+import '../../core/router/app_shell.dart';
+import '../../core/theme/app_theme.dart';
+
+/// A round 44 px icon button for page headers (white with a hairline border).
+/// Supports an optional numeric badge (e.g. unseen notifications).
 class HeaderIconButton extends StatelessWidget {
   final IconData icon;
   final int badgeCount;
@@ -23,40 +22,42 @@ class HeaderIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final button = Stack(
       clipBehavior: Clip.none,
       children: [
         Material(
-          color: Colors.white.withValues(alpha: 0.16),
-          shape: const CircleBorder(),
+          color: colors.surface,
+          shape: CircleBorder(side: BorderSide(color: colors.outline)),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
             onTap: onPressed,
-            child: Padding(
-              padding: const EdgeInsets.all(9),
-              child: Icon(icon, color: Colors.white, size: 22),
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Icon(icon, color: colors.onSurface, size: 22),
             ),
           ),
         ),
         if (badgeCount > 0)
           Positioned(
-            right: -2,
-            top: -2,
+            right: -3,
+            top: -3,
             child: Container(
-              padding: const EdgeInsets.all(4),
-              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: const Color(0xFFEF4444),
-                shape: BoxShape.circle,
-                border: Border.all(color: AppTheme.primaryDarken1, width: 1.5),
+                color: AppTheme.signal,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: colors.surface, width: 2),
               ),
               child: Text(
                 badgeCount > 99 ? '99+' : '$badgeCount',
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -64,29 +65,33 @@ class HeaderIconButton extends StatelessWidget {
       ],
     );
 
-    if (tooltip != null) {
-      return Tooltip(message: tooltip!, child: button);
-    }
-    return button;
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: tooltip != null
+          ? Tooltip(message: tooltip!, child: button)
+          : button,
+    );
   }
 }
 
-/// The shared gradient header shown at the top of every page. Mirrors the
-/// dashboard hero: brand gradient, rounded bottom corners, white text and a
-/// back button whenever the route can be popped.
+/// The page header: back button and actions on top, then a large left-aligned
+/// title. Tab roots (Hem, Anslag, Boka, Ärenden, Mer) have no back button and
+/// put the actions beside the title.
+///
+/// (The name is historical — the header used to be a green gradient.)
 class AppGradientHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final List<Widget> actions;
 
-  /// Overrides back-button visibility. When null a back button is shown by
-  /// default (it pops the route, or returns to the dashboard when there is
-  /// nothing to pop). Pass `false` to hide it.
+  /// Overrides back-button visibility. When null a back button is shown on
+  /// every page except the tab roots (it pops the route, or goes to Hem when
+  /// there is nothing to pop, e.g. opened from a notification).
   final bool? showBack;
 
-  /// Custom handler for the left back button. When set, tapping back runs this
-  /// instead of popping the route — used for in-page navigation (e.g. moving up
-  /// a folder hierarchy without changing the route).
+  /// Custom handler for the back button — used for in-page navigation (e.g.
+  /// moving up a folder hierarchy without changing the route).
   final VoidCallback? onBack;
 
   const AppGradientHeader({
@@ -98,92 +103,103 @@ class AppGradientHeader extends StatelessWidget {
     this.onBack,
   });
 
+  static bool _isTabRoot(BuildContext context) {
+    try {
+      return tabRootPaths.contains(GoRouterState.of(context).uri.path);
+    } catch (_) {
+      return false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final topInset = MediaQuery.of(context).padding.top;
-    // Every page that uses GradientScaffold is a sub-page of the dashboard (the
-    // home view and the login page don't use it), so show a back button by
-    // default. When the stack can't be popped — e.g. opened straight from a
-    // notification deep link — the handler below falls back to the dashboard.
-    // Pages can still opt out with `showBack: false`.
-    final canPop = showBack ?? true;
-    // ☰ längst till höger öppnar sidomenyn (GradientScaffold.endDrawer), så att
-    // den inte krockar med bakåtknappen till vänster.
-    final scaffold = Scaffold.maybeOf(context);
-    final showMenu = scaffold?.hasEndDrawer ?? false;
+    final theme = Theme.of(context);
+    final topInset = MediaQuery.paddingOf(context).top;
+    final back = showBack ?? !_isTabRoot(context);
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(12, topInset + 12, 12, 18),
-      decoration: const BoxDecoration(
-        gradient: AppTheme.brandGradient,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          if (canPop) ...[
-            HeaderIconButton(
-              icon: Icons.arrow_back,
-              onPressed:
-                  onBack ??
-                  () {
-                    if (context.canPop()) {
-                      context.pop();
-                    } else {
-                      // Deep-linked from a notification: the stack was replaced,
-                      // so there is nothing to pop. Fall back to the dashboard.
-                      context.go('/');
-                    }
-                  },
+    final titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: back
+              ? theme.textTheme.headlineSmall
+              : theme.textTheme.headlineLarge,
+        ),
+        if (subtitle != null && subtitle!.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            subtitle!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
             ),
-            const SizedBox(width: 8),
-          ] else if (showMenu && actions.isEmpty)
-            // Mirror the menu button's width so the title stays centred.
-            const SizedBox(width: 46),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
+          ),
+        ],
+      ],
+    );
+
+    final actionRow = [
+      for (final (i, action) in actions.indexed) ...[
+        if (i > 0) const SizedBox(width: 8),
+        action,
+      ],
+    ];
+
+    if (!back) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(20, topInset + 20, 16, 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(child: titleBlock),
+            ...actionRow,
+          ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(10, topInset + 6, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 48,
+            child: Row(
               children: [
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
+                IconButton(
+                  tooltip: 'Tillbaka',
+                  iconSize: 24,
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size(44, 44),
                   ),
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed:
+                      onBack ??
+                      () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          // Deep-linked from a notification: nothing to pop.
+                          context.go('/');
+                        }
+                      },
                 ),
-                if (subtitle != null && subtitle!.isNotEmpty)
-                  Text(
-                    subtitle!,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 13,
-                    ),
-                  ),
+                const Spacer(),
+                ...actionRow,
               ],
             ),
           ),
-          for (final action in actions) ...[const SizedBox(width: 6), action],
-          if (showMenu) ...[
-            const SizedBox(width: 6),
-            HeaderIconButton(
-              icon: Icons.menu,
-              tooltip: 'Meny',
-              onPressed: scaffold!.openEndDrawer,
-            ),
-          ]
-          // Mirror the back button's width so the title stays centred on screen.
-          else if (actions.isEmpty && canPop)
-            const SizedBox(width: 48),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 6, 0, 0),
+            child: titleBlock,
+          ),
         ],
       ),
     );
@@ -193,13 +209,9 @@ class AppGradientHeader extends StatelessWidget {
 /// Drop-in replacement for `Scaffold` + `AppBar` that renders the shared
 /// [AppGradientHeader] above the page body.
 ///
-/// Usage — replace:
-///   Scaffold(appBar: AppBar(title: const Text('Nyheter')), body: ...)
-/// with:
-///   GradientScaffold(title: 'Nyheter', body: ...)
+///   GradientScaffold(title: 'Inlägg', body: ...)
 ///
-/// Header action icons should use [HeaderIconButton] so they read as white on
-/// the gradient.
+/// Header action icons should use [HeaderIconButton].
 class GradientScaffold extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -211,8 +223,7 @@ class GradientScaffold extends StatelessWidget {
   final VoidCallback? onBack;
   final bool resizeToAvoidBottomInset;
 
-  /// Shows the ☰ side menu button in the header. Off on pages for logged-out
-  /// users (register, forgot password).
+  /// Kept for compatibility — the side menu was replaced by the Mer tab.
   final bool showMenu;
 
   const GradientScaffold({
@@ -235,8 +246,8 @@ class GradientScaffold extends StatelessWidget {
       resizeToAvoidBottomInset: resizeToAvoidBottomInset,
       floatingActionButton: floatingActionButton,
       bottomNavigationBar: bottomNavigationBar,
-      endDrawer: showMenu ? const AppMenuDrawer() : null,
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AppGradientHeader(
             title: title,
@@ -245,8 +256,8 @@ class GradientScaffold extends StatelessWidget {
             showBack: showBack,
             onBack: onBack,
           ),
-          // Bottom SafeArea so page content (lists, last cards, etc.) never sits
-          // under the Android system nav bar. Top is handled by the header.
+          // Bottom SafeArea so page content never sits under the system nav
+          // bar. Top is handled by the header.
           Expanded(
             child: SafeArea(top: false, left: false, right: false, child: body),
           ),

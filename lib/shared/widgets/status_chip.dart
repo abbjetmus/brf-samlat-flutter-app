@@ -28,13 +28,12 @@ class StatusChip extends StatelessWidget {
     final colors = _StatusColors.of(context, tone);
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: icon != null ? 10 : 12,
-        vertical: 6,
+        horizontal: icon != null ? 9 : 10,
+        vertical: 4,
       ),
       decoration: BoxDecoration(
         color: colors.background,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: colors.foreground.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -48,7 +47,7 @@ class StatusChip extends StatelessWidget {
             style: TextStyle(
               color: colors.foreground,
               fontWeight: FontWeight.w600,
-              fontSize: 13,
+              fontSize: 12.5,
             ),
           ),
         ],
@@ -63,27 +62,27 @@ class _StatusColors {
 
   const _StatusColors(this.background, this.foreground);
 
+  /// Colour means something: green (tall) = done / yours / fine, amber
+  /// (bärnsten) = needs someone, red only for real danger, grey otherwise.
   factory _StatusColors.of(BuildContext context, StatusTone tone) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    if (tone == StatusTone.neutral) {
-      return _StatusColors(
-        theme.colorScheme.surfaceContainerHighest,
-        theme.colorScheme.onSurfaceVariant,
-      );
-    }
-
-    final swatch = switch (tone) {
-      StatusTone.info => Colors.blue,
-      StatusTone.success => Colors.green,
-      StatusTone.warning => Colors.orange,
-      StatusTone.danger => Colors.red,
-      StatusTone.neutral => Colors.grey, // unreachable
+    final colors = Theme.of(context).colorScheme;
+    return switch (tone) {
+      StatusTone.neutral || StatusTone.info => _StatusColors(
+        colors.surfaceContainerHighest,
+        colors.onSurfaceVariant,
+      ),
+      StatusTone.success => _StatusColors(
+        colors.primaryContainer,
+        colors.onPrimaryContainer,
+      ),
+      StatusTone.warning => _StatusColors(
+        colors.tertiaryContainer,
+        colors.onTertiaryContainer,
+      ),
+      StatusTone.danger => _StatusColors(
+        colors.errorContainer,
+        colors.onErrorContainer,
+      ),
     };
-
-    return isDark
-        ? _StatusColors(swatch.withValues(alpha: 0.22), swatch.shade200)
-        : _StatusColors(swatch.shade50, swatch.shade900);
   }
 }

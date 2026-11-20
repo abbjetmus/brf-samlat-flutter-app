@@ -26,6 +26,7 @@ class RegisterPage extends CompositionWidget {
     final loading = ref(false);
     final oauthProvider = ref<String?>(null);
     final contextRef = useContext();
+    final theme = useTheme();
 
     void showMessage(String text, {bool error = false}) {
       final context = contextRef.value;
@@ -33,7 +34,9 @@ class RegisterPage extends CompositionWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(text),
-          backgroundColor: error ? Colors.red : AppTheme.primaryColor,
+          backgroundColor: error
+              ? Theme.of(context).colorScheme.error
+              : AppTheme.primaryColor,
         ),
       );
     }
@@ -128,7 +131,10 @@ class RegisterPage extends CompositionWidget {
             context.pop();
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(failure), backgroundColor: Colors.red),
+              SnackBar(
+                content: Text(failure),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
             );
           }
         }
@@ -158,9 +164,11 @@ class RegisterPage extends CompositionWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Ange inbjudningskoden du fått för att registrera dig.',
-                      style: TextStyle(color: Colors.grey),
+                      style: TextStyle(
+                        color: theme.value.colorScheme.onSurfaceVariant,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),

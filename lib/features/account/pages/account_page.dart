@@ -30,6 +30,7 @@ class AccountPage extends CompositionWidget {
 
     final loading = ref(false);
     final contextRef = useContext();
+    final theme = useTheme();
     final imagePicker = ImagePicker();
 
     onMounted(() {
@@ -65,7 +66,9 @@ class AccountPage extends CompositionWidget {
                         ? 'Kunde inte ta bort profilbild.'
                         : 'Kunde inte uppdatera profilbild.'),
             ),
-            backgroundColor: success ? AppTheme.primaryColor : Colors.red,
+            backgroundColor: success
+                ? AppTheme.primaryColor
+                : theme.value.colorScheme.error,
           ),
         );
       }
@@ -92,7 +95,9 @@ class AccountPage extends CompositionWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(success ? 'Namn uppdaterat!' : 'Kunde inte uppdatera namn.'),
-            backgroundColor: success ? AppTheme.primaryColor : Colors.red,
+            backgroundColor: success
+                ? AppTheme.primaryColor
+                : theme.value.colorScheme.error,
           ),
         );
       }
@@ -107,7 +112,9 @@ class AccountPage extends CompositionWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(success ? 'E-post uppdaterad!' : 'Kunde inte uppdatera e-post.'),
-            backgroundColor: success ? AppTheme.primaryColor : Colors.red,
+            backgroundColor: success
+                ? AppTheme.primaryColor
+                : theme.value.colorScheme.error,
           ),
         );
       }
@@ -118,9 +125,9 @@ class AccountPage extends CompositionWidget {
         final context = contextRef.value;
         if (context != null) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Lösenorden matchar inte.'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content: const Text('Lösenorden matchar inte.'),
+              backgroundColor: theme.value.colorScheme.error,
             ),
           );
         }
@@ -146,7 +153,9 @@ class AccountPage extends CompositionWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(success ? 'Lösenord uppdaterat!' : 'Kunde inte uppdatera lösenord.'),
-            backgroundColor: success ? AppTheme.primaryColor : Colors.red,
+            backgroundColor: success
+                ? AppTheme.primaryColor
+                : theme.value.colorScheme.error,
           ),
         );
       }
@@ -179,7 +188,9 @@ class AccountPage extends CompositionWidget {
                   ? 'Dina uppgifter öppnas i webbläsaren.'
                   : 'Kunde inte hämta dina uppgifter.',
             ),
-            backgroundColor: opened ? AppTheme.primaryColor : Colors.red,
+            backgroundColor: opened
+                ? AppTheme.primaryColor
+                : theme.value.colorScheme.error,
           ),
         );
       }
@@ -198,7 +209,7 @@ class AccountPage extends CompositionWidget {
             'Föreningens inlägg och felanmälningar står kvar men visar '
             '"Borttagen användare" som avsändare.\n\nÅtgärden kan inte ångras.',
         okLabel: 'Radera konto',
-        okColor: Colors.red,
+        okColor: theme.value.colorScheme.error,
       );
       if (!confirmed) return;
 
@@ -211,7 +222,10 @@ class AccountPage extends CompositionWidget {
 
       if (failure != null) {
         ScaffoldMessenger.of(current).showSnackBar(
-          SnackBar(content: Text(failure), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(failure),
+            backgroundColor: theme.value.colorScheme.error,
+          ),
         );
         return;
       }
@@ -399,8 +413,8 @@ class AccountPage extends CompositionWidget {
                       icon: const Icon(Icons.delete_forever_outlined, size: 18),
                       label: const Text('Radera mitt konto'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red,
-                        side: const BorderSide(color: Colors.red),
+                        foregroundColor: theme.value.colorScheme.error,
+                        side: BorderSide(color: theme.value.colorScheme.error),
                       ),
                     ),
                   ],

@@ -16,6 +16,7 @@ class CreateResidencePage extends CompositionWidget {
 
   @override
   Widget Function(BuildContext) setup() {
+    final theme = useTheme();
     final residencesStore = inject(residencesStoreKey);
     final usersStore = inject(usersStoreKey);
     final isEdit = residenceId != null;
@@ -107,7 +108,7 @@ class CreateResidencePage extends CompositionWidget {
                     ? 'Kunde inte uppdatera bostad.'
                     : 'Kunde inte skapa bostad.',
               ),
-              backgroundColor: Colors.red,
+              backgroundColor: theme.value.colorScheme.error,
             ),
           );
         }

@@ -3,6 +3,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import '../../core/models/pocketbase_models.dart';
 import '../../core/pagination/paginated.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/pb_error.dart';
 import '../auth/auth_store.dart' as auth;
 
@@ -315,10 +316,10 @@ class PlacesStore {
     }
   }
 
-  /// Orange medan bokningen väntar på godkännande: tiden är upptagen, men
+  /// Bärnsten medan bokningen väntar på godkännande: tiden är upptagen, men
   /// ännu inte bekräftad.
   static Color parseBookingColor(bool isBlock, {bool isPending = false}) {
-    if (isBlock) return const Color(0xFF808080);
-    return isPending ? const Color(0xFFFB8C00) : const Color(0xFF2ed188);
+    if (isBlock) return AppTheme.inkFaint;
+    return isPending ? AppTheme.attention : AppTheme.pine;
   }
 }

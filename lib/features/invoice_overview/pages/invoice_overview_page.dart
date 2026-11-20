@@ -208,12 +208,19 @@ class InvoiceOverviewPage extends CompositionWidget {
           const SizedBox(height: 8),
           Row(
             children: [
-              Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
+              Icon(
+                Icons.info_outline,
+                size: 16,
+                color: scheme.onSurfaceVariant,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
                   'Export till bokföring (SIE och CSV) finns på webben.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
@@ -281,7 +288,10 @@ class _TotalsGrid extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 FittedBox(
@@ -300,7 +310,10 @@ class _TotalsGrid extends StatelessWidget {
                   subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -323,7 +336,7 @@ class _TotalsGrid extends StatelessWidget {
               'Inbetalt',
               formatKr(totals.paid),
               'Registrerade betalningar',
-              Colors.green,
+              scheme.primary,
             ),
           ],
         ),
@@ -333,7 +346,7 @@ class _TotalsGrid extends StatelessWidget {
               'Utestående',
               formatKr(totals.outstanding),
               'Kvar att betala',
-              totals.outstanding > 0 ? Colors.orange : null,
+              totals.outstanding > 0 ? scheme.tertiary : null,
             ),
             tile(
               'Förfallet',
@@ -369,6 +382,7 @@ class _InvoiceRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final invoice = row.invoice;
     final status = InvoicePaymentStatus.of(invoice);
     final outstanding = invoice.outstanding;
@@ -432,7 +446,10 @@ class _InvoiceRow extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 10),
                 child: Text(
                   caption,
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: colors.onSurfaceVariant,
+                  ),
                 ),
               ),
               const SizedBox(height: 2),
@@ -442,7 +459,7 @@ class _InvoiceRow extends StatelessWidget {
                   amounts,
                   style: TextStyle(
                     fontSize: 13,
-                    color: outstanding < 0 ? Colors.orange : null,
+                    color: outstanding < 0 ? colors.tertiary : null,
                   ),
                 ),
               ),

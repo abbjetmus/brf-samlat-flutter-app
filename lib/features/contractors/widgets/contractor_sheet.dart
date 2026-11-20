@@ -17,6 +17,7 @@ class ContractorSheet extends CompositionWidget {
     final props = widget();
     final c = props.value.contractor;
     final contextRef = useContext();
+    final theme = useTheme();
 
     final (nameController, name, _) = useTextEditingController(
       text: c?.name ?? '',
@@ -142,11 +143,17 @@ class ContractorSheet extends CompositionWidget {
           Text(
             'Ärenden skickas till e-postadressen ovan. Anteckningarna syns bara '
             'för styrelsen.',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.value.colorScheme.onSurfaceVariant,
+            ),
           ),
           if (error.value != null) ...[
             const SizedBox(height: 12),
-            Text(error.value!, style: const TextStyle(color: Colors.red)),
+            Text(
+              error.value!,
+              style: TextStyle(color: theme.value.colorScheme.error),
+            ),
           ],
           const SizedBox(height: 16),
           FilledButton(

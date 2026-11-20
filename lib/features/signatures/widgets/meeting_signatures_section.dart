@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/models/pocketbase_models.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../../../shared/widgets/app_bottom_sheet.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
+import '../../../shared/widgets/status_chip.dart';
 import '../pages/signature_page.dart' show formatSignedAt;
 import '../signatures_store.dart';
 
@@ -31,6 +31,7 @@ class MeetingSignaturesSection extends CompositionWidget {
     final usersStore = inject(usersStoreKey);
     final authStore = inject(authStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
 
     final data = ref<MeetingSignatures?>(null);
     final busy = ref(false);
@@ -113,7 +114,7 @@ class MeetingSignaturesSection extends CompositionWidget {
         title: 'Återkalla signering',
         message: 'Vill du återkalla signeringsförfrågan?',
         okLabel: 'Återkalla',
-        okColor: Colors.red,
+        okColor: Theme.of(ctx).colorScheme.error,
       );
       if (!ok) return;
       busy.value = true;
@@ -150,7 +151,10 @@ class MeetingSignaturesSection extends CompositionWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.draw_outlined, color: AppTheme.primaryColor),
+                Icon(
+                  Icons.draw_outlined,
+                  color: theme.value.colorScheme.primary,
+                ),
                 const SizedBox(width: 8),
                 const Text(
                   'E-signering',
@@ -158,11 +162,11 @@ class MeetingSignaturesSection extends CompositionWidget {
                 ),
                 const SizedBox(width: 8),
                 if (signatures.isNotEmpty)
-                  _Chip(
+                  StatusChip(
                     label: allSigned
                         ? 'Färdigsignerat'
                         : '$signedCount/${signatures.length} signerade',
-                    color: allSigned ? AppTheme.primaryColor : Colors.orange,
+                    tone: allSigned ? StatusTone.success : StatusTone.warning,
                   ),
               ],
             ),
@@ -173,7 +177,7 @@ class MeetingSignaturesSection extends CompositionWidget {
                   : locked
                   ? 'Protokollet är låst eftersom det har signerats.'
                   : 'Protokollet kan ändras tills någon har signerat.',
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: theme.value.colorScheme.onSurfaceVariant),
             ),
             for (final s in signatures)
               ListTile(
@@ -181,7 +185,9 @@ class MeetingSignaturesSection extends CompositionWidget {
                 dense: true,
                 leading: Icon(
                   s.isSigned ? Icons.verified : Icons.schedule,
-                  color: s.isSigned ? AppTheme.primaryColor : Colors.grey,
+                  color: s.isSigned
+                      ? theme.value.colorScheme.primary
+                      : theme.value.colorScheme.onSurfaceVariant,
                 ),
                 title: Text(
                   s.role.isEmpty
@@ -215,7 +221,9 @@ class MeetingSignaturesSection extends CompositionWidget {
                   if (signatures.isNotEmpty)
                     TextButton(
                       onPressed: busy.value ? null : cancel,
-                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      style: TextButton.styleFrom(
+                        foregroundColor: theme.value.colorScheme.error,
+                      ),
                       child: const Text('Återkalla'),
                     ),
                 ],
@@ -228,32 +236,6 @@ class MeetingSignaturesSection extends CompositionWidget {
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 12,
-          color: color,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
 class _SendForSigningSheet extends CompositionWidget {
   final List<UsersRecord> users;
   final List<SignerInput> initial;
@@ -263,6 +245,7 @@ class _SendForSigningSheet extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final props = widget();
+    final theme = useTheme();
     // Ett stabilt id per rad så att fälten behåller rätt värde när en rad tas bort.
     var nextKey = 0;
     final rows = ref<List<(int, SignerInput)>>([
@@ -299,7 +282,7 @@ class _SendForSigningSheet extends CompositionWidget {
             Text(
               'Varje person får ett mejl och en notis. De signerar med en engångskod '
               'som skickas till deras e-post. Protokollet låses när den första har signerat.',
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: theme.value.colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
             for (final (i, (rowKey, row)) in rows.value.indexed)

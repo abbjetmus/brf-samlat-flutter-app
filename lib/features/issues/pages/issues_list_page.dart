@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/status_chip.dart';
+import '../../../core/models/pocketbase_models.dart';
+import '../../../core/theme/app_theme.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
@@ -55,7 +58,7 @@ class IssuesListPage extends CompositionWidget {
                 .toList();
 
       return GradientScaffold(
-        title: 'Felanmälan & ärenden',
+        title: 'Ärenden',
         actions: [
           FilterChip(
             label: Text(showResolved ? 'Alla' : 'Öppna'),
@@ -65,6 +68,7 @@ class IssuesListPage extends CompositionWidget {
         ],
         floatingActionButton: canCreate
             ? FloatingActionButton(
+                tooltip: 'Ny felanmälan',
                 onPressed: () => context.push(CreateIssuePage.path),
                 child: const Icon(Icons.add),
               )
@@ -86,9 +90,9 @@ class IssuesListPage extends CompositionWidget {
             : Column(
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
                     child: SearchField(
-                      hintText: 'Sök ärende...',
+                      hintText: 'Sök ärende',
                       onChanged: (v) => searchQuery.value = v,
                     ),
                   ),
@@ -96,109 +100,20 @@ class IssuesListPage extends CompositionWidget {
                     child: filteredIssues.isEmpty
                         ? const Center(child: Text('Inga träffar.'))
                         : PaginatedListView(
-                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 96),
                             itemCount: filteredIssues.length,
                             hasMore: hasMore,
                             loadingMore: loadingMore,
                             onLoadMore: issuesStore.fetchNextIssues,
                             onRefresh: issuesStore.getAllIssues,
                             separatorBuilder: (_, _) =>
-                                const SizedBox(height: 4),
+                                const SizedBox(height: 10),
                             itemBuilder: (context, index) {
                               final issue = filteredIssues[index];
-                              final isDark =
-                                  Theme.of(context).brightness ==
-                                  Brightness.dark;
-                              final isErrand =
-                                  (issue.type ?? 'Felanmälan') == 'Ärende';
-                              final typeSwatch = isErrand
-                                  ? Colors.blue
-                                  : Colors.orange;
-                              return Card(
-                                clipBehavior: Clip.antiAlias,
-                                child: ListTile(
-                                  leading: Icon(
-                                    issue.isResolved
-                                        ? Icons.check_circle
-                                        : Icons.report_problem_outlined,
-                                    color: issue.isResolved
-                                        ? Colors.green
-                                        : Colors.orange,
-                                  ),
-                                  title: Text(
-                                    issue.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  subtitle: Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 6,
-                                          vertical: 1,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: typeSwatch.withValues(
-                                            alpha: isDark ? 0.25 : 0.15,
-                                          ),
-                                          borderRadius: BorderRadius.circular(
-                                            4,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          issue.type ?? 'Felanmälan',
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: isDark
-                                                ? typeSwatch.shade200
-                                                : typeSwatch.shade900,
-                                          ),
-                                        ),
-                                      ),
-                                      // Residence issues are private to the
-                                      // residence's residents and admins.
-                                      if ((issue.residence ?? '')
-                                          .isNotEmpty) ...[
-                                        const SizedBox(width: 6),
-                                        Tooltip(
-                                          message: 'Gäller en bostad',
-                                          child: Icon(
-                                            Icons.home_outlined,
-                                            size: 14,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      ],
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        AppDateUtils.timeAgo(issue.created),
-                                        style: TextStyle(
-                                          color: Colors.grey[600],
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      if (issue.commentCount > 0) ...[
-                                        const SizedBox(width: 12),
-                                        Icon(
-                                          Icons.comment_outlined,
-                                          size: 14,
-                                          color: Colors.grey[600],
-                                        ),
-                                        const SizedBox(width: 2),
-                                        Text(
-                                          '${issue.commentCount}',
-                                          style: TextStyle(
-                                            color: Colors.grey[600],
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () => context.push(
-                                    '${IssueDetailPage.path}/${issue.id}',
-                                  ),
+                              return _IssueCard(
+                                issue: issue,
+                                onTap: () => context.push(
+                                  '${IssueDetailPage.path}/${issue.id}',
                                 ),
                               );
                             },
@@ -211,5 +126,96 @@ class IssuesListPage extends CompositionWidget {
         ),
       );
     };
+  }
+}
+
+class _IssueCard extends StatelessWidget {
+  final IssuesViewRecord issue;
+  final VoidCallback onTap;
+
+  const _IssueCard({required this.issue, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final meta = theme.textTheme.bodySmall;
+    return Material(
+      color: colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        side: BorderSide(color: colors.outline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      [
+                        (issue.type ?? 'Felanmälan').toUpperCase(),
+                        AppDateUtils.friendlyDay(issue.created).toUpperCase(),
+                      ].join(' · '),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        letterSpacing: 0.7,
+                      ),
+                    ),
+                  ),
+                  if ((issue.residence ?? '').isNotEmpty) ...[
+                    Tooltip(
+                      message: 'Gäller en bostad',
+                      child: Icon(
+                        Icons.home_outlined,
+                        size: 16,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  StatusChip(
+                    label: issue.isResolved ? 'Löst' : 'Öppen',
+                    tone: issue.isResolved
+                        ? StatusTone.success
+                        : StatusTone.neutral,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                issue.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(height: 1.3),
+              ),
+              if (issue.commentCount > 0) ...[
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.chat_bubble_outline,
+                      size: 16,
+                      color: colors.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      issue.commentCount == 1
+                          ? '1 kommentar'
+                          : '${issue.commentCount} kommentarer',
+                      style: meta,
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

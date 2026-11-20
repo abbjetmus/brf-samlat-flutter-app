@@ -17,6 +17,7 @@ class MeetingFormSheet extends CompositionWidget {
     final props = widget();
     final store = inject(generalMeetingsStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
     final existing = props.value.meeting;
 
     final type = ref(
@@ -201,7 +202,10 @@ class MeetingFormSheet extends CompositionWidget {
           const SizedBox(height: 8),
           Text(
             legalNote,
-            style: TextStyle(color: Colors.grey[600], fontSize: 12),
+            style: TextStyle(
+              color: theme.value.colorScheme.onSurfaceVariant,
+              fontSize: 12,
+            ),
           ),
           const SizedBox(height: 8),
         ],
@@ -229,7 +233,10 @@ class MeetingFormSheet extends CompositionWidget {
           'När du tar emot motioner ser medlemmarna stämmans rubrik, datum och '
           'sista dag för motioner redan innan kallelsen är skickad. '
           'Dagordningen visas först med kallelsen.',
-          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          style: TextStyle(
+            color: theme.value.colorScheme.onSurfaceVariant,
+            fontSize: 12,
+          ),
         ),
         const SizedBox(height: 12),
         _DateField(
@@ -269,7 +276,10 @@ class MeetingFormSheet extends CompositionWidget {
         ],
         if (error.value != null) ...[
           const SizedBox(height: 12),
-          Text(error.value!, style: const TextStyle(color: Colors.red)),
+          Text(
+            error.value!,
+            style: TextStyle(color: theme.value.colorScheme.error),
+          ),
         ],
         const SizedBox(height: 16),
         FilledButton(

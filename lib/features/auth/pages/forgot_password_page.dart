@@ -18,6 +18,7 @@ class ForgotPasswordPage extends CompositionWidget {
     final loading = ref(false);
     final emailSent = ref(false);
     final contextRef = useContext();
+    final theme = useTheme();
 
     Future<void> handleReset() async {
       if (!formKey.currentState!.validate()) return;
@@ -41,9 +42,9 @@ class ForgotPasswordPage extends CompositionWidget {
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Kunde inte skicka återställningslänk.'),
-                backgroundColor: Colors.red,
+              SnackBar(
+                content: const Text('Kunde inte skicka återställningslänk.'),
+                backgroundColor: theme.value.colorScheme.error,
               ),
             );
           }
@@ -81,10 +82,12 @@ class ForgotPasswordPage extends CompositionWidget {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        const Text(
+                        Text(
                           'Kontrollera din e-post för en länk att återställa ditt lösenord.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.grey),
+                          style: TextStyle(
+                            color: theme.value.colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(height: 32),
                         OutlinedButton(
@@ -107,9 +110,11 @@ class ForgotPasswordPage extends CompositionWidget {
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 8),
-                          const Text(
+                          Text(
                             'Ange din e-postadress så skickar vi en återställningslänk.',
-                            style: TextStyle(color: Colors.grey),
+                            style: TextStyle(
+                              color: theme.value.colorScheme.onSurfaceVariant,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: 32),

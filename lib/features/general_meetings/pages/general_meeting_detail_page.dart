@@ -31,6 +31,7 @@ class GeneralMeetingDetailPage extends CompositionWidget {
     final props = widget();
     final store = inject(generalMeetingsStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
 
     final loading = ref(true);
     final meeting = ref<GeneralMeeting?>(null);
@@ -107,7 +108,7 @@ class GeneralMeetingDetailPage extends CompositionWidget {
             'Stämman tas bort med dagordning, motioner, fullmakter, röster och '
             'protokoll. Detta kan inte ångras.',
         okLabel: 'Ja, radera',
-        okColor: Colors.red,
+        okColor: Theme.of(ctx).colorScheme.error,
       );
       if (!ok) return;
       try {
@@ -226,7 +227,7 @@ class GeneralMeetingDetailPage extends CompositionWidget {
               if (isLocked)
                 Container(
                   width: double.infinity,
-                  color: Colors.blue.withValues(alpha: 0.1),
+                  color: theme.value.colorScheme.surfaceContainerHighest,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 10,

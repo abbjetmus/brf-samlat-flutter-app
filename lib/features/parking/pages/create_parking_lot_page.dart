@@ -16,6 +16,7 @@ class CreateParkingLotPage extends CompositionWidget {
 
   @override
   Widget Function(BuildContext) setup() {
+    final theme = useTheme();
     final parkingStore = inject(parkingStoreKey);
     final isEdit = parkingLotId != null;
     final existing =
@@ -111,7 +112,7 @@ class CreateParkingLotPage extends CompositionWidget {
                     ? 'Kunde inte uppdatera parkering.'
                     : 'Kunde inte skapa parkering.',
               ),
-              backgroundColor: Colors.red,
+              backgroundColor: theme.value.colorScheme.error,
             ),
           );
         }

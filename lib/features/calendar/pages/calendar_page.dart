@@ -10,6 +10,7 @@ import '../../../shared/widgets/entity_action_menu.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/help_tip.dart';
 import '../../../shared/widgets/rich_description.dart';
+import '../../../shared/widgets/status_chip.dart';
 import '../../board/pages/board_meeting_detail_page.dart';
 import '../calendar_store.dart';
 import '../widgets/calendar_subscription_sheet.dart';
@@ -371,125 +372,108 @@ void _showEventDetails(
   final pageContext = context;
   showAppBottomSheet(
     context: context,
-    builder: (context) => Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                color: event.color,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                event.title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            // Posts (Inlägg) and board meetings (Styrelsen) are managed at
-            // their source and can't be deleted from here.
-            if (canDelete && !event.isReadOnly)
-              EntityActionMenu(
-                actions: [
-                  EntityAction.delete(() async {
-                    await calendarStore.deleteEvent(event.id);
-                    if (context.mounted) Navigator.of(context).pop();
-                  }),
-                ],
-              ),
-          ],
-        ),
-        if (event.isPost) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: event.color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              'Inlägg',
-              style: TextStyle(
-                color: event.color,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-        if (event.description.trim().isNotEmpty) ...[
-          const SizedBox(height: 12),
-          RichDescription(html: event.description),
-        ],
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            const Icon(Icons.schedule, size: 16, color: Colors.grey),
-            const SizedBox(width: 4),
-            Text(
-              _formatEventTime(event),
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ],
-        ),
-        if (event.location.isNotEmpty) ...[
-          const SizedBox(height: 8),
+    builder: (context) {
+      final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
             children: [
-              const Icon(Icons.place_outlined, size: 16, color: Colors.grey),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  event.location,
-                  style: TextStyle(color: Colors.grey[600]),
+              Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: event.color,
+                  shape: BoxShape.circle,
                 ),
               ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  event.title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              // Posts (Inlägg) and board meetings (Styrelsen) are managed at
+              // their source and can't be deleted from here.
+              if (canDelete && !event.isReadOnly)
+                EntityActionMenu(
+                  actions: [
+                    EntityAction.delete(() async {
+                      await calendarStore.deleteEvent(event.id);
+                      if (context.mounted) Navigator.of(context).pop();
+                    }),
+                  ],
+                ),
             ],
           ),
-        ],
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => _addToDeviceCalendar(pageContext, event),
-            icon: const Icon(Icons.event_available_outlined),
-            label: const Text('Lägg till i kalender'),
+          if (event.isPost) ...[
+            const SizedBox(height: 8),
+            const StatusChip(label: 'Inlägg', tone: StatusTone.success),
+          ],
+          if (event.description.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            RichDescription(html: event.description),
+          ],
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(Icons.schedule, size: 16, color: muted),
+              const SizedBox(width: 4),
+              Text(_formatEventTime(event), style: TextStyle(color: muted)),
+            ],
           ),
-        ),
-        if (event.boardMeetingId != null) ...[
-          const SizedBox(height: 16),
-          if (canOpenMeetings)
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  pageContext.push(
-                    '${BoardMeetingDetailPage.path}/${event.boardMeetingId}',
-                  );
-                },
-                icon: const Icon(Icons.groups_outlined),
-                label: const Text('Öppna mötet'),
-              ),
-            )
-          else
-            Text(
-              'Mötet hanteras av styrelsen.',
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          if (event.location.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.place_outlined, size: 16, color: muted),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(event.location, style: TextStyle(color: muted)),
+                ),
+              ],
             ),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _addToDeviceCalendar(pageContext, event),
+              icon: const Icon(Icons.event_available_outlined),
+              label: const Text('Lägg till i kalender'),
+            ),
+          ),
+          if (event.boardMeetingId != null) ...[
+            const SizedBox(height: 16),
+            if (canOpenMeetings)
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    pageContext.push(
+                      '${BoardMeetingDetailPage.path}/${event.boardMeetingId}',
+                    );
+                  },
+                  icon: const Icon(Icons.groups_outlined),
+                  label: const Text('Öppna mötet'),
+                ),
+              )
+            else
+              Text(
+                'Mötet hanteras av styrelsen.',
+                style: TextStyle(color: muted, fontSize: 12),
+              ),
+          ],
+          const SizedBox(height: 16),
         ],
-        const SizedBox(height: 16),
-      ],
-    ),
+      );
+    },
   );
 }
 

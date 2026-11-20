@@ -19,6 +19,7 @@ class SettingsPage extends CompositionWidget {
     final themeStore = inject(themeStoreKey);
     final pocketBase = inject(pocketBaseKey);
     final contextRef = useContext();
+    final theme = useTheme();
 
     final notificationSettings =
         NotificationSettingsStore(pocketBase, authStore);
@@ -203,10 +204,13 @@ class SettingsPage extends CompositionWidget {
           ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text(
+            leading: Icon(
+              Icons.logout,
+              color: theme.value.colorScheme.error,
+            ),
+            title: Text(
               'Logga ut',
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: theme.value.colorScheme.error),
             ),
             onTap: handleSignOut,
           ),

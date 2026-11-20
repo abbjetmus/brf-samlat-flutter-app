@@ -30,6 +30,7 @@ class PlaceDetailPage extends CompositionWidget {
     // Drive view changes through a controller so SfCalendar reliably switches
     // between Dag/Vecka/Månad (changing only the `view` property is flaky).
     final calendarController = CalendarController()..view = CalendarView.week;
+    final theme = useTheme();
     final contextRef = useContext();
 
     onMounted(() {
@@ -82,7 +83,10 @@ class PlaceDetailPage extends CompositionWidget {
         final ctx = contextRef.value;
         if (failure != null && ctx != null && ctx.mounted) {
           ScaffoldMessenger.of(ctx).showSnackBar(
-            SnackBar(content: Text(failure), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(failure),
+              backgroundColor: theme.value.colorScheme.error,
+            ),
           );
         }
       }
@@ -146,7 +150,7 @@ class PlaceDetailPage extends CompositionWidget {
                         message:
                             'Är du säker på att du vill radera denna lokal?',
                         okLabel: 'Radera',
-                        okColor: Colors.red,
+                        okColor: theme.value.colorScheme.error,
                       );
                       if (confirmed) {
                         await placesStore.deletePlace(place.id);
@@ -362,14 +366,20 @@ class PlaceDetailPage extends CompositionWidget {
 }
 
 Widget _infoRow(IconData icon, String text) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
-        const SizedBox(width: 12),
-        Expanded(child: Text(text)),
-      ],
+  return Builder(
+    builder: (context) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text)),
+        ],
+      ),
     ),
   );
 }
@@ -437,7 +447,9 @@ void _showBookingDetails(
                     ? Icons.hourglass_empty
                     : Icons.cancel_outlined,
                 size: 16,
-                color: booking.isPending ? Colors.orange : Colors.red,
+                color: booking.isPending
+                    ? Theme.of(context).colorScheme.tertiary
+                    : Theme.of(context).colorScheme.error,
               ),
               const SizedBox(width: 4),
               Expanded(
@@ -448,7 +460,9 @@ void _showBookingDetails(
                             ? 'Nekad: ${booking.rejectionReason}'
                             : 'Nekad'),
                   style: TextStyle(
-                    color: booking.isPending ? Colors.orange : Colors.red,
+                    color: booking.isPending
+                        ? Theme.of(context).colorScheme.tertiary
+                        : Theme.of(context).colorScheme.error,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -506,8 +520,10 @@ void _showBookingDetails(
                   icon: const Icon(Icons.close, size: 18),
                   label: const Text('Neka'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ),
               ),
@@ -534,7 +550,7 @@ Future<void> _review(
           'Tiden frigörs och den som bokat får ett meddelande om att '
           'bokningen inte blev godkänd.',
       okLabel: 'Neka',
-      okColor: Colors.red,
+      okColor: Theme.of(context).colorScheme.error,
     );
     if (!confirmed) return;
   }
@@ -552,20 +568,27 @@ Future<void> _review(
       content: Text(
         failure ?? (approve ? 'Bokningen godkänd' : 'Bokningen nekad'),
       ),
-      backgroundColor: failure != null ? Colors.red : null,
+      backgroundColor: failure != null
+          ? Theme.of(context).colorScheme.error
+          : null,
     ),
   );
 }
 
 Widget _bookingInfoRow(IconData icon, String text) {
-  return Row(
-    children: [
-      Icon(icon, size: 16, color: Colors.grey),
-      const SizedBox(width: 4),
-      Expanded(
-        child: Text(text, style: TextStyle(color: Colors.grey[600])),
-      ),
-    ],
+  return Builder(
+    builder: (context) {
+      final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+      return Row(
+        children: [
+          Icon(icon, size: 16, color: muted),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(text, style: TextStyle(color: muted)),
+          ),
+        ],
+      );
+    },
   );
 }
 
@@ -573,17 +596,22 @@ Widget _bookingTimeRow(PlaceBookingsRecord booking) {
   try {
     final start = DateTime.parse(booking.startAt).toLocal();
     final end = DateTime.parse(booking.endAt).toLocal();
-    return Row(
-      children: [
-        const Icon(Icons.schedule, size: 16, color: Colors.grey),
-        const SizedBox(width: 4),
-        Text(
-          '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')} '
-          '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} - '
-          '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}',
-          style: TextStyle(color: Colors.grey[600]),
-        ),
-      ],
+    return Builder(
+      builder: (context) {
+        final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+        return Row(
+          children: [
+            Icon(Icons.schedule, size: 16, color: muted),
+            const SizedBox(width: 4),
+            Text(
+              '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')} '
+              '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')} - '
+              '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}',
+              style: TextStyle(color: muted),
+            ),
+          ],
+        );
+      },
     );
   } catch (_) {
     return const SizedBox.shrink();

@@ -28,6 +28,7 @@ class InvoicePaymentsSheet extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final props = widget();
+    final theme = useTheme();
     final contextRef = useContext();
     final payments = ref<List<InvoicePaymentsRecord>>([]);
     final loading = ref(true);
@@ -57,7 +58,7 @@ class InvoicePaymentsSheet extends CompositionWidget {
             'Vill du ta bort betalningen på ${formatKr(payment.amount)} '
             '(${payment.paymentDate})? Avins status räknas om.',
         okLabel: 'Ta bort',
-        okColor: Colors.red,
+        okColor: theme.value.colorScheme.error,
       );
       if (!ok) return;
       final message = await props.value.deletePayment(payment.id);
@@ -76,6 +77,7 @@ class InvoicePaymentsSheet extends CompositionWidget {
     }
 
     return (context) {
+      final colors = theme.value.colorScheme;
       final list = payments.value;
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -88,7 +90,7 @@ class InvoicePaymentsSheet extends CompositionWidget {
           const SizedBox(height: 4),
           Text(
             'Fakturerat ${formatKr(props.value.invoice.amount)}',
-            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 13, color: colors.onSurfaceVariant),
           ),
           const SizedBox(height: 12),
           if (loading.value)
@@ -127,7 +129,7 @@ class InvoicePaymentsSheet extends CompositionWidget {
               ),
           if (error.value != null) ...[
             const SizedBox(height: 8),
-            Text(error.value!, style: const TextStyle(color: Colors.red)),
+            Text(error.value!, style: TextStyle(color: colors.error)),
           ],
         ],
       );

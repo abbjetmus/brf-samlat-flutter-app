@@ -20,6 +20,7 @@ class UsersListPage extends CompositionWidget {
     final authStore = inject(authStoreKey);
     final searchQuery = ref('');
     final contextRef = useContext();
+    final theme = useTheme();
 
     onMounted(() {
       usersStore.getUsers();
@@ -49,7 +50,9 @@ class UsersListPage extends CompositionWidget {
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
           content: Text(failure ?? 'Inbjudan skickad.'),
-          backgroundColor: failure != null ? Colors.red : null,
+          backgroundColor: failure != null
+              ? Theme.of(ctx).colorScheme.error
+              : null,
         ),
       );
     }
@@ -61,7 +64,9 @@ class UsersListPage extends CompositionWidget {
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
           content: Text(failure ?? 'Inbjudan skickad igen.'),
-          backgroundColor: failure != null ? Colors.red : null,
+          backgroundColor: failure != null
+              ? Theme.of(ctx).colorScheme.error
+              : null,
         ),
       );
     }
@@ -83,7 +88,7 @@ class UsersListPage extends CompositionWidget {
             'protokoll står kvar men visar "Borttagen användare" som '
             'avsändare. Åtgärden kan inte ångras.',
         okLabel: 'Ta bort',
-        okColor: Colors.red,
+        okColor: Theme.of(context).colorScheme.error,
       );
       if (!confirmed) return;
 
@@ -94,7 +99,9 @@ class UsersListPage extends CompositionWidget {
       ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
           content: Text(failure ?? 'Användaren har tagits bort.'),
-          backgroundColor: failure != null ? Colors.red : null,
+          backgroundColor: failure != null
+              ? Theme.of(ctx).colorScheme.error
+              : null,
         ),
       );
     }
@@ -225,7 +232,7 @@ class UsersListPage extends CompositionWidget {
                                         Text(
                                           user.email!,
                                           style: TextStyle(
-                                            color: Colors.grey[600],
+                                            color: theme.value.colorScheme.onSurfaceVariant,
                                             fontSize: 12,
                                           ),
                                         ),
@@ -233,7 +240,7 @@ class UsersListPage extends CompositionWidget {
                                         Text(
                                           roleTypeName,
                                           style: TextStyle(
-                                            color: Colors.grey[600],
+                                            color: theme.value.colorScheme.onSurfaceVariant,
                                             fontSize: 12,
                                           ),
                                         ),
@@ -276,14 +283,14 @@ class UsersListPage extends CompositionWidget {
                                         Text(
                                           invitation.email,
                                           style: TextStyle(
-                                            color: Colors.grey[600],
+                                            color: theme.value.colorScheme.onSurfaceVariant,
                                             fontSize: 12,
                                           ),
                                         ),
                                         Text(
                                           invitation.invitationStatus,
                                           style: TextStyle(
-                                            color: Colors.grey[600],
+                                            color: theme.value.colorScheme.onSurfaceVariant,
                                             fontSize: 12,
                                           ),
                                         ),

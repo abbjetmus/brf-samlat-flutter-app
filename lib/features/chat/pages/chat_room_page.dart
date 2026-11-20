@@ -391,16 +391,14 @@ class ChatRoomPage extends CompositionWidget {
   /// received-bubble color. The app's [ColorScheme] doesn't define
   /// `surfaceContainer` (what flutter_chat_ui paints received bubbles with), so
   /// it falls back to a near-white shade that's invisible on the white chat
-  /// surface — override it with a tint that clearly separates from the
+  /// surface — override it with the neutral fill, which separates from the
   /// background in both light and dark mode.
   ChatTheme _chatTheme(BuildContext context) {
-    final base = ChatTheme.fromThemeData(Theme.of(context));
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final theme = Theme.of(context);
+    final base = ChatTheme.fromThemeData(theme);
     return base.copyWith(
       colors: base.colors.copyWith(
-        surfaceContainer: isDark
-            ? const Color(0xFF1E2A40)
-            : const Color(0xFFE8F0EC),
+        surfaceContainer: theme.colorScheme.surfaceContainerHighest,
       ),
     );
   }
@@ -468,11 +466,10 @@ class _AttachmentsBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
     // Same colors as ChatRoomPage._chatTheme (sent = primary).
     final background = isSentByMe
         ? colorScheme.primary
-        : (isDark ? const Color(0xFF1E2A40) : const Color(0xFFE8F0EC));
+        : colorScheme.surfaceContainerHighest;
     final foreground = isSentByMe
         ? colorScheme.onPrimary
         : colorScheme.onSurface;

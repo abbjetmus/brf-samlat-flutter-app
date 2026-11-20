@@ -179,6 +179,7 @@ class _PickItemSheet extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final props = widget();
     final contextRef = useContext();
+    final theme = useTheme();
     final items = ref<List<MaintenancePlanItemsRecord>>([]);
     final loading = ref(true);
     final error = ref<String?>(null);
@@ -211,7 +212,10 @@ class _PickItemSheet extends CompositionWidget {
           Text(
             'Koppla ärendet till en åtgärd i underhållsplanen, t.ex. när en '
             'felanmälan visar att taket behöver bytas.',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            style: TextStyle(
+              fontSize: 12,
+              color: theme.value.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 12),
           if (loading.value)
@@ -220,7 +224,10 @@ class _PickItemSheet extends CompositionWidget {
               child: Center(child: CircularProgressIndicator()),
             )
           else if (error.value != null)
-            Text(error.value!, style: const TextStyle(color: Colors.red))
+            Text(
+              error.value!,
+              style: TextStyle(color: theme.value.colorScheme.error),
+            )
           else if (items.value.isEmpty)
             Text(
               props.value.canCreate

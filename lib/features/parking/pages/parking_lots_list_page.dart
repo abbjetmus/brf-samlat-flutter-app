@@ -16,6 +16,7 @@ class ParkingLotsListPage extends CompositionWidget {
 
   @override
   Widget Function(BuildContext) setup() {
+    final theme = useTheme();
     final parkingStore = inject(parkingStoreKey);
     final authStore = inject(authStoreKey);
     final searchQuery = ref('');
@@ -25,6 +26,7 @@ class ParkingLotsListPage extends CompositionWidget {
     });
 
     return (context) {
+      final colors = theme.value.colorScheme;
       final lots = parkingStore.parkingLotsList.value;
       final loading = parkingStore.listLoading.value;
       final loadingMore = parkingStore.loadingMore.value;
@@ -94,7 +96,7 @@ class ParkingLotsListPage extends CompositionWidget {
                                   subtitle: Text(
                                     lot.parkingType,
                                     style: TextStyle(
-                                      color: Colors.grey[600],
+                                      color: colors.onSurfaceVariant,
                                       fontSize: 12,
                                     ),
                                   ),

@@ -24,6 +24,7 @@ class SignaturePage extends CompositionWidget {
     final signaturesStore = inject(signaturesStoreKey);
     final contextRef = useContext();
     final mediaQuery = useMediaQuery();
+    final theme = useTheme();
 
     final loading = ref(true);
     final data = ref<SignatureView?>(null);
@@ -145,7 +146,9 @@ class SignaturePage extends CompositionWidget {
                   meeting.streetAddress,
                   '${meeting.zipCode} ${meeting.locality}'.trim(),
                 ].where((s) => s.isNotEmpty).join(', '),
-                style: TextStyle(color: Colors.grey[600]),
+                style: TextStyle(
+                  color: theme.value.colorScheme.onSurfaceVariant,
+                ),
               ),
               if (meeting.meetingAgenda?.isNotEmpty == true) ...[
                 const SizedBox(height: 16),
@@ -163,7 +166,10 @@ class SignaturePage extends CompositionWidget {
               SelectableText(
                 'Protokoll-ID: ${meeting.meetingProtocolId.isEmpty ? '–' : meeting.meetingProtocolId}\n'
                 'SHA-256: ${view.currentDocumentHash}',
-                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: theme.value.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -238,7 +244,7 @@ class _SignBox extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               'Läs igenom protokollet nedan. Signera sedan med en engångskod som skickas till din e-post.',
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
             if (codeSentTo.isEmpty) ...[
@@ -341,6 +347,7 @@ class _SignersCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -360,7 +367,9 @@ class _SignersCard extends StatelessWidget {
                     Icon(
                       s.isSigned ? Icons.check_circle : Icons.schedule,
                       size: 18,
-                      color: s.isSigned ? AppTheme.primaryColor : Colors.grey,
+                      color: s.isSigned
+                          ? colors.primary
+                          : colors.onSurfaceVariant,
                     ),
                     const SizedBox(width: 8),
                     Expanded(

@@ -72,7 +72,7 @@ class LoginPage extends CompositionWidget {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(authError.value ?? 'Inloggning misslyckades'),
-              backgroundColor: Colors.red,
+              backgroundColor: theme.value.colorScheme.error,
             ),
           );
         }
@@ -123,15 +123,8 @@ class LoginPage extends CompositionWidget {
                     width: 96,
                     height: 96,
                     decoration: BoxDecoration(
-                      gradient: AppTheme.brandGradient,
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primaryColor.withValues(alpha: 0.35),
-                          blurRadius: 24,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
+                      color: AppTheme.pine,
+                      borderRadius: BorderRadius.circular(26),
                     ),
                     child: const Icon(
                       Icons.home_work,
@@ -142,12 +135,7 @@ class LoginPage extends CompositionWidget {
                   const SizedBox(height: 20),
                   Text(
                     'BRF Samlat',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                      color: theme.value.colorScheme.onSurface,
-                    ),
+                    style: theme.value.textTheme.headlineLarge,
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -168,7 +156,7 @@ class LoginPage extends CompositionWidget {
                         if (authError.value != null)
                           Builder(
                             builder: (context) {
-                              final error = Theme.of(context).colorScheme.error;
+                              final error = theme.value.colorScheme.error;
                               return Container(
                                 padding: const EdgeInsets.all(12),
                                 margin: const EdgeInsets.only(bottom: 16),

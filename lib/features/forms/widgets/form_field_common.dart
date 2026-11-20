@@ -13,10 +13,10 @@ class FieldLabel extends StatelessWidget {
       TextSpan(
         text: text,
         children: required
-            ? const [
+            ? [
                 TextSpan(
                   text: ' *',
-                  style: TextStyle(color: Color(0xFFEF4444)),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ]
             : null,
@@ -38,7 +38,10 @@ class FieldError extends StatelessWidget {
       padding: const EdgeInsets.only(top: 4, left: 4),
       child: Text(
         message,
-        style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.error,
+          fontSize: 12,
+        ),
       ),
     );
   }

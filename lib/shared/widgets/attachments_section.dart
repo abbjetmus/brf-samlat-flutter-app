@@ -117,6 +117,7 @@ class _Thumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dpr = MediaQuery.devicePixelRatioOf(context);
+    final colors = Theme.of(context).colorScheme;
     return Semantics(
       label: label,
       button: true,
@@ -134,15 +135,18 @@ class _Thumbnail extends StatelessWidget {
             errorBuilder: (_, _, _) => Container(
               width: _size,
               height: _size,
-              color: Colors.grey.shade200,
-              child: Icon(Icons.broken_image, color: Colors.grey.shade500),
+              color: colors.surfaceContainerHighest,
+              child: Icon(
+                Icons.broken_image,
+                color: colors.onSurfaceVariant,
+              ),
             ),
             loadingBuilder: (context, child, progress) => progress == null
                 ? child
                 : Container(
                     width: _size,
                     height: _size,
-                    color: Colors.grey.shade200,
+                    color: colors.surfaceContainerHighest,
                     alignment: Alignment.center,
                     child: const SizedBox(
                       width: 20,

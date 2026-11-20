@@ -20,6 +20,7 @@ class CreatePlacePage extends CompositionWidget {
 
   @override
   Widget Function(BuildContext) setup() {
+    final theme = useTheme();
     final placesStore = inject(placesStoreKey);
     final isEdit = placeId != null;
     final existing = (isEdit && placesStore.currentPlace.value?.id == placeId)
@@ -174,7 +175,7 @@ class CreatePlacePage extends CompositionWidget {
                     ? 'Kunde inte uppdatera lokal.'
                     : 'Kunde inte skapa lokal.',
               ),
-              backgroundColor: Colors.red,
+              backgroundColor: theme.value.colorScheme.error,
             ),
           );
         }

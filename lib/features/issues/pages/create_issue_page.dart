@@ -135,7 +135,10 @@ class CreateIssuePage extends CompositionWidget {
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(failure), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(failure),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
           );
         }
       }

@@ -76,7 +76,7 @@ class IssueForwardsCard extends CompositionWidget {
             '${f.contractorName.isEmpty ? 'Leverantören' : f.contractorName} '
             'kommer inte längre att kunna se ärendet eller lämna status via länken.',
         okLabel: 'Återkalla',
-        okColor: Colors.red,
+        okColor: theme.value.colorScheme.error,
       );
       if (!ok) return;
       final message = await props.value.store.revoke(f.id);
@@ -126,7 +126,7 @@ class IssueForwardsCard extends CompositionWidget {
                     margin: const EdgeInsets.only(top: 8, right: 8),
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.green.withValues(alpha: 0.12),
+                      color: scheme.primaryContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
@@ -135,12 +135,10 @@ class IssueForwardsCard extends CompositionWidget {
                         Text(
                           '${done.contractorName} har markerat ärendet som '
                           'åtgärdat. Stämmer det kan du markera ärendet som löst.',
+                          style: TextStyle(color: scheme.onPrimaryContainer),
                         ),
                         const SizedBox(height: 8),
                         FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: Colors.green,
-                          ),
                           onPressed: resolving.value ? null : resolve,
                           child: const Text('Markera som löst'),
                         ),

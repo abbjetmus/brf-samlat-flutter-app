@@ -25,6 +25,7 @@ class ProxyTab extends CompositionWidget {
     final props = widget();
     final store = inject(generalMeetingsStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
 
     final loading = ref(true);
     final busy = ref('');
@@ -114,7 +115,7 @@ class ProxyTab extends CompositionWidget {
             'Vill du återkalla fullmakten till ${proxy.proxyName}? Du kan sedan '
             'rösta själv eller registrera en ny.',
         okLabel: 'Återkalla',
-        okColor: Colors.red,
+        okColor: Theme.of(ctx).colorScheme.error,
       );
       if (!ok) return;
       try {
@@ -161,7 +162,7 @@ class ProxyTab extends CompositionWidget {
             'Fullmakten tas bort och ombudet kan inte längre rösta för '
             'bostaden.',
         okLabel: 'Ta bort',
-        okColor: Colors.red,
+        okColor: Theme.of(ctx).colorScheme.error,
       );
       if (!ok) return;
       try {
@@ -255,7 +256,7 @@ class ProxyTab extends CompositionWidget {
                   : m.status == GeneralMeetingStatus.closed
                   ? 'Stämman är avslutad.'
                   : 'Fullmakter kan registreras när stämman är kallad.',
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(color: theme.value.colorScheme.onSurfaceVariant),
             ),
             if (canRegister) ...[
               const SizedBox(height: 12),
@@ -382,6 +383,7 @@ class _ProxyCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final tone = switch (proxy.status) {
       'godkänd' => StatusTone.success,
       'avslagen' => StatusTone.danger,
@@ -405,12 +407,18 @@ class _ProxyCard extends StatelessWidget {
                       !title.contains(proxy.residenceLabel))
                     Text(
                       proxy.residenceLabel,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
                     ),
                   if (subtitle.isNotEmpty)
                     Text(
                       subtitle,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      style: TextStyle(
+                        color: colors.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
                     ),
                   const SizedBox(height: 8),
                   StatusChip(label: proxy.statusLabel, tone: tone),
@@ -453,6 +461,7 @@ class _RejectSheet extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final (controller, note, _) = useTextEditingController();
+    final theme = useTheme();
 
     return (context) => Column(
       mainAxisSize: MainAxisSize.min,
@@ -477,7 +486,10 @@ class _RejectSheet extends CompositionWidget {
         ),
         const SizedBox(height: 8),
         FilledButton(
-          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          style: FilledButton.styleFrom(
+            backgroundColor: theme.value.colorScheme.error,
+            foregroundColor: theme.value.colorScheme.onError,
+          ),
           onPressed: () => Navigator.of(context).pop(note.value.trim()),
           child: const Text('Avslå'),
         ),

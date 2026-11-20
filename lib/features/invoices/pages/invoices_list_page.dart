@@ -16,6 +16,7 @@ class InvoicesListPage extends CompositionWidget {
 
   @override
   Widget Function(BuildContext) setup() {
+    final theme = useTheme();
     final invoicesStore = inject(invoicesStoreKey);
 
     onMounted(() {
@@ -23,6 +24,7 @@ class InvoicesListPage extends CompositionWidget {
     });
 
     return (context) {
+      final colors = theme.value.colorScheme;
       final invoices = invoicesStore.invoices.value;
       final loading = invoicesStore.listLoading.value;
       final loadingMore = invoicesStore.loadingMore.value;
@@ -70,7 +72,10 @@ class InvoicesListPage extends CompositionWidget {
                           'Förfallodatum: ${AppDateUtils.formatDate(invoice.invoiceDueDate)}',
                           if (invoice.amount > 0) formatKr(invoice.amount),
                         ].join(' · '),
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        style: TextStyle(
+                          color: colors.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,

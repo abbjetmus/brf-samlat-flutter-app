@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
 
 /// A circular avatar/photo thumbnail with an overlaid action button. When a
 /// [photoUrl] is set the button removes the image; otherwise it picks a new one.
@@ -19,6 +18,7 @@ class ImageThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -26,9 +26,9 @@ class ImageThumbnail extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: Colors.grey.shade200,
+            color: colors.surfaceContainerHighest,
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.grey.shade300, width: 3),
+            border: Border.all(color: colors.outline, width: 3),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.1),
@@ -45,14 +45,14 @@ class ImageThumbnail extends StatelessWidget {
                     errorBuilder: (context, error, stackTrace) => Icon(
                       Icons.person,
                       size: size / 2.5,
-                      color: Colors.grey.shade500,
+                      color: colors.onSurfaceVariant,
                     ),
                   ),
                 )
               : Icon(
                   Icons.person,
                   size: size / 2.5,
-                  color: Colors.grey.shade500,
+                  color: colors.onSurfaceVariant,
                 ),
         ),
         Positioned(
@@ -60,7 +60,7 @@ class ImageThumbnail extends StatelessWidget {
           right: 0,
           child: Container(
             decoration: BoxDecoration(
-              color: photoUrl != null ? Colors.red : AppTheme.primaryColor,
+              color: photoUrl != null ? colors.error : colors.primary,
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
@@ -80,7 +80,7 @@ class ImageThumbnail extends StatelessWidget {
                   padding: const EdgeInsets.all(8),
                   child: Icon(
                     photoUrl != null ? Icons.delete : Icons.add,
-                    color: Colors.white,
+                    color: photoUrl != null ? colors.onError : colors.onPrimary,
                     size: 20,
                   ),
                 ),

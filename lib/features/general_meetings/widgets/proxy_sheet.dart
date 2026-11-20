@@ -38,6 +38,7 @@ class ProxySheet extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final props = widget();
     final contextRef = useContext();
+    final theme = useTheme();
 
     final residenceId = ref<String?>(
       props.value.residences.isEmpty ? null : props.value.residences.first.id,
@@ -106,7 +107,10 @@ class ProxySheet extends CompositionWidget {
                       'fullmakten innan den gäller.'
                 : 'Ombudet röstar för bostaden på stämman. Styrelsen '
                       'godkänner fullmakten innan den gäller.',
-            style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            style: TextStyle(
+              color: theme.value.colorScheme.onSurfaceVariant,
+              fontSize: 13,
+            ),
           ),
           const SizedBox(height: 16),
           if (p.residences.length > 1) ...[
@@ -173,7 +177,10 @@ class ProxySheet extends CompositionWidget {
             const SizedBox(height: 4),
             Text(
               'Ett ombud utan konto röstar på plats och visar fullmakten där.',
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              style: TextStyle(
+                color: theme.value.colorScheme.onSurfaceVariant,
+                fontSize: 12,
+              ),
             ),
           ],
           const SizedBox(height: 12),
@@ -197,7 +204,10 @@ class ProxySheet extends CompositionWidget {
           ),
           if (error.value != null) ...[
             const SizedBox(height: 8),
-            Text(error.value!, style: const TextStyle(color: Colors.red)),
+            Text(
+              error.value!,
+              style: TextStyle(color: theme.value.colorScheme.error),
+            ),
           ],
           const SizedBox(height: 16),
           FilledButton(

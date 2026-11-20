@@ -56,6 +56,7 @@ class AgendaTab extends CompositionWidget {
     final props = widget();
     final store = inject(generalMeetingsStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
     final busy = ref(false);
 
     final editable = computed(
@@ -156,7 +157,7 @@ class AgendaTab extends CompositionWidget {
             'Vill du ta bort ”${item.title}” från dagordningen? Eventuella '
             'röster tas också bort.',
         okLabel: 'Ta bort',
-        okColor: Colors.red,
+        okColor: Theme.of(ctx).colorScheme.error,
       );
       if (!ok) return;
       try {
@@ -194,7 +195,9 @@ class AgendaTab extends CompositionWidget {
                   Expanded(
                     child: Text(
                       '${items.length} punkter',
-                      style: TextStyle(color: Colors.grey[600]),
+                      style: TextStyle(
+                        color: theme.value.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ),
                   if (busy.value)
@@ -332,6 +335,7 @@ class _ItemSheet extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final props = widget();
     final contextRef = useContext();
+    final theme = useTheme();
     final existing = props.value.item;
 
     final (titleController, title, _) = useTextEditingController(
@@ -406,7 +410,10 @@ class _ItemSheet extends CompositionWidget {
         ),
         if (error.value != null) ...[
           const SizedBox(height: 8),
-          Text(error.value!, style: const TextStyle(color: Colors.red)),
+          Text(
+            error.value!,
+            style: TextStyle(color: theme.value.colorScheme.error),
+          ),
         ],
         const SizedBox(height: 12),
         FilledButton(

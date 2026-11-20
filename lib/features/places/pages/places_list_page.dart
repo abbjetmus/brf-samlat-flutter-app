@@ -17,6 +17,7 @@ class PlacesListPage extends CompositionWidget {
 
   @override
   Widget Function(BuildContext) setup() {
+    final theme = useTheme();
     final placesStore = inject(placesStoreKey);
     final authStore = inject(authStoreKey);
     final searchQuery = ref('');
@@ -26,6 +27,7 @@ class PlacesListPage extends CompositionWidget {
     });
 
     return (context) {
+      final colors = theme.value.colorScheme;
       final places = placesStore.placesList.value;
       final loading = placesStore.listLoading.value;
       final loadingMore = placesStore.loadingMore.value;
@@ -111,7 +113,7 @@ class PlacesListPage extends CompositionWidget {
                                         Icon(
                                           Icons.apartment,
                                           size: 14,
-                                          color: Colors.grey[600],
+                                          color: colors.onSurfaceVariant,
                                         ),
                                         const SizedBox(width: 2),
                                         Flexible(
@@ -122,7 +124,7 @@ class PlacesListPage extends CompositionWidget {
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: Colors.grey[600],
+                                              color: colors.onSurfaceVariant,
                                             ),
                                           ),
                                         ),
@@ -132,7 +134,7 @@ class PlacesListPage extends CompositionWidget {
                                   subtitle: Text(
                                     place.streetAddress,
                                     style: TextStyle(
-                                      color: Colors.grey[600],
+                                      color: colors.onSurfaceVariant,
                                       fontSize: 12,
                                     ),
                                   ),

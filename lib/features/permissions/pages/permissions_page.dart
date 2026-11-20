@@ -137,7 +137,9 @@ class PermissionsPage extends CompositionWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(ok ? okMsg : errMsg),
-            backgroundColor: ok ? AppTheme.primaryColor : Colors.red,
+            backgroundColor: ok
+                ? AppTheme.primaryColor
+                : theme.colorScheme.error,
           ),
         );
       }
@@ -234,7 +236,9 @@ class PermissionsPage extends CompositionWidget {
                                   message:
                                       'Ta bort ${roleName(p)} från $menuLabel?',
                                   okLabel: 'Ta bort',
-                                  okColor: Colors.red,
+                                  okColor: Theme.of(
+                                    sheetContext,
+                                  ).colorScheme.error,
                                 );
                                 if (!confirmed) return;
                                 setSheetState(() => saving = true);
@@ -251,14 +255,16 @@ class PermissionsPage extends CompositionWidget {
                                   'Kunde inte ta bort rättigheten',
                                 );
                               },
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.delete_outline,
                           size: 18,
-                          color: Colors.red,
+                          color: Theme.of(sheetContext).colorScheme.error,
                         ),
-                        label: const Text(
+                        label: Text(
                           'Ta bort roll',
-                          style: TextStyle(color: Colors.red),
+                          style: TextStyle(
+                            color: Theme.of(sheetContext).colorScheme.error,
+                          ),
                         ),
                       ),
                     ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import '../../core/models/pocketbase_models.dart';
+import '../../core/theme/app_theme.dart';
 import '../auth/auth_store.dart' as auth;
 
 class CalendarStore {
@@ -153,7 +154,7 @@ class CalendarStore {
       final hex = colorStr.replaceFirst('#', '');
       return Color(int.parse('FF$hex', radix: 16));
     } catch (_) {
-      return const Color(0xFF2196F3);
+      return AppTheme.pine;
     }
   }
 }
@@ -191,8 +192,9 @@ class CalendarItem {
   /// Posts and board meetings are changed at their source, not here.
   bool get isReadOnly => isPost || boardMeetingId != null;
 
-  /// Fixed colour for post-derived calendar entries (purple).
-  static const String postColor = '#9C27B0';
+  /// Fixed colour for post-derived calendar entries: the association's green
+  /// ([AppTheme.pine]), distinct from the user-pickable event colours.
+  static const String postColor = '#1D5C45';
 
   static DateTime? _parse(String? iso) {
     if (iso == null || iso.isEmpty) return null;

@@ -17,6 +17,7 @@ class ResidencesListPage extends CompositionWidget {
 
   @override
   Widget Function(BuildContext) setup() {
+    final theme = useTheme();
     final residencesStore = inject(residencesStoreKey);
     final authStore = inject(authStoreKey);
     final searchQuery = ref('');
@@ -26,6 +27,7 @@ class ResidencesListPage extends CompositionWidget {
     });
 
     return (context) {
+      final colors = theme.value.colorScheme;
       final residences = residencesStore.residencesList.value;
       final loading = residencesStore.listLoading.value;
       final loadingMore = residencesStore.loadingMore.value;
@@ -106,7 +108,7 @@ class ResidencesListPage extends CompositionWidget {
                                   subtitle: Text(
                                     residence.residenceType,
                                     style: TextStyle(
-                                      color: Colors.grey[600],
+                                      color: colors.onSurfaceVariant,
                                       fontSize: 12,
                                     ),
                                   ),

@@ -49,15 +49,64 @@ import '../../features/residence_applications/pages/residence_application_detail
 import '../../features/invoice_overview/pages/invoice_overview_page.dart';
 import '../../features/contractors/pages/contractors_page.dart';
 import '../../features/association/pages/association_info_page.dart';
+import '../../features/book/pages/book_page.dart';
+import '../../features/more/pages/more_page.dart';
+import 'app_shell.dart';
 import 'auth_guard.dart';
 
 final router = GoRouter(
   initialLocation: DashboardPage.path,
   redirect: authGuard,
   routes: [
-    GoRoute(
-      path: DashboardPage.path,
-      builder: (context, state) => const DashboardPage(),
+    // Flikraden: Hem · Anslag · Boka · Ärenden · Mer (app_shell.dart). Bara
+    // flikarnas förstasidor ligger i skalet; allt annat är rutter på toppnivå
+    // och öppnas ovanpå flikraden (helskärm, bakåt tillbaka till fliken).
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) =>
+          AppShell(navigationShell: navigationShell),
+      branches: [
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: DashboardPage.path,
+              builder: (context, state) => const DashboardPage(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: PostsListPage.path,
+              builder: (context, state) => const PostsListPage(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: BookPage.path,
+              builder: (context, state) =>
+                  BookPage(tab: state.uri.queryParameters['tab']),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: IssuesListPage.path,
+              builder: (context, state) => const IssuesListPage(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: MorePage.path,
+              builder: (context, state) => const MorePage(),
+            ),
+          ],
+        ),
+      ],
     ),
     GoRoute(
       path: LoginPage.path,
@@ -81,10 +130,6 @@ final router = GoRouter(
     ),
     // Posts
     GoRoute(
-      path: PostsListPage.path,
-      builder: (context, state) => const PostsListPage(),
-    ),
-    GoRoute(
       path: '${PostDetailPage.path}/:id',
       builder: (context, state) =>
           PostDetailPage(postId: state.pathParameters['id']!),
@@ -99,10 +144,6 @@ final router = GoRouter(
           CreatePostPage(postId: state.pathParameters['id']!),
     ),
     // Issues
-    GoRoute(
-      path: IssuesListPage.path,
-      builder: (context, state) => const IssuesListPage(),
-    ),
     GoRoute(
       path: '${IssueDetailPage.path}/:id',
       builder: (context, state) =>

@@ -2,20 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/models/pocketbase_models.dart';
+import '../../shared/widgets/status_chip.dart';
 
 /// Betalstatus som den visas för en avi. `payment_status` räknas om av
 /// servern från invoice_payments; "Förfallen" lagras inte utan följer av att
 /// avin inte är betald och förfallodagen har passerat.
 enum InvoicePaymentStatus {
-  obetald('Obetald', Colors.grey, Icons.schedule),
-  delbetald('Delbetald', Colors.orange, Icons.timelapse),
-  betald('Betald', Colors.green, Icons.check_circle_outline),
-  forfallen('Förfallen', Colors.red, Icons.error_outline);
+  obetald('Obetald', StatusTone.neutral, Icons.schedule),
+  delbetald('Delbetald', StatusTone.warning, Icons.timelapse),
+  betald('Betald', StatusTone.success, Icons.check_circle_outline),
+  forfallen('Förfallen', StatusTone.danger, Icons.error_outline);
 
-  const InvoicePaymentStatus(this.label, this.color, this.icon);
+  const InvoicePaymentStatus(this.label, this.tone, this.icon);
 
   final String label;
-  final Color color;
+  final StatusTone tone;
   final IconData icon;
 
   static InvoicePaymentStatus of(InvoicesRecord invoice, {DateTime? now}) {
@@ -61,27 +62,10 @@ class InvoiceStatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: status.color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(status.icon, size: 14, color: status.color),
-          const SizedBox(width: 4),
-          Text(
-            status.label,
-            style: TextStyle(
-              fontSize: 12,
-              color: status.color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
+    return StatusChip(
+      label: status.label,
+      icon: status.icon,
+      tone: status.tone,
     );
   }
 }

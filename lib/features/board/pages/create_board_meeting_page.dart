@@ -41,6 +41,7 @@ class CreateBoardMeetingPage extends CompositionWidget {
     final addToCalendar = ref(false);
     final loading = ref(false);
     final contextRef = useContext();
+    final theme = useTheme();
     // Redigering: mötet som läses in, och om det är inläst än.
     final editing = ref<BoardMeetingsRecord?>(null);
     final prefilled = ref(!isEdit);
@@ -153,9 +154,9 @@ class CreateBoardMeetingPage extends CompositionWidget {
             );
           } else {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Kunde inte uppdatera styrelsemötet.'),
-                backgroundColor: Colors.red,
+              SnackBar(
+                content: const Text('Kunde inte uppdatera styrelsemötet.'),
+                backgroundColor: Theme.of(context).colorScheme.error,
               ),
             );
           }
@@ -190,9 +191,9 @@ class CreateBoardMeetingPage extends CompositionWidget {
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Kunde inte skapa styrelsemöte.'),
-              backgroundColor: Colors.red,
+            SnackBar(
+              content: const Text('Kunde inte skapa styrelsemöte.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         }
@@ -221,7 +222,10 @@ class CreateBoardMeetingPage extends CompositionWidget {
                   // Start date/time
                   Text(
                     'Starttid',
-                    style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                    style: TextStyle(
+                      color: theme.value.colorScheme.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   OutlinedButton.icon(
@@ -241,7 +245,10 @@ class CreateBoardMeetingPage extends CompositionWidget {
                   // End date/time
                   Text(
                     'Sluttid',
-                    style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                    style: TextStyle(
+                      color: theme.value.colorScheme.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   OutlinedButton.icon(

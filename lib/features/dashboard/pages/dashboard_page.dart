@@ -10,7 +10,11 @@ import '../../../core/utils/permissions_utils.dart';
 import '../dashboard_store.dart';
 import '../widgets/dashboard_tasks.dart';
 import '../../posts/pages/post_detail_page.dart';
-import '../../../shared/widgets/app_menu_drawer.dart';
+import '../../issues/pages/create_issue_page.dart';
+import '../../settings/pages/settings_page.dart';
+import '../../../core/router/app_shell.dart';
+import '../../../core/utils/text_utils.dart';
+import '../../../shared/widgets/gradient_scaffold.dart';
 
 class DashboardPage extends CompositionWidget {
   static const String path = '/';
@@ -57,453 +61,643 @@ class DashboardPage extends CompositionWidget {
       immediate: true,
     );
 
+    final theme = useTheme();
+    final topInset = useContextRef<double>(
+      (context) => MediaQuery.paddingOf(context).top,
+    );
+
     return (context) {
       final user = authStore.currentUser.value;
       final association = authStore.association.value;
+      final residence = authStore.residence.value;
       final notSeenCount = dashboardStore.notSeenCount.value;
       final generalInfoList = dashboardStore.generalInfoList.value;
       final tasks = dashboardStore.tasks.value;
       final lists = visibleLists.value;
       final listRows = dashboardStore.widgetLists.value;
+      final textTheme = theme.value.textTheme;
+      final colors = theme.value.colorScheme;
 
-      // Allt i appen nås via sidomenyn (☰ i headern).
+      final canReport =
+          authStore.isFeatureEnabled('issues') &&
+          authStore.hasPermission('issues', CrudOperation.create);
+      final canBook = appTabs.firstWhere((t) => t.path == '/book').visible(
+        authStore,
+      );
+
+      final firstName = (user?.name ?? '').trim().split(' ').first;
+      final hour = DateTime.now().hour;
+      final greeting = hour < 5
+          ? 'God natt'
+          : hour < 10
+          ? 'God morgon'
+          : hour < 18
+          ? 'Hej'
+          : 'God kväll';
+
       final hasContent =
           !tasks.isEmpty || lists.isNotEmpty || generalInfoList.isNotEmpty;
 
+      Future<void> refresh() => Future.wait([
+        dashboardStore.loadTasks(),
+        dashboardStore.loadLists(visibleLists.value),
+        dashboardStore.getGeneralInfoList(),
+        dashboardStore.getNotSeenCount(),
+      ]);
+
+      Future<void> openTask(DashboardTask task) async {
+        if (tabRootPaths.contains(Uri.parse(task.path).path)) {
+          context.go(task.path);
+          return;
+        }
+        await context.push(task.path);
+        dashboardStore.loadTasks();
+      }
+
       return Scaffold(
-        endDrawer: const AppMenuDrawer(),
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Fixed header — stays in place while the content below scrolls.
-            _HeroHeader(
-              userName: user?.name ?? '',
-              associationName: association?.name,
-              notSeenCount: notSeenCount,
-              onNotifications: () =>
-                  _showNotificationsDialog(context, dashboardStore),
+        body: RefreshIndicator(
+          onRefresh: refresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.fromLTRB(
+              20,
+              topInset.value + 16,
+              20,
+              32,
             ),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () => Future.wait([
-                  dashboardStore.loadTasks(),
-                  dashboardStore.loadLists(visibleLists.value),
-                  dashboardStore.getGeneralInfoList(),
-                ]),
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.zero,
-                  child: Padding(
-                    // Add the Android system nav-bar inset so the last cards don't
-                    // sit under the bottom bar.
-                    padding: EdgeInsets.fromLTRB(
-                      20,
-                      24,
-                      20,
-                      28 + MediaQuery.of(context).padding.bottom,
+            children: [
+              // Förening + konto
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppTheme.pine,
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                    child: Text(
+                      TextUtils.initials(association?.name ?? 'B').characters.first,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // För dig / Kräver åtgärd: fasta, döljs när de är
-                        // tomma. Efter att man har varit inne på en rad (t.ex.
-                        // signerat) hämtas de igen.
-                        for (final (title, rows) in [
-                          ('För dig', tasks.personal),
-                          ('Kräver åtgärd', tasks.board),
-                        ])
-                          if (rows.isNotEmpty) ...[
-                            DashboardTaskSection(
-                              title: title,
-                              tasks: rows,
-                              onTap: (task) async {
-                                await context.push(task.path);
-                                dashboardStore.loadTasks();
-                              },
-                            ),
-                            const SizedBox(height: 28),
-                          ],
-                        if (!hasContent)
-                          // Builder: Scaffold.of behöver en context under sidans Scaffold.
-                          Builder(
-                            builder: (inner) => _InfoCard(
-                              icon: Icons.menu,
-                              title: 'Hitta allt i appen i menyn',
-                              subtitle:
-                                  'Tryck på ☰ uppe till höger för inlägg, '
-                                  'meddelanden, kalender och mer.',
-                              onTap: () => Scaffold.of(inner).openEndDrawer(),
-                            ),
+                        Text(
+                          association?.name ?? 'BRF Samlat',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.titleSmall,
+                        ),
+                        if (residence != null &&
+                            residence.streetAddress.isNotEmpty)
+                          Text(
+                            residence.streetAddress,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.bodySmall,
                           ),
-                        for (final (i, d) in lists.indexed) ...[
-                          if (i > 0) const SizedBox(height: 28),
-                          _ListWidgetSection(
-                            definition: d,
-                            entries: listRows[d.type],
-                            onTap: (path) => context.push(path),
-                          ),
-                        ],
-                        if (generalInfoList.isNotEmpty) ...[
-                          if (lists.isNotEmpty) const SizedBox(height: 28),
-                          const _SectionTitle('Generell information'),
-                          const SizedBox(height: 14),
-                          ...generalInfoList.map(
-                            (post) => _InfoCard(
-                              title: post.title,
-                              subtitle: AppDateUtils.formatDate(post.created),
-                              onTap: () => context.push(
-                                '${PostDetailPage.path}/${post.id}',
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
+                  HeaderIconButton(
+                    icon: Icons.notifications_none_rounded,
+                    tooltip: notSeenCount > 0
+                        ? 'Notiser, $notSeenCount olästa'
+                        : 'Notiser',
+                    badgeCount: notSeenCount,
+                    onPressed: () =>
+                        _showNotificationsDialog(context, dashboardStore),
+                  ),
+                  const SizedBox(width: 8),
+                  Semantics(
+                    button: true,
+                    label: 'Konto och inställningar',
+                    child: Material(
+                      color: colors.primaryContainer,
+                      shape: const CircleBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => context.push(SettingsPage.path),
+                        child: SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Center(
+                            child: Text(
+                              TextUtils.initials(user?.name ?? ''),
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: colors.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
+
+              // Hälsning
+              Text(
+                AppDateUtils.weekdayLong(),
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colors.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                firstName.isEmpty ? greeting : '$greeting, $firstName',
+                style: textTheme.headlineLarge,
+              ),
+              const SizedBox(height: 28),
+
+              // Att göra
+              if (tasks.personal.isNotEmpty) ...[
+                DashboardTaskSection(
+                  title: 'Att göra',
+                  showCount: true,
+                  tasks: tasks.personal,
+                  onTap: openTask,
+                ),
+                const SizedBox(height: 24),
+              ],
+
+              // Snabbval
+              if (canReport || canBook) ...[
+                Row(
+                  children: [
+                    if (canReport)
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.build_outlined,
+                          label: 'Felanmäl',
+                          filled: true,
+                          onTap: () => context.push(CreateIssuePage.path),
+                        ),
+                      ),
+                    if (canReport && canBook) const SizedBox(width: 10),
+                    if (canBook)
+                      Expanded(
+                        child: _QuickAction(
+                          icon: Icons.calendar_today_outlined,
+                          label: 'Boka',
+                          filled: !canReport,
+                          onTap: () => context.go('/book'),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+              ],
+
+              // Styrelsen
+              if (tasks.board.isNotEmpty) ...[
+                DashboardTaskSection(
+                  title: 'Styrelsen',
+                  trailing: 'Kräver åtgärd',
+                  tasks: tasks.board,
+                  onTap: openTask,
+                ),
+                const SizedBox(height: 28),
+              ],
+
+              if (!hasContent)
+                _Card(
+                  onTap: () => context.go('/more'),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Allt i appen hittar du under Mer, längst ner till höger.',
+                          style: textTheme.bodyMedium,
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: colors.onSurfaceVariant),
+                    ],
+                  ),
+                ),
+
+              for (final d in lists) ...[
+                _SectionHeader(
+                  title: d.heading,
+                  linkText: d.type == 'posts' ? 'Alla anslag' : 'Kalender',
+                  onLink: () => openAppPath(context, d.route),
+                ),
+                const SizedBox(height: 12),
+                if (d.type == 'posts')
+                  _PostsList(
+                    entries: listRows[d.type],
+                    onTap: (path) => context.push(path),
+                  )
+                else
+                  _EventsList(
+                    entries: listRows[d.type],
+                    onTap: (path) => openAppPath(context, path),
+                  ),
+                const SizedBox(height: 28),
+              ],
+
+              // Bra att veta (fästa inlägg)
+              if (generalInfoList.isNotEmpty) ...[
+                Text('BRA ATT VETA', style: textTheme.labelSmall),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 104,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    clipBehavior: Clip.none,
+                    itemCount: generalInfoList.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 10),
+                    itemBuilder: (context, i) {
+                      final post = generalInfoList[i];
+                      return _InfoTile(
+                        title: post.title,
+                        highlighted: i == 0,
+                        onTap: () => context.push(
+                          '${PostDetailPage.path}/${post.id}',
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       );
     };
   }
 }
 
-class _HeroHeader extends StatelessWidget {
-  final String userName;
-  final String? associationName;
-  final int notSeenCount;
-  final VoidCallback onNotifications;
+/// Section heading with a link to the full list.
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final String linkText;
+  final VoidCallback onLink;
 
-  const _HeroHeader({
-    required this.userName,
-    required this.associationName,
-    required this.notSeenCount,
-    required this.onNotifications,
+  const _SectionHeader({
+    required this.title,
+    required this.linkText,
+    required this.onLink,
   });
 
   @override
   Widget build(BuildContext context) {
-    final topInset = MediaQuery.of(context).padding.top;
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20, topInset + 18, 20, 26),
-      decoration: const BoxDecoration(
-        gradient: AppTheme.brandGradient,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Välkommen tillbaka',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  userName.isEmpty ? 'BRF Samlat' : userName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 21,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                if (associationName != null)
-                  Text(
-                    associationName!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.8),
-                      fontSize: 13,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          _HeaderIconButton(
-            icon: Icons.notifications_outlined,
-            badgeCount: notSeenCount,
-            onPressed: onNotifications,
-          ),
-          const SizedBox(width: 6),
-          // ☰ öppnar sidomenyn (Scaffold.endDrawer) — samma plats som på
-          // alla andra sidor. Inställningar finns i menyn under Konto.
-          _HeaderIconButton(
-            icon: Icons.menu,
-            onPressed: () => Scaffold.of(context).openEndDrawer(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeaderIconButton extends StatelessWidget {
-  final IconData icon;
-  final int badgeCount;
-  final VoidCallback onPressed;
-
-  const _HeaderIconButton({
-    required this.icon,
-    this.badgeCount = 0,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Material(
-          color: Colors.white.withValues(alpha: 0.16),
-          shape: const CircleBorder(),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onPressed,
-            child: Padding(
-              padding: const EdgeInsets.all(9),
-              child: Icon(icon, color: Colors.white, size: 22),
-            ),
+        Expanded(
+          child: Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(fontSize: 18),
           ),
         ),
-        if (badgeCount > 0)
-          Positioned(
-            right: -2,
-            top: -2,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444),
-                shape: BoxShape.circle,
-                border: Border.all(color: AppTheme.primaryDarken1, width: 1.5),
-              ),
-              child: Text(
-                badgeCount > 99 ? '99+' : '$badgeCount',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+        TextButton(
+          onPressed: onLink,
+          style: TextButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            textStyle: const TextStyle(
+              fontFamily: AppTheme.fontFamily,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
           ),
+          child: Text(linkText),
+        ),
       ],
     );
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
+/// White card with a hairline border (radius 18).
+class _Card extends StatelessWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+  final EdgeInsets padding;
+
+  const _Card({
+    required this.child,
+    this.onTap,
+    this.padding = const EdgeInsets.all(16),
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: TextStyle(
-        fontSize: 17,
-        fontWeight: FontWeight.w700,
-        letterSpacing: -0.2,
-        color: Theme.of(context).colorScheme.onSurface,
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        side: BorderSide(color: colors.outline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(padding: padding, child: child),
       ),
     );
   }
 }
 
-/// A short list (latest/upcoming) with a "Visa alla" link.
-class _ListWidgetSection extends StatelessWidget {
-  final DashboardWidgetDefinition definition;
-  final List<DashboardListEntry>? entries;
-  final void Function(String path) onTap;
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool filled;
+  final VoidCallback onTap;
 
-  const _ListWidgetSection({
-    required this.definition,
-    required this.entries,
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.filled,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final def = definition;
-    final rows = entries;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(child: _SectionTitle(def.heading)),
-            TextButton(
-              onPressed: () => onTap(def.route),
-              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-              child: const Text('Visa alla'),
+    final colors = Theme.of(context).colorScheme;
+    final fg = filled ? colors.onPrimary : colors.onSurface;
+    return Material(
+      color: filled ? colors.primary : colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusTile),
+        side: filled ? BorderSide.none : BorderSide(color: colors.outline),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: 64,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(icon, color: fg, size: 22),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-        const SizedBox(height: 10),
-        if (rows == null)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: LinearProgressIndicator(),
-          )
-        else if (rows.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              border: Border.all(color: theme.colorScheme.outline),
-            ),
-            child: Text(
-              def.type == 'posts'
-                  ? 'Inga inlägg har publicerats än.'
-                  : 'Inget inplanerat i kalendern just nu.',
-              style: TextStyle(
-                fontSize: 13.5,
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          )
-        else
-          ...rows.map((entry) {
-            final path = entry.path;
-            return _InfoCard(
-              title: entry.title,
-              subtitle: entry.subtitle,
-              icon: entry.icon ?? def.icon,
-              iconColor: entry.color ?? def.color,
-              chipText: entry.chipText,
-              chipColor: entry.chipColor,
-              onTap: path == null ? null : () => onTap(path),
-            );
-          }),
-      ],
+      ),
     );
   }
 }
 
-class _InfoCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final VoidCallback? onTap;
-  final IconData icon;
-  final Color? iconColor;
-  final String? chipText;
-  final Color? chipColor;
+class _EmptyLine extends StatelessWidget {
+  final String text;
+  const _EmptyLine(this.text);
 
-  const _InfoCard({
-    required this.title,
-    required this.subtitle,
-    this.onTap,
-    this.icon = Icons.campaign_outlined,
-    this.iconColor,
-    this.chipText,
-    this.chipColor,
-  });
+  @override
+  Widget build(BuildContext context) => _Card(
+    child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+  );
+}
+
+/// Latest posts: one card, date to the right, excerpt below the title.
+class _PostsList extends StatelessWidget {
+  final List<DashboardListEntry>? entries;
+  final void Function(String path) onTap;
+
+  const _PostsList({required this.entries, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final rows = entries;
+    if (rows == null) return const LinearProgressIndicator();
+    if (rows.isEmpty) {
+      return const _EmptyLine('Inga anslag har publicerats än.');
+    }
     final theme = Theme.of(context);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        border: Border.all(color: theme.colorScheme.outline),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color:
-                      iconColor?.withValues(alpha: 0.12) ??
-                      AppTheme.surfaceLight,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: iconColor ?? AppTheme.primaryDarken1,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
+    final colors = theme.colorScheme;
+    return _Card(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (final (i, e) in rows.take(3).indexed) ...[
+            if (i > 0) Divider(height: 1, indent: 16, color: colors.outline),
+            InkWell(
+              onTap: e.path == null ? null : () => onTap(e.path!),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.onSurface,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            e.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(e.subtitle, style: theme.textTheme.bodySmall),
+                      ],
                     ),
-                    if (subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 2),
+                    if (e.detail.isNotEmpty) ...[
+                      const SizedBox(height: 3),
                       Text(
-                        subtitle,
-                        maxLines: 1,
+                        e.detail,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: theme.colorScheme.onSurfaceVariant,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontSize: 14,
+                          color: colors.onSurfaceVariant,
                         ),
                       ),
                     ],
                   ],
                 ),
               ),
-              if (chipText != null) ...[
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: (chipColor ?? AppTheme.primaryDarken1).withValues(
-                      alpha: 0.12,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Upcoming events: the next one as a big date block, the rest as rows.
+class _EventsList extends StatelessWidget {
+  final List<DashboardListEntry>? entries;
+  final void Function(String path) onTap;
+
+  const _EventsList({required this.entries, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = entries;
+    if (rows == null) return const LinearProgressIndicator();
+    if (rows.isEmpty) {
+      return const _EmptyLine('Inget inplanerat i kalendern just nu.');
+    }
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    Widget dateBlock(String? iso, {double size = 60}) => Container(
+      width: size,
+      padding: EdgeInsets.symmetric(vertical: size > 50 ? 9 : 6),
+      decoration: BoxDecoration(
+        color: colors.primaryContainer,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        children: [
+          Text(
+            AppDateUtils.monthShortUpper(iso),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.9,
+              color: colors.onPrimaryContainer,
+            ),
+          ),
+          Text(
+            AppDateUtils.dayOfMonth(iso),
+            style: TextStyle(
+              fontSize: size > 50 ? 28 : 20,
+              height: 1.05,
+              fontWeight: FontWeight.w800,
+              color: colors.onPrimaryContainer,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return _Card(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (final (i, e) in rows.take(3).indexed) ...[
+            if (i > 0) Divider(height: 1, indent: 16, color: colors.outline),
+            InkWell(
+              onTap: e.path == null ? null : () => onTap(e.path!),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    dateBlock(e.dateIso, size: i == 0 ? 60 : 48),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            e.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontSize: i == 0 ? 16 : 15,
+                            ),
+                          ),
+                          if (e.detail.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              e.detail,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontSize: 14,
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    chipText!,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: chipColor ?? AppTheme.primaryDarken1,
-                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// "Bra att veta" tile — pinned general-info posts.
+class _InfoTile extends StatelessWidget {
+  final String title;
+  final bool highlighted;
+  final VoidCallback onTap;
+
+  const _InfoTile({
+    required this.title,
+    required this.highlighted,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final fg = highlighted ? colors.onPrimary : colors.onSurface;
+    return SizedBox(
+      width: 156,
+      child: Material(
+        color: highlighted ? colors.primary : colors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusTile),
+          side: highlighted ? BorderSide.none : BorderSide(color: colors.outline),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(
+                  Icons.push_pin_outlined,
+                  size: 20,
+                  color: highlighted ? fg : colors.primary,
+                ),
+                Text(
+                  title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: 15,
+                    height: 1.25,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -590,7 +784,7 @@ void _showNotificationsDialog(
                       onDismissed: (_) =>
                           dashboardStore.deleteNotification(notification.id),
                       background: Container(
-                        color: const Color(0xFFEF4444),
+                        color: Theme.of(context).colorScheme.error,
                         alignment: Alignment.centerRight,
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: const Icon(

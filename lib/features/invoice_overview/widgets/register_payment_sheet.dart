@@ -41,6 +41,7 @@ class RegisterPaymentSheet extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final props = widget();
     final invoice = props.value.invoice;
+    final theme = useTheme();
     final contextRef = useContext();
 
     final (amountController, amountText, _) = useTextEditingController(
@@ -96,6 +97,7 @@ class RegisterPaymentSheet extends CompositionWidget {
     }
 
     return (context) {
+      final colors = theme.value.colorScheme;
       final left = remainingAfter.value;
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -111,7 +113,7 @@ class RegisterPaymentSheet extends CompositionWidget {
             'Fakturerat ${formatKr(invoice.amount)}, redan betalt '
             '${formatKr(invoice.paidAmount)}. Beloppet är förifyllt med det som '
             'återstår. Ändra det för en delbetalning.',
-            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 13, color: colors.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -168,18 +170,18 @@ class RegisterPaymentSheet extends CompositionWidget {
             Text(
               'Beloppet är ${formatKr(-left)} mer än det som återstår. '
               'Fakturan blir överbetald.',
-              style: const TextStyle(fontSize: 12, color: Colors.orange),
+              style: TextStyle(fontSize: 12, color: colors.tertiary),
             ),
           ] else if (amount.value != null && left > 0) ...[
             const SizedBox(height: 8),
             Text(
               'Delbetalning: ${formatKr(left)} återstår efteråt.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
             ),
           ],
           if (error.value != null) ...[
             const SizedBox(height: 12),
-            Text(error.value!, style: const TextStyle(color: Colors.red)),
+            Text(error.value!, style: TextStyle(color: colors.error)),
           ],
           const SizedBox(height: 16),
           FilledButton(

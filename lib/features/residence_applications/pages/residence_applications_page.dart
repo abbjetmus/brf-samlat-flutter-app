@@ -23,6 +23,7 @@ class ResidenceApplicationsPage extends CompositionWidget {
 
   @override
   Widget Function(BuildContext) setup() {
+    final theme = useTheme();
     final authStore = inject(authStoreKey);
     final store = ResidenceApplicationsStore(
       inject(pocketBaseKey),
@@ -235,9 +236,9 @@ class ResidenceApplicationsPage extends CompositionWidget {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
                           'Slutar om ${a.daysLeft} d',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Colors.orange,
+                            color: theme.value.colorScheme.tertiary,
                             fontWeight: FontWeight.w600,
                           ),
                         ),

@@ -51,7 +51,7 @@ class ResidenceApplicationDetailPage extends CompositionWidget {
         title: 'Återkalla ansökan',
         message: 'Vill du återkalla ansökan? Styrelsen slutar då behandla den.',
         okLabel: 'Återkalla',
-        okColor: Colors.red,
+        okColor: Theme.of(ctx).colorScheme.error,
       );
       if (!ok) return;
       final done = await store.withdraw(applicationId);
@@ -99,7 +99,7 @@ class ResidenceApplicationDetailPage extends CompositionWidget {
         message:
             'Vill du radera ansökan? Den försvinner också från bostadens historik.',
         okLabel: 'Radera',
-        okColor: Colors.red,
+        okColor: Theme.of(ctx).colorScheme.error,
       );
       if (!ok) return;
       final message = await store.delete(applicationId);

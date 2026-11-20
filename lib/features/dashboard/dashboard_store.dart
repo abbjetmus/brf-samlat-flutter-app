@@ -4,6 +4,7 @@ import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import '../../core/models/pocketbase_models.dart';
 import '../../core/utils/dashboard_widgets.dart';
 import '../../core/utils/date_utils.dart';
+import '../../core/utils/text_utils.dart';
 import '../auth/auth_store.dart' as auth;
 import 'widgets/dashboard_tasks.dart';
 
@@ -182,13 +183,14 @@ class DashboardStore {
         String str(String key) => (json[key] as String? ?? '').trim();
         if (isPosts) {
           final published = str('published_at');
+          final date = published.isNotEmpty ? published : str('created');
           return DashboardListEntry(
             id: id,
             title: str('title'),
-            subtitle: AppDateUtils.formatDate(
-              published.isNotEmpty ? published : str('created'),
-            ),
+            subtitle: AppDateUtils.friendlyDay(date),
             path: '/posts/detail/$id',
+            dateIso: date,
+            detail: TextUtils.excerpt(str('description'), maxLength: 110),
           );
         }
         return DashboardListEntry(
@@ -199,6 +201,11 @@ class DashboardStore {
             str('location'),
           ].where((s) => s.isNotEmpty).join(' · '),
           path: def.route,
+          dateIso: str('start_at'),
+          detail: [
+            AppDateUtils.eventWhen(str('start_at'), str('end_at')),
+            str('location'),
+          ].where((s) => s.isNotEmpty).join(' · '),
         );
       }).toList();
       _widgetLists.value = {..._widgetLists.value, def.type: entries};

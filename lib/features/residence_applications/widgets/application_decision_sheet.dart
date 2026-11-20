@@ -27,6 +27,7 @@ class ApplicationDecisionSheet extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final props = widget();
     final a = props.value.application;
+    final theme = useTheme();
     final contextRef = useContext();
     final day = DateFormat('yyyy-MM-dd');
 
@@ -84,13 +85,14 @@ class ApplicationDecisionSheet extends CompositionWidget {
       if (ctx != null && ctx.mounted) Navigator.of(ctx).pop(true);
     }
 
-    const options = <(String, String, Color)>[
-      ('under behandling', 'Under behandling', Colors.orange),
-      ('beviljad', 'Bevilja', Colors.green),
-      ('avslagen', 'Avslå', Colors.red),
-    ];
-
     return (context) {
+      final colors = theme.value.colorScheme;
+      final options = <(String, String, Color)>[
+        ('under behandling', 'Under behandling', colors.tertiary),
+        ('beviljad', 'Bevilja', colors.primary),
+        ('avslagen', 'Avslå', colors.error),
+      ];
+
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -152,11 +154,11 @@ class ApplicationDecisionSheet extends CompositionWidget {
           const SizedBox(height: 8),
           Text(
             'Den sökande får beskedet och kommentaren via push och e-post.',
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
           ),
           if (error.value != null) ...[
             const SizedBox(height: 12),
-            Text(error.value!, style: const TextStyle(color: Colors.red)),
+            Text(error.value!, style: TextStyle(color: colors.error)),
           ],
           const SizedBox(height: 16),
           FilledButton(

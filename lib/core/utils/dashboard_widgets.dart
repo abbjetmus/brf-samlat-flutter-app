@@ -32,7 +32,7 @@ class DashboardWidgetDefinition {
 const dashboardLists = <DashboardWidgetDefinition>[
   DashboardWidgetDefinition(
     type: 'posts',
-    heading: 'Senaste inläggen',
+    heading: 'Senaste anslag',
     icon: Icons.article_outlined,
     color: Color(0xFF3B82F6),
     features: ['posts'],
@@ -41,7 +41,7 @@ const dashboardLists = <DashboardWidgetDefinition>[
   ),
   DashboardWidgetDefinition(
     type: 'calendar_events',
-    heading: 'Kommande händelser',
+    heading: 'Nästa i kalendern',
     icon: Icons.calendar_month_outlined,
     color: Color(0xFF8B5CF6),
     features: ['calendar_events'],
@@ -70,6 +70,12 @@ class DashboardListEntry {
   final String? chipText;
   final Color? chipColor;
 
+  /// ISO date: published (posts) or start (events) — for date blocks.
+  final String? dateIso;
+
+  /// Extra line: a post's excerpt, or an event's time and place.
+  final String detail;
+
   const DashboardListEntry({
     required this.id,
     required this.title,
@@ -79,5 +85,7 @@ class DashboardListEntry {
     this.color,
     this.chipText,
     this.chipColor,
+    this.dateIso,
+    this.detail = '',
   });
 }

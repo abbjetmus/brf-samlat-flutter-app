@@ -28,6 +28,7 @@ class BoardMeetingDetailPage extends CompositionWidget {
     final authStore = inject(authStoreKey);
     final signaturesStore = inject(signaturesStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
     // Protokollet är låst efter den första signaturen (som i webben); då går
     // mötet inte längre att redigera. null = inte inläst än.
     final locked = ref<bool?>(null);
@@ -135,7 +136,7 @@ class BoardMeetingDetailPage extends CompositionWidget {
                     message:
                         'Är du säker på att du vill radera detta styrelsemöte?',
                     okLabel: 'Radera',
-                    okColor: Colors.red,
+                    okColor: theme.value.colorScheme.error,
                   );
                   if (confirmed) {
                     await boardStore.deleteBoardMeeting(meeting.id);
@@ -178,13 +179,13 @@ class BoardMeetingDetailPage extends CompositionWidget {
                         Icon(
                           Icons.access_time,
                           size: 18,
-                          color: Colors.grey[600],
+                          color: theme.value.colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 6),
                         Text(
                           '$startTime - $endTime',
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: theme.value.colorScheme.onSurfaceVariant,
                             fontSize: 15,
                           ),
                         ),
@@ -235,7 +236,7 @@ class BoardMeetingDetailPage extends CompositionWidget {
                           Text(
                             'Protokoll-ID',
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: theme.value.colorScheme.onSurfaceVariant,
                               fontSize: 12,
                             ),
                           ),

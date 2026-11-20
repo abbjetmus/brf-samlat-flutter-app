@@ -371,24 +371,27 @@ class _BookingTimeSlotDialog extends CompositionWidget {
               final isDisabled = isTaken || isPast;
               final isSelected = selectedSlot.value == slot.display;
 
+              // Your pick is green (yours); taken slots sit on the neutral
+              // fill, past ones are faded.
+              final colors = themeData.colorScheme;
               Color? bg;
               Color? fg;
               if (isSelected) {
-                bg = const Color(0xFF2ed188);
-                fg = Colors.white;
+                bg = colors.primary;
+                fg = colors.onPrimary;
               } else if (isTaken) {
-                bg = const Color(0xFFfecaca);
-                fg = Colors.black;
+                bg = colors.surfaceContainerHighest;
+                fg = colors.onSurfaceVariant;
               } else if (isPast) {
-                bg = const Color(0xFFe5e7eb);
-                fg = const Color(0xFF9ca3af);
+                bg = colors.surfaceContainerHighest;
+                fg = colors.onSurfaceVariant.withValues(alpha: 0.5);
               }
 
               return ChoiceChip(
                 label: Text(slot.display),
                 selected: isSelected,
                 backgroundColor: bg,
-                selectedColor: const Color(0xFF2ed188),
+                selectedColor: colors.primary,
                 labelStyle: fg != null ? TextStyle(color: fg) : null,
                 onSelected: isDisabled
                     ? null

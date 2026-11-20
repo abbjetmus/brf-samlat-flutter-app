@@ -34,6 +34,7 @@ class MaintenanceCompleteSheet extends CompositionWidget {
     final props = widget();
     final item = props.value.item;
     final contextRef = useContext();
+    final theme = useTheme();
     final recurring = item.intervalYears > 0;
 
     final initialCost = item.actualCost > 0
@@ -98,7 +99,10 @@ class MaintenanceCompleteSheet extends CompositionWidget {
           const SizedBox(height: 4),
           Text(
             '${item.title} (${item.plannedYear})',
-            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+            style: TextStyle(
+              fontSize: 13,
+              color: theme.value.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 16),
           InkWell(
@@ -154,16 +158,21 @@ class MaintenanceCompleteSheet extends CompositionWidget {
               Text(
                 'Du saknar behörighet att skapa nya poster, så nästa tillfälle '
                 'får läggas till av någon annan.',
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.value.colorScheme.onSurfaceVariant,
+                ),
               ),
           ],
           if (error.value != null) ...[
             const SizedBox(height: 12),
-            Text(error.value!, style: const TextStyle(color: Colors.red)),
+            Text(
+              error.value!,
+              style: TextStyle(color: theme.value.colorScheme.error),
+            ),
           ],
           const SizedBox(height: 16),
           FilledButton.icon(
-            style: FilledButton.styleFrom(backgroundColor: Colors.green),
             onPressed: saving.value ? null : submit,
             icon: saving.value
                 ? const SizedBox(

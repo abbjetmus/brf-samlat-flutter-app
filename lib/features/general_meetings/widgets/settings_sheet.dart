@@ -12,6 +12,7 @@ class GeneralMeetingSettingsSheet extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final store = inject(generalMeetingsStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
 
     final loading = ref(true);
     final saving = ref(false);
@@ -66,7 +67,12 @@ class GeneralMeetingSettingsSheet extends CompositionWidget {
       }
     }
 
-    final caption = TextStyle(color: Colors.grey[600], fontSize: 12);
+    final caption = computed(
+      () => TextStyle(
+        color: theme.value.colorScheme.onSurfaceVariant,
+        fontSize: 12,
+      ),
+    );
 
     return (context) => Column(
       mainAxisSize: MainAxisSize.min,
@@ -81,7 +87,10 @@ class GeneralMeetingSettingsSheet extends CompositionWidget {
           'Ställ in det som föreningens stadgar säger om stämman. '
           'Inställningarna gäller nya stämmor; en stämma som redan är kallad '
           'behåller sitt röstläge.',
-          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+          style: TextStyle(
+            color: theme.value.colorScheme.onSurfaceVariant,
+            fontSize: 13,
+          ),
         ),
         const SizedBox(height: 12),
         if (loading.value)
@@ -149,7 +158,7 @@ class GeneralMeetingSettingsSheet extends CompositionWidget {
           Text(
             'Vanliga stadgar: tidigast sex och senast två veckor före stämman. '
             'Du får en varning om kallelsen skickas utanför perioden.',
-            style: caption,
+            style: caption.value,
           ),
           const SizedBox(height: 16),
           const Text(
@@ -169,7 +178,10 @@ class GeneralMeetingSettingsSheet extends CompositionWidget {
         ],
         if (error.value != null) ...[
           const SizedBox(height: 12),
-          Text(error.value!, style: const TextStyle(color: Colors.red)),
+          Text(
+            error.value!,
+            style: TextStyle(color: theme.value.colorScheme.error),
+          ),
         ],
         const SizedBox(height: 16),
         FilledButton(

@@ -31,6 +31,7 @@ class MaintenanceItemSheet extends CompositionWidget {
     final props = widget();
     final item = props.value.item;
     final contextRef = useContext();
+    final theme = useTheme();
 
     final (titleController, title, _) = useTextEditingController(
       text: item?.title ?? '',
@@ -228,7 +229,10 @@ class MaintenanceItemSheet extends CompositionWidget {
           ),
           if (error.value != null) ...[
             const SizedBox(height: 12),
-            Text(error.value!, style: const TextStyle(color: Colors.red)),
+            Text(
+              error.value!,
+              style: TextStyle(color: theme.value.colorScheme.error),
+            ),
           ],
           const SizedBox(height: 16),
           FilledButton(

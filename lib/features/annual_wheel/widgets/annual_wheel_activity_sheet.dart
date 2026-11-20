@@ -49,6 +49,7 @@ class AnnualWheelActivitySheet extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final props = widget();
+    final theme = useTheme();
     final a = props.value.activity;
 
     final (titleController, title, _) = useTextEditingController(
@@ -194,7 +195,10 @@ class AnnualWheelActivitySheet extends CompositionWidget {
             Text(
               'Påminnelsen går via e-post och push till den ansvariga, eller till '
               'alla som får redigera årshjulet om ingen är ansvarig.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.value.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 16),
             FilledButton(

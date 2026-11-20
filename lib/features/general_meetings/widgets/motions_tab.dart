@@ -37,6 +37,7 @@ class MotionsTab extends CompositionWidget {
     final props = widget();
     final store = inject(generalMeetingsStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
 
     final loading = ref(true);
     final motions = ref<List<Motion>>([]);
@@ -154,7 +155,7 @@ class MotionsTab extends CompositionWidget {
             ? 'Vill du radera utkastet "${motion.title}"?'
             : 'Vill du ta bort motionen ”${motion.title}”?',
         okLabel: own ? 'Radera' : 'Ta bort',
-        okColor: Colors.red,
+        okColor: Theme.of(ctx).colorScheme.error,
       );
       if (!ok) return;
       try {
@@ -237,7 +238,10 @@ class MotionsTab extends CompositionWidget {
                     'Lämna in motionen före sista dag för motioner; styrelsen '
                     'svarar sedan med ett yttrande.',
               ),
-            Text(windowHint.value, style: TextStyle(color: Colors.grey[600])),
+            Text(
+              windowHint.value,
+              style: TextStyle(color: theme.value.colorScheme.onSurfaceVariant),
+            ),
             if (m.canSubmitMotions) ...[
               const SizedBox(height: 12),
               FilledButton.icon(
@@ -291,7 +295,7 @@ class MotionsTab extends CompositionWidget {
                                 motion.residenceLabel,
                             ].where((s) => s.isNotEmpty).join(' · '),
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: theme.value.colorScheme.onSurfaceVariant,
                               fontSize: 12,
                             ),
                           ),
@@ -322,6 +326,7 @@ class _AnswerSheet extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final props = widget();
     final contextRef = useContext();
+    final theme = useTheme();
     final (responseController, response, _) = useTextEditingController(
       text: props.value.motion.boardResponse,
     );
@@ -392,7 +397,10 @@ class _AnswerSheet extends CompositionWidget {
         ),
         if (error.value != null) ...[
           const SizedBox(height: 8),
-          Text(error.value!, style: const TextStyle(color: Colors.red)),
+          Text(
+            error.value!,
+            style: TextStyle(color: theme.value.colorScheme.error),
+          ),
         ],
         const SizedBox(height: 16),
         FilledButton(
@@ -435,7 +443,7 @@ class _MotionDetails extends StatelessWidget {
               'Av ${motion.submittedByName}',
               if (motion.residenceLabel.isNotEmpty) motion.residenceLabel,
             ].join(' · '),
-            style: TextStyle(color: Colors.grey[600]),
+            style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
           ),
         const SizedBox(height: 12),
         Text(motion.text.isEmpty ? '—' : motion.text),

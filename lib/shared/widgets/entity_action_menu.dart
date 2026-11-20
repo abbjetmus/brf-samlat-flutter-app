@@ -101,20 +101,21 @@ class EntityActionMenu extends StatelessWidget {
   }
 }
 
-/// The circular translucent `more_vert` shown on the gradient header, matching
-/// [HeaderIconButton]'s resting appearance.
+/// The round `more_vert` in the page header, matching [HeaderIconButton].
 class _HeaderTrigger extends StatelessWidget {
   const _HeaderTrigger();
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Material(
-      color: Colors.white.withValues(alpha: 0.16),
-      shape: const CircleBorder(),
+      color: colors.surface,
+      shape: CircleBorder(side: BorderSide(color: colors.outline)),
       clipBehavior: Clip.antiAlias,
-      child: const Padding(
-        padding: EdgeInsets.all(9),
-        child: Icon(Icons.more_vert, color: Colors.white, size: 22),
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Icon(Icons.more_vert, color: colors.onSurface, size: 22),
       ),
     );
   }

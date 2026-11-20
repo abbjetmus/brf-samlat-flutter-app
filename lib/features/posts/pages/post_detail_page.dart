@@ -28,6 +28,7 @@ class PostDetailPage extends CompositionWidget {
     final postsStore = inject(postsStoreKey);
     final authStore = inject(authStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
 
     onMounted(() {
       postsStore.getPost(postId);
@@ -73,7 +74,7 @@ class PostDetailPage extends CompositionWidget {
                     title: 'Radera nyhet',
                     message: 'Är du säker på att du vill radera denna nyhet?',
                     okLabel: 'Radera',
-                    okColor: Colors.red,
+                    okColor: theme.value.colorScheme.error,
                   );
                   if (confirmed) {
                     await postsStore.deletePost(post.id);
@@ -115,7 +116,9 @@ class PostDetailPage extends CompositionWidget {
                     const SizedBox(height: 8),
                     Text(
                       AppDateUtils.formatDateLong(post.created),
-                      style: TextStyle(color: Colors.grey[600]),
+                      style: TextStyle(
+                        color: theme.value.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),

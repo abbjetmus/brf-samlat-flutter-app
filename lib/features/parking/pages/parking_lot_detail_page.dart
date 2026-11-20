@@ -23,6 +23,7 @@ class ParkingLotDetailPage extends CompositionWidget {
     final parkingStore = inject(parkingStoreKey);
     final residencesStore = inject(residencesStoreKey);
     final authStore = inject(authStoreKey);
+    final theme = useTheme();
     final contextRef = useContext();
 
     onMounted(() {
@@ -185,6 +186,7 @@ class ParkingLotDetailPage extends CompositionWidget {
     }
 
     return (context) {
+      final colors = theme.value.colorScheme;
       final lot = parkingStore.currentParkingLot.value;
       final spaces = parkingStore.parkingSpaces.value;
       final residences = residencesStore.residencesList.value;
@@ -254,7 +256,7 @@ class ParkingLotDetailPage extends CompositionWidget {
                         message:
                             'Är du säker på att du vill radera denna parkering?',
                         okLabel: 'Radera',
-                        okColor: Colors.red,
+                        okColor: colors.error,
                       );
                       if (confirmed) {
                         await parkingStore.deleteParkingLot(lot.id);
@@ -365,14 +367,14 @@ class ParkingLotDetailPage extends CompositionWidget {
                                                     ) ??
                                                     'Bostad tilldelad',
                                                 style: TextStyle(
-                                                  color: Colors.grey[600],
+                                                  color: colors.onSurfaceVariant,
                                                   fontSize: 12,
                                                 ),
                                               )
                                             : Text(
                                                 'Ledig',
                                                 style: TextStyle(
-                                                  color: Colors.green[600],
+                                                  color: colors.primary,
                                                   fontSize: 12,
                                                 ),
                                               ),
@@ -380,7 +382,7 @@ class ParkingLotDetailPage extends CompositionWidget {
                                           Text(
                                             'Laddstation',
                                             style: TextStyle(
-                                              color: Colors.grey[600],
+                                              color: colors.onSurfaceVariant,
                                               fontSize: 12,
                                             ),
                                           ),
@@ -389,7 +391,7 @@ class ParkingLotDetailPage extends CompositionWidget {
                                           Text(
                                             'Startdatum: ${space.parkingStartDate!.split('T').first}',
                                             style: TextStyle(
-                                              color: Colors.grey[600],
+                                              color: colors.onSurfaceVariant,
                                               fontSize: 12,
                                             ),
                                           ),
@@ -414,7 +416,7 @@ class ParkingLotDetailPage extends CompositionWidget {
                                                         message:
                                                             'Är du säker på att du vill radera denna parkeringsplats?',
                                                         okLabel: 'Radera',
-                                                        okColor: Colors.red,
+                                                        okColor: colors.error,
                                                       );
                                                   if (confirmed) {
                                                     await parkingStore
@@ -444,14 +446,20 @@ class ParkingLotDetailPage extends CompositionWidget {
 }
 
 Widget _infoRow(IconData icon, String text) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
-        const SizedBox(width: 12),
-        Expanded(child: Text(text)),
-      ],
+  return Builder(
+    builder: (context) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text)),
+        ],
+      ),
     ),
   );
 }

@@ -17,6 +17,7 @@ class GadgetsListPage extends CompositionWidget {
 
   @override
   Widget Function(BuildContext) setup() {
+    final theme = useTheme();
     final gadgetsStore = inject(gadgetsStoreKey);
     final authStore = inject(authStoreKey);
     final searchQuery = ref('');
@@ -26,6 +27,7 @@ class GadgetsListPage extends CompositionWidget {
     });
 
     return (context) {
+      final colors = theme.value.colorScheme;
       final gadgets = gadgetsStore.gadgetsList.value;
       final loading = gadgetsStore.listLoading.value;
       final loadingMore = gadgetsStore.loadingMore.value;
@@ -105,7 +107,7 @@ class GadgetsListPage extends CompositionWidget {
                                   subtitle: Text(
                                     gadget.streetAddress,
                                     style: TextStyle(
-                                      color: Colors.grey[600],
+                                      color: colors.onSurfaceVariant,
                                       fontSize: 12,
                                     ),
                                   ),

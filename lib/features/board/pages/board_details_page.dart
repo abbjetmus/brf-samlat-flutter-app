@@ -29,6 +29,7 @@ class BoardDetailsPage extends CompositionWidget {
     final usersStore = inject(usersStoreKey);
     final authStore = inject(authStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
 
     onMounted(() {
       boardStore.getBoardMembers();
@@ -249,8 +250,8 @@ class BoardDetailsPage extends CompositionWidget {
                       roles,
                       style: TextStyle(
                         color: isBoard
-                            ? AppTheme.primaryColor
-                            : Colors.grey[700],
+                            ? theme.value.colorScheme.primary
+                            : theme.value.colorScheme.onSurfaceVariant,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -258,7 +259,7 @@ class BoardDetailsPage extends CompositionWidget {
                   if (member.email != null && member.email!.isNotEmpty)
                     Text(
                       member.email!,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      style: TextStyle(color: theme.value.colorScheme.onSurfaceVariant, fontSize: 12),
                     ),
                 ],
               ),
@@ -280,7 +281,7 @@ class BoardDetailsPage extends CompositionWidget {
                                   ? 'Är du säker på att du vill ta bort personen från styrelsen? Eventuella övriga roller behålls.'
                                   : 'Är du säker på att du vill ta bort personens roller?',
                               okLabel: 'Ta bort',
-                              okColor: Colors.red,
+                              okColor: theme.value.colorScheme.error,
                             );
                             if (!confirmed) return;
                             if (isBoard) {
@@ -313,7 +314,7 @@ class BoardDetailsPage extends CompositionWidget {
             if (subtitle != null)
               Text(
                 subtitle,
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                style: TextStyle(color: theme.value.colorScheme.onSurfaceVariant, fontSize: 12),
               ),
           ],
         ),
@@ -389,13 +390,13 @@ class BoardDetailsPage extends CompositionWidget {
                   children: [
                     Text(
                       'Kl. $timeStr',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      style: TextStyle(color: theme.value.colorScheme.onSurfaceVariant, fontSize: 12),
                     ),
                     Text(
                       address,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      style: TextStyle(color: theme.value.colorScheme.onSurfaceVariant, fontSize: 12),
                     ),
                   ],
                 ),

@@ -111,7 +111,7 @@ class MaintenancePlanPage extends CompositionWidget {
         title: 'Radera åtgärd',
         message: 'Vill du radera "${item.title}" (${item.plannedYear})?',
         okLabel: 'Radera',
-        okColor: Colors.red,
+        okColor: Theme.of(ctx).colorScheme.error,
       );
       if (!ok) return;
       final message = await store.delete(item.id);

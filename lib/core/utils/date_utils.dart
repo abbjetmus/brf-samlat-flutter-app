@@ -87,6 +87,63 @@ class AppDateUtils {
     return '$years år sedan';
   }
 
+  /// "Idag", "Igår", "14 nov" (with the year when it isn't this year).
+  static String friendlyDay(String? isoString) {
+    if (isoString == null || isoString.isEmpty) return '';
+    final date = DateTime.tryParse(isoString)?.toLocal();
+    if (date == null) return '';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(date.year, date.month, date.day);
+    final diff = today.difference(day).inDays;
+    if (diff == 0) return 'Idag';
+    if (diff == 1) return 'Igår';
+    return DateFormat(
+      date.year == now.year ? 'd MMM' : 'd MMM yyyy',
+      'sv_SE',
+    ).format(date);
+  }
+
+  /// "Torsdag 20 november" for today (or [date]).
+  static String weekdayLong([DateTime? date]) {
+    final text = DateFormat('EEEE d MMMM', 'sv_SE').format(
+      date ?? DateTime.now(),
+    );
+    return text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
+  }
+
+  /// Short upper-case month for date blocks: "NOV".
+  static String monthShortUpper(String? isoString) {
+    if (isoString == null || isoString.isEmpty) return '';
+    final date = DateTime.tryParse(isoString)?.toLocal();
+    if (date == null) return '';
+    return DateFormat('MMM', 'sv_SE').format(date).replaceAll('.', '').toUpperCase();
+  }
+
+  /// Day of month: "27".
+  static String dayOfMonth(String? isoString) {
+    if (isoString == null || isoString.isEmpty) return '';
+    final date = DateTime.tryParse(isoString)?.toLocal();
+    if (date == null) return '';
+    return '${date.day}';
+  }
+
+  /// "Lördag 10:00–13:00" / "Lördag 22 nov 10:00" for an event.
+  static String eventWhen(String? startIso, String? endIso) {
+    final start = DateTime.tryParse(startIso ?? '')?.toLocal();
+    if (start == null) return '';
+    final end = DateTime.tryParse(endIso ?? '')?.toLocal();
+    final wd = DateFormat('EEEE', 'sv_SE').format(start);
+    final weekday = wd.isEmpty ? wd : wd[0].toUpperCase() + wd.substring(1);
+    final from = DateFormat('HH:mm', 'sv_SE').format(start);
+    if (end == null) return '$weekday $from';
+    final sameDay = end.year == start.year &&
+        end.month == start.month &&
+        end.day == start.day;
+    final to = DateFormat(sameDay ? 'HH:mm' : 'd MMM HH:mm', 'sv_SE').format(end);
+    return '$weekday $from–$to';
+  }
+
   static String capitalizeWords(String text) {
     if (text.isEmpty) return text;
     return text.split(' ').map((word) {

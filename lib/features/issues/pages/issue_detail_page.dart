@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_theme.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/di/injection_keys.dart';
@@ -93,7 +94,7 @@ class IssueDetailPage extends CompositionWidget {
       }
 
       return GradientScaffold(
-        title: issue.type ?? 'Felanmälan',
+        title: issue.title,
         actions: [
           if (canEdit || canDelete || canForward)
             EntityActionMenu.header(
@@ -150,84 +151,49 @@ class IssueDetailPage extends CompositionWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Issue header
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Type + status chips
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        StatusChip(
-                          label: issue.type ?? 'Felanmälan',
-                          tone: (issue.type ?? 'Felanmälan') == 'Ärende'
-                              ? StatusTone.info
-                              : StatusTone.warning,
-                        ),
-                        StatusChip(
-                          icon: issue.isResolved
-                              ? Icons.check_circle
-                              : Icons.report_problem,
-                          label: issue.isResolved ? 'Löst' : 'Öppen',
-                          tone: issue.isResolved
-                              ? StatusTone.success
-                              : StatusTone.warning,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
                     Text(
-                      issue.title,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
+                      [
+                        issue.type ?? 'Felanmälan',
+                        if ((issue.residence ?? '').isNotEmpty)
+                          'Gäller en bostad',
+                      ].join(' · '),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      AppDateUtils.formatDateLong(issue.created),
-                      style: TextStyle(color: Colors.grey[600]),
+                    const SizedBox(height: 14),
+                    _IssueStatusCard(
+                      created: issue.created,
+                      resolved: issue.isResolved,
+                      resolvedAt: issue.resolvedAt,
                     ),
                     if (issue.consentToMasterKey == true) ...[
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       const StatusChip(
                         icon: Icons.key,
                         label: 'Samtycke till huvudnyckel',
                         tone: StatusTone.info,
                       ),
                     ],
+                    const SizedBox(height: 22),
+                    Text(
+                      'BESKRIVNING',
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
                   ],
                 ),
               ),
 
-              const Divider(height: 1),
-
               // Issue body
               Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
                 child: RichDescription(html: issue.description),
               ),
-
-              // Resolved info
-              if (issue.isResolved && issue.resolvedAt != null) ...[
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.check_circle, color: Colors.green),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Löst: ${AppDateUtils.formatDateTime(issue.resolvedAt)}',
-                        style: const TextStyle(color: Colors.green),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
 
               // Maintenance plan link (web: IssueMaintenanceLink)
               IssueMaintenanceLink(issueId: issue.id),
@@ -299,5 +265,126 @@ class IssueDetailPage extends CompositionWidget {
         ),
       );
     };
+  }
+}
+
+/// Anmält → Pågår → Löst, as three steps with dates.
+class _IssueStatusCard extends StatelessWidget {
+  final String? created;
+  final bool resolved;
+  final String? resolvedAt;
+
+  const _IssueStatusCard({
+    required this.created,
+    required this.resolved,
+    required this.resolvedAt,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    Widget dot({required bool done, required bool current}) => Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: done ? colors.primary : colors.surface,
+        border: done
+            ? null
+            : Border.all(
+                color: current ? colors.primary : AppTheme.lineStrong,
+                width: current ? 3 : 2,
+              ),
+      ),
+      child: done
+          ? Icon(Icons.check, size: 14, color: colors.onPrimary)
+          : null,
+    );
+
+    // One step: the dot with a line to the next step, then label + date.
+    Widget step(
+      String label,
+      String sub, {
+      required bool done,
+      required bool current,
+      required bool lineFilled,
+      bool last = false,
+    }) {
+      final active = done || current;
+      return Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                dot(done: done, current: current),
+                if (!last)
+                  Expanded(
+                    child: Container(
+                      height: 3,
+                      color: lineFilled ? colors.primary : colors.outline,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: active ? colors.onSurface : colors.onSurfaceVariant,
+              ),
+            ),
+            if (sub.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Text(sub, style: theme.textTheme.bodySmall),
+              ),
+          ],
+        ),
+      );
+    }
+
+    return Semantics(
+      label: resolved ? 'Status: löst' : 'Status: pågår',
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          border: Border.all(color: colors.outline),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            step(
+              'Anmält',
+              AppDateUtils.friendlyDay(created),
+              done: true,
+              current: false,
+              lineFilled: true,
+            ),
+            step(
+              'Pågår',
+              resolved ? '' : 'Föreningen hanterar det',
+              done: resolved,
+              current: !resolved,
+              lineFilled: resolved,
+            ),
+            step(
+              'Löst',
+              resolved ? AppDateUtils.friendlyDay(resolvedAt) : '',
+              done: resolved,
+              current: false,
+              lineFilled: false,
+              last: true,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -14,6 +14,37 @@ presentational widgets with no state.
   `Localizations.of(context)` directly in the builder — use the
   `useContextRef` / `useTheme` / `useLocale` composables (see below).
 
+# Design & navigation
+
+Design source: the "BRF Samlat – app redesign" canvas (artboards Hem, Anslag,
+Boka, Ärende, Mer, Grunder). The web portal (brf-samlat-nuxt-app) uses the
+same tokens.
+
+- **Tokens** live in `lib/core/theme/app_theme.dart` (ground/surface/line,
+  ink/ink2/ink3, pine/pineLight/pineDark, attention/attentionFill, signal).
+  Use `colorScheme` roles in widgets; never hard-code hues. Colour means
+  something: green (`primary`, `primaryContainer`) = the association / yours /
+  done; amber (`tertiary*`, `AppTheme.attentionOf`) = needs someone; red only
+  for errors/destructive; everything else neutral. No rainbow tinted icon
+  squares. Font: Schibsted Grotesk (bundled, `AppTheme.fontFamily`).
+- **Shape**: cards radius 18 with a 1 px `outline` border (no shadows), tiles
+  16, slots/thumbnails 12, buttons are pills. "Do it" buttons are
+  `FilledButton` (ink); secondary `OutlinedButton`; links `TextButton` (green).
+  Put the verb on the button ("Signera", "Svara", "Boka").
+- **Navigation**: bottom tabs Hem · Anslag · Boka · Ärenden · Mer
+  (`lib/core/router/app_shell.dart`, a `StatefulShellRoute` in router.dart).
+  Only tab roots live in the shell; every other route is top-level and opens
+  full-screen above the tab bar. Open in-app paths with `openAppPath(context,
+  path)` (tab roots → `go`, others → `push`). Tabs hide when the feature is off
+  or the user can't read it. There is no side menu: everything else is on
+  `MorePage` (data: `appMenuSections` in shared/widgets/app_menu_drawer.dart).
+- **Pages** use `GradientScaffold` (name is historical): back button + actions
+  on top, large left-aligned title; tab roots get no back button automatically.
+  Header buttons: `HeaderIconButton` / `EntityActionMenu.header`.
+- Section labels: `textTheme.labelSmall` with UPPERCASE text. Dates: prefer
+  `AppDateUtils.friendlyDay` ("Idag", "Igår", "14 nov"). Rich text excerpts:
+  `TextUtils.excerpt(html)`.
+
 # Flutter Compositions Documentation
 
 For comprehensive flutter_compositions reference, see:

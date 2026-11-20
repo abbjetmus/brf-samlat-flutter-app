@@ -21,6 +21,7 @@ class CalendarSubscriptionSheet extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final pb = inject(pocketBaseKey);
+    final theme = useTheme();
     final contextRef = useContext();
 
     final loading = ref(true);
@@ -108,7 +109,9 @@ class CalendarSubscriptionSheet extends CompositionWidget {
             ),
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              style: TextButton.styleFrom(
+                foregroundColor: theme.value.colorScheme.error,
+              ),
               child: const Text('Skapa ny länk'),
             ),
           ],
@@ -121,7 +124,8 @@ class CalendarSubscriptionSheet extends CompositionWidget {
       final url = feedUrl.value;
       final webcal = webcalUrl.value;
       final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
-      final caption = TextStyle(fontSize: 13, color: Colors.grey[700]);
+      final colors = theme.value.colorScheme;
+      final caption = TextStyle(fontSize: 13, color: colors.onSurfaceVariant);
 
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -149,7 +153,7 @@ class CalendarSubscriptionSheet extends CompositionWidget {
           else if (url == null || webcal == null)
             Text(
               error.value ?? 'Kunde inte hämta kalenderadressen.',
-              style: const TextStyle(color: Colors.red),
+              style: TextStyle(color: colors.error),
             )
           else ...[
             if (isIOS)
@@ -181,7 +185,7 @@ class CalendarSubscriptionSheet extends CompositionWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
+                border: Border.all(color: colors.outline),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: SelectableText(url, style: const TextStyle(fontSize: 12)),
@@ -196,14 +200,17 @@ class CalendarSubscriptionSheet extends CompositionWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.orange.withValues(alpha: 0.12),
+                color: colors.tertiaryContainer,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Text(
+              child: Text(
                 'Adressen är personlig — den som har den kan se din kalender. '
                 'Har den kommit i fel händer, skapa en ny länk. Den gamla slutar '
                 'då att fungera.',
-                style: TextStyle(fontSize: 13),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: colors.onTertiaryContainer,
+                ),
               ),
             ),
             const SizedBox(height: 4),
@@ -211,7 +218,7 @@ class CalendarSubscriptionSheet extends CompositionWidget {
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 onPressed: rotating.value ? null : confirmRotate,
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                style: TextButton.styleFrom(foregroundColor: colors.error),
                 icon: rotating.value
                     ? const SizedBox(
                         width: 16,

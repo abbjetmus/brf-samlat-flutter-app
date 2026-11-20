@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/di/injection_keys.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../../../shared/widgets/help_tip.dart';
 import 'signature_page.dart';
@@ -16,6 +15,7 @@ class SignaturesListPage extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final signaturesStore = inject(signaturesStoreKey);
+    final theme = useTheme();
     final loading = ref(true);
 
     Future<void> load() async {
@@ -47,27 +47,30 @@ class SignaturesListPage extends CompositionWidget {
                 onRefresh: load,
                 child: items.isEmpty
                     ? ListView(
-                        children: const [
-                          SizedBox(height: 120),
+                        children: [
+                          const SizedBox(height: 120),
                           Icon(
                             Icons.draw_outlined,
                             size: 56,
-                            color: Colors.grey,
+                            color: theme.value.colorScheme.onSurfaceVariant,
                           ),
-                          SizedBox(height: 12),
-                          Center(
+                          const SizedBox(height: 12),
+                          const Center(
                             child: Text(
                               'Inget att signera',
                               style: TextStyle(fontWeight: FontWeight.w600),
                             ),
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 32),
+                            padding: const EdgeInsets.symmetric(horizontal: 32),
                             child: Text(
                               'När styrelsen skickar ett protokoll till dig för signering hamnar det här.',
                               textAlign: TextAlign.center,
-                              style: TextStyle(color: Colors.grey),
+                              style: TextStyle(
+                                color:
+                                    theme.value.colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
                         ],
@@ -78,17 +81,21 @@ class SignaturesListPage extends CompositionWidget {
                         separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final item = items[index];
-                          final color = item.isSigned
-                              ? AppTheme.primaryColor
-                              : Colors.orange;
+                          final scheme = theme.value.colorScheme;
+                          final background = item.isSigned
+                              ? scheme.primaryContainer
+                              : scheme.tertiaryContainer;
+                          final foreground = item.isSigned
+                              ? scheme.onPrimaryContainer
+                              : scheme.onTertiaryContainer;
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: color.withValues(alpha: 0.15),
+                              backgroundColor: background,
                               child: Icon(
                                 item.isSigned
                                     ? Icons.verified_outlined
                                     : Icons.draw_outlined,
-                                color: color,
+                                color: foreground,
                               ),
                             ),
                             title: Text(

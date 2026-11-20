@@ -26,6 +26,7 @@ class ForwardIssueSheet extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final props = widget();
     final contextRef = useContext();
+    final theme = useTheme();
 
     final contractors = ref<List<ContractorsRecord>>([]);
     final loadingContractors = ref(true);
@@ -90,7 +91,8 @@ class ForwardIssueSheet extends CompositionWidget {
     return (context) {
       final sent = result.value;
       final p = props.value;
-      final caption = TextStyle(fontSize: 12, color: Colors.grey[600]);
+      final scheme = theme.value.colorScheme;
+      final caption = TextStyle(fontSize: 12, color: scheme.onSurfaceVariant);
 
       if (sent != null) {
         final ok = sent.emailSent;
@@ -106,9 +108,7 @@ class ForwardIssueSheet extends CompositionWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: (ok ? Colors.green : Colors.orange).withValues(
-                  alpha: 0.12,
-                ),
+                color: ok ? scheme.primaryContainer : scheme.tertiaryContainer,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -118,6 +118,11 @@ class ForwardIssueSheet extends CompositionWidget {
                     : 'Länken skapades, men mejlet kunde inte skickas. Kopiera '
                           'länken nedan och skicka den till leverantören på annat '
                           'sätt, eller försök igen senare.',
+                style: TextStyle(
+                  color: ok
+                      ? scheme.onPrimaryContainer
+                      : scheme.onTertiaryContainer,
+                ),
               ),
             ),
             const SizedBox(height: 12),
@@ -130,7 +135,7 @@ class ForwardIssueSheet extends CompositionWidget {
             Container(
               padding: const EdgeInsets.fromLTRB(12, 4, 4, 4),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.withValues(alpha: 0.5)),
+                border: Border.all(color: scheme.outline),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
@@ -249,7 +254,7 @@ class ForwardIssueSheet extends CompositionWidget {
           ],
           if (error.value != null) ...[
             const SizedBox(height: 12),
-            Text(error.value!, style: const TextStyle(color: Colors.red)),
+            Text(error.value!, style: TextStyle(color: scheme.error)),
           ],
           const SizedBox(height: 16),
           FilledButton.icon(

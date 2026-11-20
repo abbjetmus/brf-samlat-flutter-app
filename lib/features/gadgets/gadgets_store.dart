@@ -3,6 +3,7 @@ import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show PocketBase;
 import '../../core/models/pocketbase_models.dart';
 import '../../core/pagination/paginated.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/utils/pb_error.dart';
 import '../auth/auth_store.dart' as auth;
 
@@ -238,6 +239,6 @@ class GadgetsStore {
   }
 
   static Color parseBookingColor(bool isBlock) {
-    return isBlock ? const Color(0xFF808080) : const Color(0xFF2ed188);
+    return isBlock ? AppTheme.inkFaint : AppTheme.pine;
   }
 }

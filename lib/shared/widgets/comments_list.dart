@@ -40,6 +40,7 @@ class CommentsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -64,11 +65,11 @@ class CommentsList extends StatelessWidget {
           ),
 
         if (comments.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(16),
+          Padding(
+            padding: const EdgeInsets.all(16),
             child: Text(
               'Inga kommentarer ännu.',
-              style: TextStyle(color: Colors.grey),
+              style: TextStyle(color: colors.onSurfaceVariant),
             ),
           )
         else
@@ -123,7 +124,7 @@ class CommentsList extends StatelessWidget {
                               Text(
                                 AppDateUtils.timeAgo(comment.created),
                                 style: TextStyle(
-                                  color: Colors.grey[600],
+                                  color: colors.onSurfaceVariant,
                                   fontSize: 12,
                                 ),
                               ),
@@ -157,11 +158,11 @@ class CommentsList extends StatelessWidget {
                                 child: Text('Redigera'),
                               ),
                             if (onDeleteComment != null)
-                              const PopupMenuItem(
+                              PopupMenuItem(
                                 value: 'delete',
                                 child: Text(
                                   'Radera',
-                                  style: TextStyle(color: Colors.red),
+                                  style: TextStyle(color: colors.error),
                                 ),
                               ),
                           ],

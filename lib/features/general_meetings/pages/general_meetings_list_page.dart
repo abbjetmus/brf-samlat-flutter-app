@@ -25,6 +25,7 @@ class GeneralMeetingsListPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final store = inject(generalMeetingsStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
     final canManage = computed(() => store.canManage);
 
     onMounted(() {
@@ -83,7 +84,11 @@ class GeneralMeetingsListPage extends CompositionWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               const SizedBox(height: 120),
-              const Icon(Icons.gavel_outlined, size: 48, color: Colors.grey),
+              Icon(
+                Icons.gavel_outlined,
+                size: 48,
+                color: theme.value.colorScheme.onSurfaceVariant,
+              ),
               const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -117,7 +122,9 @@ class GeneralMeetingsListPage extends CompositionWidget {
               child: ListTile(
                 leading: Icon(
                   Icons.gavel_outlined,
-                  color: upcoming ? null : Colors.grey,
+                  color: upcoming
+                      ? null
+                      : theme.value.colorScheme.onSurfaceVariant,
                 ),
                 title: Text(
                   meeting.title,
@@ -135,7 +142,10 @@ class GeneralMeetingsListPage extends CompositionWidget {
                           formatMeetingDateTime(meeting.startAt),
                           if (meeting.location.isNotEmpty) meeting.location,
                         ].join(' · '),
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                        style: TextStyle(
+                          color: theme.value.colorScheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Wrap(

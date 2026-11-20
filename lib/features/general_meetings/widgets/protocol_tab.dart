@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import 'package:pocketbase/pocketbase.dart' show ClientException;
 import '../../../core/di/injection_keys.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/help_tip.dart';
 import '../general_meetings_models.dart';
 import 'protocol_signatures_section.dart';
@@ -220,7 +219,7 @@ class ProtocolTab extends CompositionWidget {
                   ? Icons.error_outline
                   : Icons.description_outlined,
               size: 48,
-              color: Colors.grey[500],
+              color: theme.value.colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 12),
             Text(
@@ -275,7 +274,9 @@ class ProtocolTab extends CompositionWidget {
                   Text(
                     'Protokollet kan skickas för justering när stämman är '
                     'avslutad.',
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: TextStyle(
+                      color: theme.value.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 const SizedBox(height: 16),
               ],
@@ -287,7 +288,9 @@ class ProtocolTab extends CompositionWidget {
                   formatMeetingDate(meeting.startAt),
                   if (p.location.isNotEmpty) p.location,
                 ].join(' · '),
-                style: TextStyle(color: Colors.grey[600]),
+                style: TextStyle(
+                  color: theme.value.colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 16),
               for (final (i, item) in p.items.indexed) ...[
@@ -356,8 +359,8 @@ class ProtocolTab extends CompositionWidget {
                           s.isSigned ? Icons.verified : Icons.schedule,
                           size: 18,
                           color: s.isSigned
-                              ? AppTheme.primaryColor
-                              : Colors.grey,
+                              ? theme.value.colorScheme.primary
+                              : theme.value.colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -377,7 +380,10 @@ class ProtocolTab extends CompositionWidget {
                 const SizedBox(height: 16),
                 SelectableText(
                   'SHA-256: ${p.documentHash}',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: theme.value.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ],
@@ -437,7 +443,8 @@ class _AutoSaveStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final muted = TextStyle(color: Colors.grey[600], fontSize: 13);
+    final colors = Theme.of(context).colorScheme;
+    final muted = TextStyle(color: colors.onSurfaceVariant, fontSize: 13);
     String two(int n) => n.toString().padLeft(2, '0');
     switch (status) {
       case 'saving':
@@ -459,11 +466,11 @@ class _AutoSaveStatus extends StatelessWidget {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_outlined, size: 16, color: Colors.red),
+            Icon(Icons.cloud_off_outlined, size: 16, color: colors.error),
             const SizedBox(width: 6),
-            const Text(
+            Text(
               'Kunde inte spara',
-              style: TextStyle(color: Colors.red, fontSize: 13),
+              style: TextStyle(color: colors.error, fontSize: 13),
             ),
             TextButton(onPressed: onRetry, child: const Text('Försök igen')),
           ],
@@ -473,11 +480,7 @@ class _AutoSaveStatus extends StatelessWidget {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.cloud_done_outlined,
-              size: 16,
-              color: AppTheme.primaryColor,
-            ),
+            Icon(Icons.cloud_done_outlined, size: 16, color: colors.primary),
             const SizedBox(width: 6),
             Text(
               t == null ? 'Sparat' : 'Sparat ${two(t.hour)}:${two(t.minute)}',
@@ -489,7 +492,11 @@ class _AutoSaveStatus extends StatelessWidget {
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.cloud_outlined, size: 16, color: Colors.grey[600]),
+            Icon(
+              Icons.cloud_outlined,
+              size: 16,
+              color: colors.onSurfaceVariant,
+            ),
             const SizedBox(width: 6),
             Text('Sparas automatiskt', style: muted),
           ],

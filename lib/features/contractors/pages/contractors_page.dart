@@ -82,7 +82,7 @@ class ContractorsPage extends CompositionWidget {
             'ärendena, men länkar som redan skickats fortsätter att gälla tills '
             'de går ut eller återkallas.',
         okLabel: 'Radera',
-        okColor: Colors.red,
+        okColor: theme.value.colorScheme.error,
       );
       if (!ok) return;
       final message = await store.delete(contractor.id);

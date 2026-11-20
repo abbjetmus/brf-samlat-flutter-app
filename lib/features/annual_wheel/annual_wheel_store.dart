@@ -6,6 +6,11 @@ import '../auth/auth_store.dart' as auth;
 
 /// Category metadata shared by the wheel and the list. Mirrors the web
 /// `ANNUAL_WHEEL_CATEGORIES`.
+///
+/// The colours are categorical (they tell the wheel's dots apart), so they
+/// are kept, but calmed toward the app palette and spread in lightness
+/// (L* ≈ 38 / 47 / 55 / 66 / 74) so they stay distinguishable without hue
+/// and readable on both the light and the dark surface.
 class AnnualWheelCategory {
   final String value;
   final String title;
@@ -19,28 +24,28 @@ const annualWheelCategories = <AnnualWheelCategory>[
   AnnualWheelCategory(
     'board',
     'Styrelse',
-    Color(0xFF2ED188),
+    Color(0xFF2F7D5B),
     Icons.groups_outlined,
   ),
   AnnualWheelCategory(
     'finance',
     'Ekonomi',
-    Color(0xFF3B82F6),
+    Color(0xFF79A6CF),
     Icons.payments_outlined,
   ),
   AnnualWheelCategory(
     'meeting',
     'Stämma',
-    Color(0xFFA855F7),
+    Color(0xFF5B5091),
     Icons.gavel_outlined,
   ),
   AnnualWheelCategory(
     'property',
     'Fastighet',
-    Color(0xFFF59E0B),
+    Color(0xFFD7B26A),
     Icons.apartment_outlined,
   ),
-  AnnualWheelCategory('other', 'Övrigt', Color(0xFF64748B), Icons.more_horiz),
+  AnnualWheelCategory('other', 'Övrigt', Color(0xFF7D8781), Icons.more_horiz),
 ];
 
 AnnualWheelCategory categoryMeta(String? value) =>

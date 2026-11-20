@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_compositions/flutter_compositions.dart';
 import '../../../core/di/injection_keys.dart';
 import '../../../core/models/pocketbase_models.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/app_bottom_sheet.dart';
 import '../../../shared/widgets/confirm_dialog.dart';
 import '../../signatures/pages/signature_page.dart' show formatSignedAt;
@@ -42,6 +41,7 @@ class ProtocolSignaturesSection extends CompositionWidget {
     final props = widget();
     final store = inject(generalMeetingsStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
 
     final data = ref<MeetingSignatures?>(null);
     final error = ref<String?>(null);
@@ -128,7 +128,7 @@ class ProtocolSignaturesSection extends CompositionWidget {
         title: 'Återkalla justering',
         message: 'Vill du återkalla förfrågan om justering?',
         okLabel: 'Återkalla',
-        okColor: Colors.red,
+        okColor: Theme.of(ctx).colorScheme.error,
       );
       if (!ok) return;
       busy.value = true;
@@ -159,7 +159,10 @@ class ProtocolSignaturesSection extends CompositionWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.draw_outlined, color: AppTheme.primaryColor),
+                  Icon(
+                    Icons.draw_outlined,
+                    color: theme.value.colorScheme.primary,
+                  ),
                   const SizedBox(width: 8),
                   const Expanded(
                     child: Text(
@@ -178,8 +181,8 @@ class ProtocolSignaturesSection extends CompositionWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         color: allSigned
-                            ? AppTheme.primaryColor
-                            : Colors.orange,
+                            ? theme.value.colorScheme.primary
+                            : theme.value.colorScheme.tertiary,
                       ),
                     ),
                 ],
@@ -195,7 +198,9 @@ class ProtocolSignaturesSection extends CompositionWidget {
                         : 'Protokollet kan fortfarande ändras tills någon har '
                               'signerat.'),
                 style: TextStyle(
-                  color: error.value != null ? Colors.red : Colors.grey[600],
+                  color: error.value != null
+                      ? theme.value.colorScheme.error
+                      : theme.value.colorScheme.onSurfaceVariant,
                 ),
               ),
               for (final s in signatures)
@@ -204,7 +209,9 @@ class ProtocolSignaturesSection extends CompositionWidget {
                   dense: true,
                   leading: Icon(
                     s.isSigned ? Icons.verified : Icons.schedule,
-                    color: s.isSigned ? AppTheme.primaryColor : Colors.grey,
+                    color: s.isSigned
+                        ? theme.value.colorScheme.primary
+                        : theme.value.colorScheme.onSurfaceVariant,
                   ),
                   title: Text(
                     s.role.isEmpty
@@ -240,7 +247,7 @@ class ProtocolSignaturesSection extends CompositionWidget {
                       TextButton(
                         onPressed: busy.value ? null : cancel,
                         style: TextButton.styleFrom(
-                          foregroundColor: Colors.red,
+                          foregroundColor: theme.value.colorScheme.error,
                         ),
                         child: const Text('Återkalla'),
                       ),
@@ -269,6 +276,7 @@ class _SendSheet extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final props = widget();
+    final theme = useTheme();
     // Ett stabilt id per rad så att fälten behåller rätt värde när en rad tas bort.
     var nextKey = 0;
     final rows = ref<List<(int, SignerInput)>>([
@@ -311,7 +319,7 @@ class _SendSheet extends CompositionWidget {
             'e-post, så personer utan e-postadress går inte att välja. '
             'Protokollet låses när den första har signerat.'
             '${props.value.replacing ? ' Den tidigare förfrågan ersätts.' : ''}',
-            style: TextStyle(color: Colors.grey[600]),
+            style: TextStyle(color: theme.value.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
           for (final (i, (rowKey, row)) in rows.value.indexed)

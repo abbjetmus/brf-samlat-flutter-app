@@ -30,6 +30,7 @@ class GadgetDetailPage extends CompositionWidget {
     // Drive view changes through a controller so SfCalendar reliably switches
     // between Dag/Vecka/Månad (changing only the `view` property is flaky).
     final calendarController = CalendarController()..view = CalendarView.week;
+    final theme = useTheme();
     final contextRef = useContext();
 
     onMounted(() {
@@ -80,7 +81,10 @@ class GadgetDetailPage extends CompositionWidget {
         final ctx = contextRef.value;
         if (failure != null && ctx != null && ctx.mounted) {
           ScaffoldMessenger.of(ctx).showSnackBar(
-            SnackBar(content: Text(failure), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(failure),
+              backgroundColor: theme.value.colorScheme.error,
+            ),
           );
         }
       }
@@ -139,7 +143,7 @@ class GadgetDetailPage extends CompositionWidget {
                         message:
                             'Är du säker på att du vill radera denna pryl?',
                         okLabel: 'Radera',
-                        okColor: Colors.red,
+                        okColor: theme.value.colorScheme.error,
                       );
                       if (confirmed) {
                         await gadgetsStore.deleteGadget(gadget.id);
@@ -323,14 +327,20 @@ class GadgetDetailPage extends CompositionWidget {
 }
 
 Widget _infoRow(IconData icon, String text) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
-        const SizedBox(width: 12),
-        Expanded(child: Text(text)),
-      ],
+  return Builder(
+    builder: (context) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text)),
+        ],
+      ),
     ),
   );
 }
@@ -406,14 +416,19 @@ void _showBookingDetails(
 }
 
 Widget _bookingInfoRow(IconData icon, String text) {
-  return Row(
-    children: [
-      Icon(icon, size: 16, color: Colors.grey),
-      const SizedBox(width: 4),
-      Expanded(
-        child: Text(text, style: TextStyle(color: Colors.grey[600])),
-      ),
-    ],
+  return Builder(
+    builder: (context) {
+      final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+      return Row(
+        children: [
+          Icon(icon, size: 16, color: muted),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(text, style: TextStyle(color: muted)),
+          ),
+        ],
+      );
+    },
   );
 }
 

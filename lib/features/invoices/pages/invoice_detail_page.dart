@@ -25,6 +25,7 @@ class InvoiceDetailPage extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final invoicesStore = inject(invoicesStoreKey);
     final authStore = inject(authStoreKey);
+    final theme = useTheme();
     final contextRef = useContext();
 
     onMounted(() {
@@ -87,7 +88,7 @@ class InvoiceDetailPage extends CompositionWidget {
                     message:
                         'Är du säker på att du vill radera denna faktura?',
                     okLabel: 'Radera',
-                    okColor: Colors.red,
+                    okColor: theme.value.colorScheme.error,
                   );
                   if (confirmed) {
                     await invoicesStore.deleteInvoice(invoice.id);
@@ -220,6 +221,7 @@ class _PaymentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final status = InvoicePaymentStatus.of(invoice);
     final outstanding = invoice.outstanding;
     final paid = status == InvoicePaymentStatus.betald;
@@ -244,7 +246,10 @@ class _PaymentCard extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 2),
-        Text(caption, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+        Text(
+          caption,
+          style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
+        ),
         const SizedBox(height: 8),
         if (display.bankAccountNumber != null)
           _InfoRow(
@@ -276,7 +281,7 @@ class _PaymentCard extends StatelessWidget {
             margin: const EdgeInsets.only(top: 8),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.08),
+              color: colors.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Text(
@@ -324,19 +329,18 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
-          Icon(icon, size: 20, color: Colors.grey[600]),
+          Icon(icon, size: 20, color: muted),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label,
-                    style:
-                        TextStyle(color: Colors.grey[600], fontSize: 12)),
+                Text(label, style: TextStyle(color: muted, fontSize: 12)),
                 Text(value, style: const TextStyle(fontSize: 15)),
               ],
             ),

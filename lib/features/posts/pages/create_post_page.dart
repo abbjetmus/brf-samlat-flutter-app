@@ -33,6 +33,7 @@ class CreatePostPage extends CompositionWidget {
     final addToCalendar = ref(existing?.addToCalendar ?? false);
     final loading = ref(false);
     final contextRef = useContext();
+    final theme = useTheme();
 
     // Attachments: the post's stored files minus the ones removed here, plus
     // newly picked files (uploaded on save).
@@ -125,7 +126,10 @@ class CreatePostPage extends CompositionWidget {
       final context = contextRef.value;
       if (context != null && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     }
@@ -222,7 +226,7 @@ class CreatePostPage extends CompositionWidget {
                     ? 'Kunde inte uppdatera inlägg.'
                     : 'Kunde inte skapa inlägg.',
               ),
-              backgroundColor: Colors.red,
+              backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
         }
@@ -350,7 +354,10 @@ class CreatePostPage extends CompositionWidget {
                     const SizedBox(height: 12),
                     Text(
                       'Starttid',
-                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                      style: TextStyle(
+                        color: theme.value.colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     OutlinedButton.icon(
@@ -368,7 +375,10 @@ class CreatePostPage extends CompositionWidget {
                     const SizedBox(height: 12),
                     Text(
                       'Sluttid',
-                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                      style: TextStyle(
+                        color: theme.value.colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     OutlinedButton.icon(

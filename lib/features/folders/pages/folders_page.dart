@@ -218,7 +218,7 @@ class FoldersPage extends CompositionWidget {
                                   message:
                                       'Är du säker på att du vill radera mappen "${folder.name}" och allt innehåll?',
                                   okLabel: 'Radera',
-                                  okColor: Colors.red,
+                                  okColor: Theme.of(context).colorScheme.error,
                                 );
                                 if (confirmed) {
                                   await foldersStore.deleteFolder(folder.id);
@@ -241,7 +241,7 @@ class FoldersPage extends CompositionWidget {
                                   message:
                                       'Är du säker på att du vill radera filen "${info.name}"?',
                                   okLabel: 'Radera',
-                                  okColor: Colors.red,
+                                  okColor: Theme.of(context).colorScheme.error,
                                 );
                                 if (confirmed && currentFolder != null) {
                                   await foldersStore.removeFile(currentFolder.id, fileName);
@@ -319,7 +319,7 @@ class _SectionLabel extends StatelessWidget {
           fontSize: 12,
           fontWeight: FontWeight.bold,
           letterSpacing: 0.5,
-          color: Colors.grey[600],
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -386,7 +386,10 @@ class _FileTile extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: ListTile(
-        leading: Icon(info.icon, color: Colors.grey[600]),
+        leading: Icon(
+          info.icon,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
         title: Text(
           info.name,
           maxLines: 1,

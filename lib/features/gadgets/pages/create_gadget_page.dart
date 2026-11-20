@@ -19,6 +19,7 @@ class CreateGadgetPage extends CompositionWidget {
 
   @override
   Widget Function(BuildContext) setup() {
+    final theme = useTheme();
     final gadgetsStore = inject(gadgetsStoreKey);
     final isEdit = gadgetId != null;
     final existing =
@@ -149,7 +150,7 @@ class CreateGadgetPage extends CompositionWidget {
                     ? 'Kunde inte uppdatera pryl.'
                     : 'Kunde inte skapa pryl.',
               ),
-              backgroundColor: Colors.red,
+              backgroundColor: theme.value.colorScheme.error,
             ),
           );
         }

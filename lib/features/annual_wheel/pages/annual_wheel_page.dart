@@ -90,7 +90,7 @@ class AnnualWheelPage extends CompositionWidget {
         message:
             'Vill du radera "${activity.title}" från årshjulet? Historiken för tidigare år försvinner också.',
         okLabel: 'Radera',
-        okColor: Colors.red,
+        okColor: Theme.of(ctx).colorScheme.error,
       );
       if (!ok) return;
       final deleted = await store.remove(activity.id);
@@ -234,7 +234,10 @@ class AnnualWheelPage extends CompositionWidget {
               Center(
                 child: Text(
                   '${completedIds.length} av ${activities.length} klara $year',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: theme.value.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
               if (selectedMonth.value != null) ...[
@@ -260,7 +263,7 @@ class AnnualWheelPage extends CompositionWidget {
                       letterSpacing: 1.2,
                       color: year == now.year && entry.key == now.month
                           ? theme.value.colorScheme.primary
-                          : Colors.grey[700],
+                          : theme.value.colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -354,6 +357,7 @@ class _ActivityTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final category = categoryMeta(activity.category);
     final tags = <(IconData, String, Color?)>[
       (category.icon, category.title, category.color),
@@ -372,7 +376,7 @@ class _ActivityTile extends StatelessWidget {
           null,
         ),
       if (completionLabel != null)
-        (Icons.check, completionLabel!, const Color(0xFF16A34A)),
+        (Icons.check, completionLabel!, colors.primary),
     ];
 
     return Padding(
@@ -395,14 +399,17 @@ class _ActivityTile extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       decoration: done ? TextDecoration.lineThrough : null,
-                      color: done ? Colors.grey : null,
+                      color: done ? colors.onSurfaceVariant : null,
                     ),
                   ),
                   if (activity.description.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
                       activity.description,
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colors.onSurfaceVariant,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 6),
@@ -417,9 +424,7 @@ class _ActivityTile extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: (color ?? Colors.grey).withValues(
-                              alpha: 0.14,
-                            ),
+                            color: colors.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Row(
@@ -428,14 +433,14 @@ class _ActivityTile extends StatelessWidget {
                               Icon(
                                 icon,
                                 size: 12,
-                                color: color ?? Colors.grey[700],
+                                color: color ?? colors.onSurfaceVariant,
                               ),
                               const SizedBox(width: 3),
                               Text(
                                 label,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: color ?? Colors.grey[800],
+                                  color: colors.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -475,10 +480,10 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.donut_large_outlined,
               size: 56,
-              color: Colors.grey,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             const SizedBox(height: 12),
             const Text(
@@ -490,7 +495,9 @@ class _EmptyState extends StatelessWidget {
               'Börja med en färdig lista med typiska uppgifter för en förening '
               '(bokslut, stämma, budget, besiktning …) och anpassa den, eller lägg till egna.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             if (canCreate) ...[
               const SizedBox(height: 20),

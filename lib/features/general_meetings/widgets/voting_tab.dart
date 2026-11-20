@@ -33,6 +33,7 @@ class VotingTab extends CompositionWidget {
     final props = widget();
     final store = inject(generalMeetingsStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
 
     final loading = ref(true);
     final overview = ref<VotingOverview?>(null);
@@ -219,7 +220,12 @@ class VotingTab extends CompositionWidget {
                 child: Text(error.value!, textAlign: TextAlign.center),
               )
             else if (o != null) ...[
-              Text(banner.value, style: TextStyle(color: Colors.grey[600])),
+              Text(
+                banner.value,
+                style: TextStyle(
+                  color: theme.value.colorScheme.onSurfaceVariant,
+                ),
+              ),
               if (manage) ...[
                 const SizedBox(height: 12),
                 Wrap(
@@ -263,7 +269,9 @@ class VotingTab extends CompositionWidget {
                                       ? Icons.assignment_ind_outlined
                                       : Icons.home_outlined,
                                   size: 18,
-                                  color: u.blocked ? Colors.grey : null,
+                                  color: u.blocked
+                                      ? theme.value.colorScheme.onSurfaceVariant
+                                      : null,
                                 ),
                                 const SizedBox(width: 8),
                                 Expanded(
@@ -272,7 +280,12 @@ class VotingTab extends CompositionWidget {
                                         ? '${u.label} · ${u.blockedReason}'
                                         : u.label,
                                     style: TextStyle(
-                                      color: u.blocked ? Colors.grey : null,
+                                      color: u.blocked
+                                          ? theme
+                                                .value
+                                                .colorScheme
+                                                .onSurfaceVariant
+                                          : null,
                                     ),
                                   ),
                                 ),
@@ -351,6 +364,7 @@ class _VotingItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final open = item.voteStatus == VoteStatus.open;
     final closed = item.voteStatus == VoteStatus.closed;
     final results = item.results;
@@ -379,7 +393,9 @@ class _VotingItemCard extends StatelessWidget {
                   )
                 else if (manage && open)
                   FilledButton.tonalIcon(
-                    style: FilledButton.styleFrom(foregroundColor: Colors.red),
+                    style: FilledButton.styleFrom(
+                      foregroundColor: colors.error,
+                    ),
                     onPressed: busy ? null : onClose,
                     icon: const Icon(Icons.stop),
                     label: const Text('Stäng'),
@@ -392,7 +408,7 @@ class _VotingItemCard extends StatelessWidget {
                 item.description.trim(),
                 maxLines: 6,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.grey[700]),
+                style: TextStyle(color: colors.onSurfaceVariant),
               ),
             ],
             const SizedBox(height: 12),
@@ -431,43 +447,46 @@ class _VotingItemCard extends StatelessWidget {
                 canVote
                     ? 'Omröstningen är öppen.'
                     : 'Omröstningen är öppen i lokalen.',
-                style: TextStyle(color: Colors.grey[600]),
+                style: TextStyle(color: colors.onSurfaceVariant),
               )
             else if (!open && !closed && !manage)
               Text(
                 'Omröstningen har inte öppnats.',
-                style: TextStyle(color: Colors.grey[600]),
+                style: TextStyle(color: colors.onSurfaceVariant),
               ),
             if (results != null && (closed || manage)) ...[
               Text(
                 '${closed ? 'Resultat' : 'Löpande (syns bara för styrelsen)'} · '
                 '${results.votesCast} röster',
-                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12),
               ),
               const SizedBox(height: 6),
               _ResultBar(
                 'Ja',
                 results.total.ja,
                 results.votesCast,
-                Colors.green,
+                colors.primary,
               ),
               _ResultBar(
                 'Nej',
                 results.total.nej,
                 results.votesCast,
-                Colors.red,
+                colors.onSurface,
               ),
               _ResultBar(
                 'Avstår',
                 results.total.avstar,
                 results.votesCast,
-                Colors.grey,
+                colors.onSurfaceVariant.withValues(alpha: 0.55),
               ),
               if (results.manual.total > 0)
                 Text(
                   'Varav i lokalen: ja ${results.manual.ja}, nej '
                   '${results.manual.nej}, avstår ${results.manual.avstar}',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
                 ),
             ],
             if (manage && item.voteStatus != VoteStatus.none)
@@ -485,7 +504,10 @@ class _VotingItemCard extends StatelessWidget {
                 if ((item.myVotes[unit.unitKey] ?? '').isNotEmpty)
                   Text(
                     '${unit.label}: ${_choiceLabel(item.myVotes[unit.unitKey]!)}',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    style: TextStyle(
+                      color: colors.onSurfaceVariant,
+                      fontSize: 13,
+                    ),
                   ),
             ],
           ],
@@ -546,6 +568,7 @@ class _ManualCountsSheet extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final props = widget();
     final contextRef = useContext();
+    final theme = useTheme();
     final manual = props.value.item.results?.manual;
 
     final (jaController, ja, _) = useTextEditingController(
@@ -602,7 +625,10 @@ class _ManualCountsSheet extends CompositionWidget {
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
-        Text(props.value.item.title, style: TextStyle(color: Colors.grey[600])),
+        Text(
+          props.value.item.title,
+          style: TextStyle(color: theme.value.colorScheme.onSurfaceVariant),
+        ),
         const SizedBox(height: 16),
         Row(
           children: [
@@ -616,11 +642,17 @@ class _ManualCountsSheet extends CompositionWidget {
         const SizedBox(height: 8),
         Text(
           'Rösterna läggs till de digitala.',
-          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          style: TextStyle(
+            color: theme.value.colorScheme.onSurfaceVariant,
+            fontSize: 12,
+          ),
         ),
         if (error.value != null) ...[
           const SizedBox(height: 8),
-          Text(error.value!, style: const TextStyle(color: Colors.red)),
+          Text(
+            error.value!,
+            style: TextStyle(color: theme.value.colorScheme.error),
+          ),
         ],
         const SizedBox(height: 16),
         FilledButton(

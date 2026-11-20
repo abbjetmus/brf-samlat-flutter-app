@@ -30,6 +30,7 @@ class OverviewTab extends CompositionWidget {
     final props = widget();
     final store = inject(generalMeetingsStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
     final busy = ref(false);
 
     void snack(String message) {
@@ -232,7 +233,9 @@ class OverviewTab extends CompositionWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Dagordningen har ${props.value.itemCount} punkter.',
-                  style: TextStyle(color: Colors.grey[600]),
+                  style: TextStyle(
+                    color: theme.value.colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
               const SizedBox(height: 16),
@@ -318,7 +321,10 @@ class _NextStepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final caption = TextStyle(color: Colors.grey[600], fontSize: 13);
+    final caption = TextStyle(
+      color: Theme.of(context).colorScheme.onSurfaceVariant,
+      fontSize: 13,
+    );
     final List<Widget> children;
     switch (meeting.status) {
       case GeneralMeetingStatus.draft:
@@ -429,6 +435,7 @@ class _PublishDialog extends CompositionWidget {
   @override
   Widget Function(BuildContext) setup() {
     final props = widget();
+    final theme = useTheme();
     final confirmOutside = ref(false);
 
     return (context) {
@@ -443,15 +450,15 @@ class _PublishDialog extends CompositionWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.15),
+                  color: theme.value.colorScheme.tertiaryContainer,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.warning_amber_rounded,
-                      color: Colors.orange,
+                      color: theme.value.colorScheme.onTertiaryContainer,
                     ),
                     const SizedBox(width: 8),
                     Expanded(child: Text(check.message)),
@@ -511,7 +518,10 @@ class _InfoTile extends StatelessWidget {
       leading: Icon(icon),
       title: Text(
         title,
-        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontSize: 13,
+        ),
       ),
       subtitle: Text(value, style: Theme.of(context).textTheme.bodyLarge),
     );
@@ -526,16 +536,14 @@ class _Hint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: Colors.grey[600]),
+        Icon(icon, size: 18, color: muted),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            text,
-            style: TextStyle(color: Colors.grey[600], fontSize: 13),
-          ),
+          child: Text(text, style: TextStyle(color: muted, fontSize: 13)),
         ),
       ],
     );

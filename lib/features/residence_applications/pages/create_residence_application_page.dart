@@ -18,6 +18,7 @@ class CreateResidenceApplicationPage extends CompositionWidget {
 
   @override
   Widget Function(BuildContext) setup() {
+    final theme = useTheme();
     final store = ResidenceApplicationsStore(
       inject(pocketBaseKey),
       inject(authStoreKey),
@@ -354,7 +355,7 @@ class CreateResidenceApplicationPage extends CompositionWidget {
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
                     error.value!,
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(color: theme.value.colorScheme.error),
                   ),
                 ),
               const SizedBox(height: 24),

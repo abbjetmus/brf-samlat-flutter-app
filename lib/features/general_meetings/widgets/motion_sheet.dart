@@ -50,6 +50,7 @@ class MotionSheet extends CompositionWidget {
   Widget Function(BuildContext) setup() {
     final props = widget();
     final contextRef = useContext();
+    final theme = useTheme();
     final existing = props.value.motion;
 
     final (titleController, title, _) = useTextEditingController(
@@ -134,7 +135,10 @@ class MotionSheet extends CompositionWidget {
         Text(
           'En motion är ett förslag som stämman ska besluta om. Styrelsen '
           'yttrar sig över den innan stämman.',
-          style: TextStyle(color: Colors.grey[600], fontSize: 13),
+          style: TextStyle(
+            color: theme.value.colorScheme.onSurfaceVariant,
+            fontSize: 13,
+          ),
         ),
         const SizedBox(height: 16),
         TextField(
@@ -226,7 +230,10 @@ class MotionSheet extends CompositionWidget {
         ),
         if (error.value != null) ...[
           const SizedBox(height: 8),
-          Text(error.value!, style: const TextStyle(color: Colors.red)),
+          Text(
+            error.value!,
+            style: TextStyle(color: theme.value.colorScheme.error),
+          ),
         ],
         const SizedBox(height: 16),
         Row(
@@ -256,7 +263,10 @@ class MotionSheet extends CompositionWidget {
         Text(
           'När motionen är inlämnad kan den inte längre ändras.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+          style: TextStyle(
+            color: theme.value.colorScheme.onSurfaceVariant,
+            fontSize: 12,
+          ),
         ),
       ],
     );

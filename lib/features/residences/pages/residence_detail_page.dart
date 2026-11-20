@@ -23,6 +23,7 @@ class ResidenceDetailPage extends CompositionWidget {
     final residencesStore = inject(residencesStoreKey);
     final usersStore = inject(usersStoreKey);
     final authStore = inject(authStoreKey);
+    final theme = useTheme();
     final contextRef = useContext();
     final associationUsers = ref<List<UsersRecord>>([]);
 
@@ -33,6 +34,7 @@ class ResidenceDetailPage extends CompositionWidget {
     });
 
     return (context) {
+      final colors = theme.value.colorScheme;
       final residence = residencesStore.currentResidence.value;
       final issues = residencesStore.residenceIssues.value;
       final loading = residencesStore.loading.value;
@@ -103,7 +105,7 @@ class ResidenceDetailPage extends CompositionWidget {
                         message:
                             'Är du säker på att du vill radera denna bostad?',
                         okLabel: 'Radera',
-                        okColor: Colors.red,
+                        okColor: colors.error,
                       );
                       if (confirmed) {
                         await residencesStore.deleteResidence(residence.id);
@@ -165,7 +167,7 @@ class ResidenceDetailPage extends CompositionWidget {
                           if (residence.users.isEmpty)
                             Text(
                               'Inga boende tilldelade.',
-                              style: TextStyle(color: Colors.grey[600]),
+                              style: TextStyle(color: colors.onSurfaceVariant),
                             )
                           else
                             ...residence.users.map((userId) {
@@ -240,8 +242,8 @@ class ResidenceDetailPage extends CompositionWidget {
                                               ? Icons.check_circle
                                               : Icons.error_outline,
                                           color: issue.isResolved
-                                              ? Colors.green
-                                              : Colors.orange,
+                                              ? colors.primary
+                                              : colors.tertiary,
                                         ),
                                         title: Text(
                                           issue.title,
@@ -252,8 +254,8 @@ class ResidenceDetailPage extends CompositionWidget {
                                           issue.isResolved ? 'Löst' : 'Olöst',
                                           style: TextStyle(
                                             color: issue.isResolved
-                                                ? Colors.green
-                                                : Colors.orange,
+                                                ? colors.primary
+                                                : colors.tertiary,
                                             fontSize: 12,
                                           ),
                                         ),
@@ -279,14 +281,20 @@ class ResidenceDetailPage extends CompositionWidget {
 }
 
 Widget _infoRow(IconData icon, String text) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    child: Row(
-      children: [
-        Icon(icon, size: 20, color: Colors.grey[600]),
-        const SizedBox(width: 12),
-        Expanded(child: Text(text)),
-      ],
+  return Builder(
+    builder: (context) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text)),
+        ],
+      ),
     ),
   );
 }

@@ -69,7 +69,7 @@ class AppUpdateBanner extends CompositionWidget {
         canPop: false,
         child: Scaffold(
           body: Container(
-            decoration: const BoxDecoration(gradient: AppTheme.brandGradient),
+            color: AppTheme.pine,
             child: SafeArea(
               child: Center(
                 child: SingleChildScrollView(

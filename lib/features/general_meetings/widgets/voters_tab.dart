@@ -18,6 +18,7 @@ class VotersTab extends CompositionWidget {
     final props = widget();
     final store = inject(generalMeetingsStoreKey);
     final contextRef = useContext();
+    final theme = useTheme();
 
     final loading = ref(true);
     final generating = ref(false);
@@ -218,14 +219,16 @@ class VotersTab extends CompositionWidget {
                             v.label,
                             style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              color: v.hasVote ? null : Colors.grey,
+                              color: v.hasVote
+                                  ? null
+                                  : theme.value.colorScheme.onSurfaceVariant,
                             ),
                           ),
                           if (v.note.isNotEmpty)
                             Text(
                               v.note,
                               style: TextStyle(
-                                color: Colors.grey[600],
+                                color: theme.value.colorScheme.onSurfaceVariant,
                                 fontSize: 12,
                               ),
                             ),
