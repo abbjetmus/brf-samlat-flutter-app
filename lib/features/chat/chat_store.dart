@@ -354,6 +354,70 @@ class ChatStore {
     }
   }
 
+  /// "Sök i chatten" / "Media och filer": load older pages until [messageId]
+  /// is in [messages], so the chat can scroll to it. At most 70 pages
+  /// (≈2 000 messages). True when the message is loaded afterwards.
+  Future<bool> loadUntilMessage(String roomId, String messageId) async {
+    bool has() => _messages.value.any((m) => m.id == messageId);
+    for (var i = 0; i < 70 && !has() && _hasMoreMessages.value; i++) {
+      final before = _messages.value.length;
+      await loadOlderMessages(roomId);
+      if (_messages.value.length == before) break;
+    }
+    return has();
+  }
+
+  /// Messages in [roomId] whose text contains [query] (newest first).
+  Future<({List<ChatMessagesRecord> items, bool hasMore})> searchMessages(
+    String roomId,
+    String query, {
+    int page = 1,
+  }) async {
+    final result = await _pb
+        .collection(Collections.chatMessages)
+        .getList(
+          page: page,
+          perPage: 30,
+          filter: _pb.filter(
+            'room = {:room} && deleted = false && content ~ {:q}',
+            {'room': roomId, 'q': query},
+          ),
+          sort: '-created',
+          expand: 'sender',
+        );
+    return (
+      items: result.items
+          .map((r) => ChatMessagesRecord.fromJson(r.toJson()))
+          .toList(),
+      hasMore: result.page < result.totalPages,
+    );
+  }
+
+  /// Messages in [roomId] that have files (newest first), for "Media och filer".
+  Future<({List<ChatMessagesRecord> items, bool hasMore})> mediaMessages(
+    String roomId, {
+    int page = 1,
+  }) async {
+    final result = await _pb
+        .collection(Collections.chatMessages)
+        .getList(
+          page: page,
+          perPage: 50,
+          filter: _pb.filter(
+            'room = {:room} && deleted = false && files:length > 0',
+            {'room': roomId},
+          ),
+          sort: '-created',
+          expand: 'sender',
+        );
+    return (
+      items: result.items
+          .map((r) => ChatMessagesRecord.fromJson(r.toJson()))
+          .toList(),
+      hasMore: result.page < result.totalPages,
+    );
+  }
+
   Future<bool> sendMessage(
     String roomId,
     String content, {

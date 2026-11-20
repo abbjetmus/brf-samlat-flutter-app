@@ -11,6 +11,8 @@ import '../../../core/utils/file_utils.dart';
 import '../../../shared/widgets/gradient_scaffold.dart';
 import '../chat_store.dart';
 import '../widgets/chat_mute_options.dart';
+import 'chat_media_page.dart';
+import 'chat_search_page.dart';
 
 class ChatRoomPage extends CompositionWidget {
   static const String path = '/chat/room';
@@ -201,6 +203,25 @@ class ChatRoomPage extends CompositionWidget {
       );
     }
 
+    // "Sök i chatten" / "Media och filer": load older pages until the message
+    // is there, then scroll it to the middle of the screen.
+    Future<void> jumpTo(BuildContext context, String? messageId) async {
+      if (messageId == null) return;
+      final found = await chatStore.loadUntilMessage(roomId, messageId);
+      if (!context.mounted) return;
+      if (!found) {
+        showSnack(context, 'Meddelandet kunde inte visas.');
+        return;
+      }
+      // Let the chat list lay out the loaded messages first.
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      await controller.scrollToMessage(
+        messageId,
+        alignment: 0.5,
+        duration: const Duration(milliseconds: 400),
+      );
+    }
+
     void showRoomOptions(BuildContext context, ChatRoomsRecord room) {
       // All rooms are managed by the server (members follow the board), so
       // they only offer muting, plus "Markera som hanterad" for the board.
@@ -270,6 +291,30 @@ class ChatRoomPage extends CompositionWidget {
             ? null
             : 'Notiser avstängda ${chatMuteUntilText(mute)}',
         actions: [
+          HeaderIconButton(
+            icon: Icons.search,
+            tooltip: 'Sök i chatten',
+            onPressed: () async {
+              final id = await Navigator.of(context).push<String>(
+                MaterialPageRoute(
+                  builder: (_) => ChatSearchPage(roomId: roomId),
+                ),
+              );
+              if (context.mounted) await jumpTo(context, id);
+            },
+          ),
+          HeaderIconButton(
+            icon: Icons.photo_library_outlined,
+            tooltip: 'Media och filer',
+            onPressed: () async {
+              final id = await Navigator.of(context).push<String>(
+                MaterialPageRoute(
+                  builder: (_) => ChatMediaPage(roomId: roomId),
+                ),
+              );
+              if (context.mounted) await jumpTo(context, id);
+            },
+          ),
           if (room != null)
             HeaderIconButton(
               icon: Icons.more_vert,
