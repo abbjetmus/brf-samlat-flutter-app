@@ -39,8 +39,8 @@ android {
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         // Updated by scripts/increment_version.sh (literal values, like NatureOnTrail).
-        versionCode = 52
-        versionName = "1.0.52"
+        versionCode = 53
+        versionName = "1.0.53"
     }
 
     signingConfigs {
