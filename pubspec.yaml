@@ -119,16 +119,18 @@ flutter_launcher_icons:
   adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
 
 # Splash screen — BRF Samlat logo centered on a white (light) / dark canvas.
+# Light: pine mark (#1D5C45) on white. Dark: light pine mark (#8CCFAE) on the
+# dark ground (#0F1512) — the dark pine would disappear on a dark background.
 # Run: dart run flutter_native_splash:create
 flutter_native_splash:
   color: "#ffffff"
   image: assets/splash/splash_logo.png
-  color_dark: "#0B1220"
-  image_dark: assets/splash/splash_logo.png
+  color_dark: "#0F1512"
+  image_dark: assets/splash/splash_logo_dark.png
   android_12:
     image: assets/splash/splash_logo.png
     color: "#ffffff"
-    image_dark: assets/splash/splash_logo.png
-    color_dark: "#0B1220"
+    image_dark: assets/splash/splash_logo_dark.png
+    color_dark: "#0F1512"
   android: true
   ios: true
