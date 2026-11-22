@@ -8,7 +8,8 @@ class ThemeStore {
 
   final Ref<ThemeMode> themeMode;
 
-  ThemeStore() : themeMode = Ref(ThemeMode.system);
+  // Ljust är standard tills användaren själv väljer mörkt eller "system".
+  ThemeStore() : themeMode = Ref(ThemeMode.light);
 
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
@@ -16,7 +17,7 @@ class ThemeStore {
     if (saved != null) {
       themeMode.value = ThemeMode.values.firstWhere(
         (m) => m.name == saved,
-        orElse: () => ThemeMode.system,
+        orElse: () => ThemeMode.light,
       );
     }
   }
