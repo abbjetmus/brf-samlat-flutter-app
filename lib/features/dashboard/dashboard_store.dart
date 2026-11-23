@@ -7,6 +7,7 @@ import '../../core/utils/date_utils.dart';
 import '../../core/utils/text_utils.dart';
 import '../auth/auth_store.dart' as auth;
 import 'widgets/dashboard_tasks.dart';
+import 'widgets/subscription_banner.dart';
 
 class DashboardStore {
   final PocketBase _pb;
@@ -20,6 +21,7 @@ class DashboardStore {
   final _loading = ref<bool>(false);
   final _widgetLists = ref<Map<String, List<DashboardListEntry>>>({});
   final _tasks = ref<DashboardTasks>(const DashboardTasks());
+  final _subscription = ref<SubscriptionStatus?>(null);
 
   Ref<List<UserNotificationsRecord>> get notifications => _notifications;
   Ref<int> get notSeenCount => _notSeenCount;
@@ -31,6 +33,23 @@ class DashboardStore {
 
   /// "För dig" och "Kräver åtgärd" (widgets/dashboard_tasks.dart).
   Ref<DashboardTasks> get tasks => _tasks;
+
+  /// Föreningens abonnemang, för bannern (widgets/subscription_banner.dart).
+  Ref<SubscriptionStatus?> get subscription => _subscription;
+
+  Future<void> loadSubscription() async {
+    try {
+      final res = await _pb.send('/api/subscription');
+      if (res is Map) {
+        _subscription.value = SubscriptionStatus.fromJson(
+          Map<String, dynamic>.from(res),
+        );
+      }
+    } catch (e) {
+      // Ett äldre PB utan endpointen, eller nätverksfel: ingen banner.
+      debugPrint('DashboardStore: Error fetching subscription: $e');
+    }
+  }
 
   Future<void> loadTasks() async {
     try {

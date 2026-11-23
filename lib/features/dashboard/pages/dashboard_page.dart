@@ -9,6 +9,7 @@ import '../../../core/utils/notification_link_utils.dart';
 import '../../../core/utils/permissions_utils.dart';
 import '../dashboard_store.dart';
 import '../widgets/dashboard_tasks.dart';
+import '../widgets/subscription_banner.dart';
 import '../../posts/pages/post_detail_page.dart';
 import '../../issues/pages/create_issue_page.dart';
 import '../../settings/pages/settings_page.dart';
@@ -38,6 +39,7 @@ class DashboardPage extends CompositionWidget {
       if (assocId != null && assocId.isNotEmpty) {
         dashboardStore.getGeneralInfoList();
         dashboardStore.loadTasks();
+        dashboardStore.loadSubscription();
       }
     }, immediate: true);
 
@@ -73,6 +75,7 @@ class DashboardPage extends CompositionWidget {
       final notSeenCount = dashboardStore.notSeenCount.value;
       final generalInfoList = dashboardStore.generalInfoList.value;
       final tasks = dashboardStore.tasks.value;
+      final subscription = dashboardStore.subscription.value;
       final lists = visibleLists.value;
       final listRows = dashboardStore.widgetLists.value;
       final textTheme = theme.value.textTheme;
@@ -103,6 +106,7 @@ class DashboardPage extends CompositionWidget {
         dashboardStore.loadLists(visibleLists.value),
         dashboardStore.getGeneralInfoList(),
         dashboardStore.getNotSeenCount(),
+        dashboardStore.loadSubscription(),
       ]);
 
       Future<void> openTask(DashboardTask task) async {
@@ -222,6 +226,13 @@ class DashboardPage extends CompositionWidget {
                 style: textTheme.headlineLarge,
               ),
               const SizedBox(height: 28),
+
+              // Abonnemang: skrivskyddat, gratismånad, uppsagt, full lagring
+              if (subscription != null &&
+                  subscriptionBannerText(subscription) != null) ...[
+                SubscriptionBanner(status: subscription),
+                const SizedBox(height: 24),
+              ],
 
               // Att göra
               if (tasks.personal.isNotEmpty) ...[
