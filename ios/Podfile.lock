@@ -1,6 +1,8 @@
 PODS:
   - add_2_calendar (0.0.1):
     - Flutter
+  - app_badge_plus (1.4.0):
+    - Flutter
   - DKImagePickerController/Core (4.3.9):
     - DKImagePickerController/ImageDataManager
     - DKImagePickerController/Resource
@@ -129,6 +131,7 @@ PODS:
 
 DEPENDENCIES:
   - add_2_calendar (from `.symlinks/plugins/add_2_calendar/ios`)
+  - app_badge_plus (from `.symlinks/plugins/app_badge_plus/ios`)
   - file_picker (from `.symlinks/plugins/file_picker/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - firebase_messaging (from `.symlinks/plugins/firebase_messaging/ios`)
@@ -163,6 +166,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   add_2_calendar:
     :path: ".symlinks/plugins/add_2_calendar/ios"
+  app_badge_plus:
+    :path: ".symlinks/plugins/app_badge_plus/ios"
   file_picker:
     :path: ".symlinks/plugins/file_picker/ios"
   firebase_core:
@@ -194,6 +199,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   add_2_calendar: e626377f607d055070093cbd56abd1fafa1a02a5
+  app_badge_plus: 0a94831a7789a3de4c2c53947d8b624cb525637e
   DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
   DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
   file_picker: a0560bc09d61de87f12d246fc47d2119e6ef37be

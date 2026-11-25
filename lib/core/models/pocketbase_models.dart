@@ -1845,6 +1845,10 @@ class AnnualWheelActivitiesRecord {
   /// 0 = no reminder.
   final int reminderDaysBefore;
 
+  /// yearly | half_yearly | quarterly | monthly. [month] is the first
+  /// occurrence of the year.
+  final String recurrence;
+
   AnnualWheelActivitiesRecord({
     required this.id,
     this.created,
@@ -1857,6 +1861,7 @@ class AnnualWheelActivitiesRecord {
     this.category = 'other',
     this.responsible,
     this.reminderDaysBefore = 0,
+    this.recurrence = 'yearly',
   });
 
   factory AnnualWheelActivitiesRecord.fromJson(Map<String, dynamic> json) {
@@ -1877,6 +1882,9 @@ class AnnualWheelActivitiesRecord {
           ? null
           : responsible,
       reminderDaysBefore: (json['reminder_days_before'] as num?)?.toInt() ?? 0,
+      recurrence: (json['recurrence'] as String?)?.isNotEmpty == true
+          ? json['recurrence'] as String
+          : 'yearly',
     );
   }
 }
@@ -1886,6 +1894,9 @@ class AnnualWheelCompletionsRecord {
   final String association;
   final String activity;
   final int year;
+
+  /// The occurrence (1–12) this completion is for.
+  final int month;
   final String? completedBy;
   final String? completedAt;
 
@@ -1894,6 +1905,7 @@ class AnnualWheelCompletionsRecord {
     required this.association,
     required this.activity,
     required this.year,
+    this.month = 0,
     this.completedBy,
     this.completedAt,
   });
@@ -1906,6 +1918,7 @@ class AnnualWheelCompletionsRecord {
       association: json['association'] as String? ?? '',
       activity: json['activity'] as String? ?? '',
       year: (json['year'] as num?)?.toInt() ?? 0,
+      month: (json['month'] as num?)?.toInt() ?? 0,
       completedBy: by == null || by.isEmpty ? null : by,
       completedAt: at == null || at.isEmpty ? null : at,
     );

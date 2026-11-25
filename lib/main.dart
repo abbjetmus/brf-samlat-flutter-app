@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -12,6 +14,7 @@ import 'core/pocketbase/pocketbase_client.dart';
 import 'core/di/injection_keys.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_store.dart';
+import 'core/services/app_icon_badge_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/utils/date_utils.dart';
 import 'features/auth/auth_store.dart' as auth;
@@ -91,6 +94,7 @@ class MyApp extends CompositionWidget {
     final generalMeetingsStore = GeneralMeetingsStore(pocketBase, authStore);
     final themeStore = ThemeStore();
     final notificationService = NotificationService(pocketBase);
+    final appIconBadge = AppIconBadgeService();
 
     provide(pocketBaseKey, pocketBase);
     provide(themeStoreKey, themeStore);
@@ -117,10 +121,28 @@ class MyApp extends CompositionWidget {
     setGlobalAuthStore(authStore);
     setGlobalThemeStore(themeStore);
 
+    StreamSubscription<void>? unseenSub;
+
     onMounted(() async {
+      // Before initialize(): the first resume or push must already refresh.
+      unseenSub = notificationService.unseenMayHaveChanged.listen((_) {
+        if (authStore.currentUser.value != null) {
+          dashboardStore.getNotSeenCount();
+        }
+      });
       await themeStore.initialize();
       await notificationService.initialize();
       notificationService.setRouter(router);
+    });
+
+    onUnmounted(() {
+      unseenSub?.cancel();
+    });
+
+    // The app icon mirrors the bell on the dashboard; zero when logged out.
+    watchEffect(() {
+      final loggedIn = authStore.currentUser.value != null;
+      appIconBadge.show(loggedIn ? dashboardStore.notSeenCount.value : 0);
     });
 
     // Register the FCM token when a user logs in, remove it on logout.

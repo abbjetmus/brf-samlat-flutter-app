@@ -77,6 +77,7 @@ class AnnualWheelPage extends CompositionWidget {
         category: result.category,
         responsible: result.responsible,
         reminderDaysBefore: result.reminderDaysBefore,
+        recurrence: result.recurrence,
       );
       snack(ok ? 'Aktiviteten sparad' : 'Kunde inte spara aktiviteten');
     }
@@ -97,9 +98,9 @@ class AnnualWheelPage extends CompositionWidget {
       snack(deleted ? 'Aktiviteten raderad' : 'Kunde inte radera');
     }
 
-    Future<void> toggle(String activityId, bool done) async {
-      toggling.value = activityId;
-      final ok = await store.setCompleted(activityId, done);
+    Future<void> toggle(AnnualWheelOccurrence o, bool done) async {
+      toggling.value = o.key;
+      final ok = await store.setCompleted(o.activity, o.month, done);
       toggling.value = null;
       if (!ok) snack('Kunde inte uppdatera');
     }
@@ -133,17 +134,18 @@ class AnnualWheelPage extends CompositionWidget {
 
       final year = store.year.value;
       final activities = store.activities.value;
-      final completedIds = {
-        for (final c in store.completions.value) c.activity,
+      final occurrences = store.occurrences;
+      final doneKeys = {
+        for (final o in occurrences)
+          if (store.completionFor(o.activity, o.month) != null) o.key,
       };
-      final sorted = store.sortedActivities;
       final visible = selectedMonth.value == null
-          ? sorted
-          : sorted.where((a) => a.month == selectedMonth.value).toList();
+          ? occurrences
+          : occurrences.where((o) => o.month == selectedMonth.value).toList();
 
-      final months = <int, List<AnnualWheelActivitiesRecord>>{};
-      for (final a in visible) {
-        months.putIfAbsent(a.month, () => []).add(a);
+      final months = <int, List<AnnualWheelOccurrence>>{};
+      for (final o in visible) {
+        months.putIfAbsent(o.month, () => []).add(o);
       }
 
       Widget body;
@@ -172,7 +174,7 @@ class AnnualWheelPage extends CompositionWidget {
                 padding: const EdgeInsets.only(bottom: 4),
                 text: canCheck
                     ? 'Bocka av en aktivitet när den är klar. Avbockningen '
-                          'gäller bara det valda året. Tryck på en månad i '
+                          'gäller bara det tillfället. Tryck på en månad i '
                           'hjulet för att bara visa den månadens aktiviteter.'
                     : 'Tryck på en månad i hjulet för att bara visa den '
                           'månadens aktiviteter.',
@@ -200,8 +202,8 @@ class AnnualWheelPage extends CompositionWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: AnnualWheelChart(
-                  activities: activities,
-                  completedIds: completedIds,
+                  occurrences: occurrences,
+                  doneKeys: doneKeys,
                   year: year,
                   selectedMonth: selectedMonth.value,
                   onSelect: (m) => selectedMonth.value = m,
@@ -226,14 +228,16 @@ class AnnualWheelPage extends CompositionWidget {
               ),
               const SizedBox(height: 12),
               LinearProgressIndicator(
-                value: completedIds.length / activities.length,
+                value: occurrences.isEmpty
+                    ? 0
+                    : doneKeys.length / occurrences.length,
                 minHeight: 8,
                 borderRadius: BorderRadius.circular(4),
               ),
               const SizedBox(height: 4),
               Center(
                 child: Text(
-                  '${completedIds.length} av ${activities.length} klara $year',
+                  '${doneKeys.length} av ${occurrences.length} klara $year',
                   style: TextStyle(
                     fontSize: 12,
                     color: theme.value.colorScheme.onSurfaceVariant,
@@ -271,13 +275,14 @@ class AnnualWheelPage extends CompositionWidget {
                   margin: EdgeInsets.zero,
                   child: Column(
                     children: [
-                      for (final (i, a) in entry.value.indexed) ...[
+                      for (final (i, o) in entry.value.indexed) ...[
                         if (i > 0) const Divider(height: 1),
                         _ActivityTile(
-                          activity: a,
-                          done: completedIds.contains(a.id),
+                          activity: o.activity,
+                          month: o.month,
+                          done: doneKeys.contains(o.key),
                           completionLabel: () {
-                            final c = store.completionFor(a.id);
+                            final c = store.completionFor(o.activity, o.month);
                             if (c?.completedAt == null) return null;
                             final date = AppDateUtils.formatDayAndMonth(
                               DateTime.tryParse(
@@ -288,18 +293,19 @@ class AnnualWheelPage extends CompositionWidget {
                                 ? 'Klar $date'
                                 : 'Klar $date · ${userName(c.completedBy)}';
                           }(),
-                          responsibleName: a.responsible == null
+                          responsibleName: o.activity.responsible == null
                               ? null
-                              : userName(a.responsible),
-                          enabled: canCheck && toggling.value != a.id,
-                          onToggle: (v) => toggle(a.id, v),
+                              : userName(o.activity.responsible),
+                          enabled: canCheck && toggling.value != o.key,
+                          onToggle: (v) => toggle(o, v),
                           actions: [
                             if (canUpdate)
                               EntityAction.update(
-                                () => openEdit(a),
+                                () => openEdit(o.activity),
                                 label: 'Redigera',
                               ),
-                            if (canDelete) EntityAction.delete(() => remove(a)),
+                            if (canDelete)
+                              EntityAction.delete(() => remove(o.activity)),
                           ],
                         ),
                       ],
@@ -339,6 +345,7 @@ class AnnualWheelPage extends CompositionWidget {
 class _ActivityTile extends StatelessWidget {
   const _ActivityTile({
     required this.activity,
+    required this.month,
     required this.done,
     required this.completionLabel,
     required this.responsibleName,
@@ -348,6 +355,9 @@ class _ActivityTile extends StatelessWidget {
   });
 
   final AnnualWheelActivitiesRecord activity;
+
+  /// The occurrence this tile is for.
+  final int month;
   final bool done;
   final String? completionLabel;
   final String? responsibleName;
@@ -364,9 +374,11 @@ class _ActivityTile extends StatelessWidget {
       if (activity.day > 0)
         (
           Icons.event_outlined,
-          '${activity.day} ${monthNames[activity.month - 1].toLowerCase()}',
+          '${activity.day} ${monthNames[month - 1].toLowerCase()}',
           null,
         ),
+      if (isRecurring(activity.recurrence))
+        (Icons.repeat, recurrenceMeta(activity.recurrence).title, null),
       if (responsibleName != null)
         (Icons.person_outline, responsibleName!, null),
       if (activity.reminderDaysBefore > 0)

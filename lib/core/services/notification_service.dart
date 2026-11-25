@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleListener;
@@ -56,6 +57,15 @@ class NotificationService {
 
   /// Don't re-check the registration on every resume.
   static const Duration _resumeInterval = Duration(minutes: 5);
+
+  late final StreamController<void> _unseenMayHaveChangedController =
+      StreamController<void>.broadcast();
+
+  /// Fires when the unseen-notification count may be out of date: a push
+  /// arrived while the app was open, or the app came back to the foreground
+  /// (pushes received meanwhile).
+  Stream<void> get unseenMayHaveChanged =>
+      _unseenMayHaveChangedController.stream;
 
   NotificationService(this._pb) {
     _pb.authStore.onChange.listen((event) {
@@ -190,6 +200,7 @@ class NotificationService {
   }
 
   void _onResume() {
+    _unseenMayHaveChangedController.add(null);
     final userId = _userId;
     if (userId == null || !_pb.authStore.isValid) return;
     final last = _lastRegisteredAt;
@@ -313,6 +324,7 @@ class NotificationService {
   }
 
   void _handleForegroundMessage(RemoteMessage message) {
+    _unseenMayHaveChangedController.add(null);
     final notification = message.notification;
     if (notification == null) return;
 

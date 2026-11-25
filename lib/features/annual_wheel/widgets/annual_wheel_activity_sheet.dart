@@ -13,6 +13,7 @@ class AnnualWheelActivityInput {
   final String category;
   final String? responsible;
   final int reminderDaysBefore;
+  final String recurrence;
 
   const AnnualWheelActivityInput({
     required this.title,
@@ -22,6 +23,7 @@ class AnnualWheelActivityInput {
     required this.category,
     required this.responsible,
     required this.reminderDaysBefore,
+    required this.recurrence,
   });
 }
 
@@ -65,6 +67,15 @@ class AnnualWheelActivitySheet extends CompositionWidget {
     final category = ref<String>(a?.category ?? 'board');
     final responsible = ref<String?>(a?.responsible);
     final reminder = ref<int>(a?.reminderDaysBefore ?? 14);
+    final recurrence = ref<String>(a?.recurrence ?? 'yearly');
+
+    // "i januari, april, juli och oktober" for the hint under the month.
+    final monthsLabel = computed(() {
+      final months = occurrenceMonths(month.value, recurrence.value);
+      if (months.length == 12) return 'varje månad';
+      final names = [for (final m in months) monthNames[m - 1].toLowerCase()];
+      return 'i ${names.sublist(0, names.length - 1).join(', ')} och ${names.last}';
+    });
 
     final canSave = computed(() => title.value.trim().isNotEmpty);
 
@@ -102,15 +113,31 @@ class AnnualWheelActivitySheet extends CompositionWidget {
               ),
             ),
             const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: recurrence.value,
+              decoration: const InputDecoration(
+                labelText: 'Återkommer',
+                prefixIcon: Icon(Icons.repeat),
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                for (final r in annualWheelRecurrences)
+                  DropdownMenuItem(value: r.value, child: Text(r.title)),
+              ],
+              onChanged: (v) => recurrence.value = v ?? recurrence.value,
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
                   flex: 2,
                   child: DropdownButtonFormField<int>(
                     initialValue: month.value,
-                    decoration: const InputDecoration(
-                      labelText: 'Månad',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: isRecurring(recurrence.value)
+                          ? 'Första månaden'
+                          : 'Månad',
+                      border: const OutlineInputBorder(),
                     ),
                     items: [
                       for (var m = 1; m <= 12; m++)
@@ -139,6 +166,16 @@ class AnnualWheelActivitySheet extends CompositionWidget {
                 ),
               ],
             ),
+            if (isRecurring(recurrence.value)) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Infaller ${monthsLabel.value}. Varje tillfälle bockas av för sig.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.value.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               initialValue: category.value,
@@ -194,7 +231,8 @@ class AnnualWheelActivitySheet extends CompositionWidget {
             const SizedBox(height: 8),
             Text(
               'Påminnelsen går via e-post och push till den ansvariga, eller till '
-              'alla som får redigera årshjulet om ingen är ansvarig.',
+              'alla som får redigera årshjulet om ingen är ansvarig. En '
+              'återkommande aktivitet påminns inför varje tillfälle.',
               style: TextStyle(
                 fontSize: 12,
                 color: theme.value.colorScheme.onSurfaceVariant,
@@ -212,6 +250,7 @@ class AnnualWheelActivitySheet extends CompositionWidget {
                         category: category.value,
                         responsible: responsible.value,
                         reminderDaysBefore: reminder.value,
+                        recurrence: recurrence.value,
                       ),
                     )
                   : null,

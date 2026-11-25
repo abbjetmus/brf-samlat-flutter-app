@@ -1,25 +1,26 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import '../../../core/models/pocketbase_models.dart';
 import '../annual_wheel_store.dart';
 
 /// Circular "årshjul": twelve month segments (January at the top, clockwise),
-/// one dot per activity coloured by category, a today marker and the year in
+/// one dot per occurrence coloured by category, a today marker and the year in
 /// the centre. Tapping a segment selects that month. Mirrors the web
 /// `AnnualWheelChart`.
 class AnnualWheelChart extends StatelessWidget {
   const AnnualWheelChart({
     super.key,
-    required this.activities,
-    required this.completedIds,
+    required this.occurrences,
+    required this.doneKeys,
     required this.year,
     required this.selectedMonth,
     required this.onSelect,
   });
 
-  final List<AnnualWheelActivitiesRecord> activities;
-  final Set<String> completedIds;
+  final List<AnnualWheelOccurrence> occurrences;
+
+  /// [AnnualWheelOccurrence.key]s that are checked off.
+  final Set<String> doneKeys;
   final int year;
   final int? selectedMonth;
   final ValueChanged<int?> onSelect;
@@ -27,7 +28,6 @@ class AnnualWheelChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final done = activities.where((a) => completedIds.contains(a.id)).length;
 
     return AspectRatio(
       aspectRatio: 1,
@@ -43,8 +43,8 @@ class AnnualWheelChart extends StatelessWidget {
             child: CustomPaint(
               size: Size.square(size),
               painter: _WheelPainter(
-                activities: activities,
-                completedIds: completedIds,
+                occurrences: occurrences,
+                doneKeys: doneKeys,
                 year: year,
                 selectedMonth: selectedMonth,
                 primary: theme.colorScheme.primary,
@@ -63,7 +63,7 @@ class AnnualWheelChart extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '$done/${activities.length} klara',
+                      '${doneKeys.length}/${occurrences.length} klara',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
@@ -96,8 +96,8 @@ const _innerRatio = 0.18;
 
 class _WheelPainter extends CustomPainter {
   _WheelPainter({
-    required this.activities,
-    required this.completedIds,
+    required this.occurrences,
+    required this.doneKeys,
     required this.year,
     required this.selectedMonth,
     required this.primary,
@@ -106,8 +106,8 @@ class _WheelPainter extends CustomPainter {
     required this.error,
   });
 
-  final List<AnnualWheelActivitiesRecord> activities;
-  final Set<String> completedIds;
+  final List<AnnualWheelOccurrence> occurrences;
+  final Set<String> doneKeys;
   final int year;
   final int? selectedMonth;
   final Color primary;
@@ -132,9 +132,11 @@ class _WheelPainter extends CustomPainter {
     final now = DateTime.now();
     final isCurrentYear = year == now.year;
 
-    final byMonth = List.generate(12, (_) => <AnnualWheelActivitiesRecord>[]);
-    for (final a in [...activities]..sort((x, y) => x.day - y.day)) {
-      if (a.month >= 1 && a.month <= 12) byMonth[a.month - 1].add(a);
+    final byMonth = List.generate(12, (_) => <AnnualWheelOccurrence>[]);
+    for (final o in [
+      ...occurrences,
+    ]..sort((x, y) => x.activity.day - y.activity.day)) {
+      if (o.month >= 1 && o.month <= 12) byMonth[o.month - 1].add(o);
     }
 
     final divider = Paint()
@@ -197,8 +199,8 @@ class _WheelPainter extends CustomPainter {
             ? (rDotsMin + rDotsMax) / 2
             : rDotsMax - row * (rDotsMax - rDotsMin) / (rows - 1);
         final pos = _point(c, r, _angle((i + (col + 1) / (inRow + 1)) / 12));
-        final done = completedIds.contains(items[k].id);
-        final color = categoryMeta(items[k].category).color;
+        final done = doneKeys.contains(items[k].key);
+        final color = categoryMeta(items[k].activity.category).color;
         canvas.drawCircle(pos, rOuter * 0.045, Paint()..color = surface);
         canvas.drawCircle(
           pos,
@@ -231,8 +233,8 @@ class _WheelPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WheelPainter old) =>
-      old.activities != activities ||
-      old.completedIds != completedIds ||
+      old.occurrences != occurrences ||
+      old.doneKeys != doneKeys ||
       old.year != year ||
       old.selectedMonth != selectedMonth ||
       old.primary != primary ||

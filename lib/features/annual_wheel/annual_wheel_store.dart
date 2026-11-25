@@ -69,8 +69,54 @@ const monthNames = [
   'December',
 ];
 
+/// How often an activity recurs. [step] = months between occurrences.
+/// Mirrors the web `ANNUAL_WHEEL_RECURRENCES`.
+class AnnualWheelRecurrence {
+  final String value;
+  final String title;
+  final int step;
+
+  const AnnualWheelRecurrence(this.value, this.title, this.step);
+}
+
+const annualWheelRecurrences = <AnnualWheelRecurrence>[
+  AnnualWheelRecurrence('yearly', 'Varje år', 12),
+  AnnualWheelRecurrence('half_yearly', 'Varje halvår', 6),
+  AnnualWheelRecurrence('quarterly', 'Varje kvartal', 3),
+  AnnualWheelRecurrence('monthly', 'Varje månad', 1),
+];
+
+AnnualWheelRecurrence recurrenceMeta(String? value) =>
+    annualWheelRecurrences.firstWhere(
+      (r) => r.value == value,
+      orElse: () => annualWheelRecurrences.first,
+    );
+
+bool isRecurring(String? recurrence) => recurrenceMeta(recurrence).step != 12;
+
+/// The months (1–12, ascending) an activity falls on during a year. [month]
+/// is the first occurrence and the steps wrap around the new year: quarterly
+/// from February gives Feb, May, Aug and Nov. Same rule as the PB hooks.
+List<int> occurrenceMonths(int month, String? recurrence) {
+  final start = month >= 1 && month <= 12 ? month : 1;
+  final step = recurrenceMeta(recurrence).step;
+  return [
+    for (var k = 0; k < 12 ~/ step; k++) ((start - 1 + k * step) % 12) + 1,
+  ]..sort();
+}
+
+/// One occurrence of an activity — one per year for yearly activities.
+class AnnualWheelOccurrence {
+  final AnnualWheelActivitiesRecord activity;
+  final int month;
+
+  const AnnualWheelOccurrence(this.activity, this.month);
+
+  String get key => '${activity.id}-$month';
+}
+
 /// Föreningens årshjul: återkommande aktiviteter per månad och avbockning per
-/// år (en rad i annual_wheel_completions per aktivitet och år).
+/// tillfälle (en rad i annual_wheel_completions per aktivitet, år och månad).
 class AnnualWheelStore {
   final PocketBase _pb;
   final auth.AuthStore _authStore;
@@ -89,12 +135,30 @@ class AnnualWheelStore {
   Ref<bool> get loading => _loading;
   Ref<int> get year => _year;
 
-  List<AnnualWheelActivitiesRecord> get sortedActivities => [
-    ..._activities.value,
-  ]..sort((a, b) => a.month != b.month ? a.month - b.month : a.day - b.day);
+  /// Every occurrence during the year, sorted by month and day.
+  List<AnnualWheelOccurrence> get occurrences =>
+      [
+        for (final a in _activities.value)
+          for (final m in occurrenceMonths(a.month, a.recurrence))
+            AnnualWheelOccurrence(a, m),
+      ]..sort(
+        (a, b) => a.month != b.month
+            ? a.month - b.month
+            : a.activity.day - b.activity.day,
+      );
 
-  AnnualWheelCompletionsRecord? completionFor(String activityId) =>
-      _completions.value.where((c) => c.activity == activityId).firstOrNull;
+  /// The completion for one occurrence. A yearly activity counts as done by
+  /// any completion that year, even if its month was moved afterwards.
+  AnnualWheelCompletionsRecord? completionFor(
+    AnnualWheelActivitiesRecord activity,
+    int month,
+  ) => _completions.value
+      .where(
+        (c) =>
+            c.activity == activity.id &&
+            (!isRecurring(activity.recurrence) || c.month == month),
+      )
+      .firstOrNull;
 
   String get _assocId => _authStore.association.value?.id ?? '';
 
@@ -144,6 +208,7 @@ class AnnualWheelStore {
     required String category,
     String? responsible,
     required int reminderDaysBefore,
+    required String recurrence,
   }) async {
     final body = <String, dynamic>{
       'association': _assocId,
@@ -154,6 +219,7 @@ class AnnualWheelStore {
       'category': category,
       'responsible': responsible ?? '',
       'reminder_days_before': reminderDaysBefore,
+      'recurrence': recurrence,
     };
     try {
       final collection = _pb.collection(Collections.annualWheelActivities);
@@ -185,9 +251,13 @@ class AnnualWheelStore {
     }
   }
 
-  Future<bool> setCompleted(String activityId, bool completed) async {
+  Future<bool> setCompleted(
+    AnnualWheelActivitiesRecord activity,
+    int month,
+    bool completed,
+  ) async {
     try {
-      final existing = completionFor(activityId);
+      final existing = completionFor(activity, month);
       if (!completed && existing != null) {
         await _pb
             .collection(Collections.annualWheelCompletions)
@@ -201,8 +271,9 @@ class AnnualWheelStore {
             .collection(Collections.annualWheelCompletions)
             .create(
               body: {
-                'activity': activityId,
+                'activity': activity.id,
                 'year': _year.value,
+                'month': month,
                 'association': _assocId,
               },
             );

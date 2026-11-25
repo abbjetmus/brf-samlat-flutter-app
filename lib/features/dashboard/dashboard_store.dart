@@ -93,12 +93,12 @@ class DashboardStore {
       final records = await _pb
           .collection(Collections.userNotificationsNotSeenCountView)
           .getList(page: 1, perPage: 1, filter: 'user="${user.id}"');
-      if (records.items.isNotEmpty) {
-        final record = UserNotificationsNotSeenCountViewRecord.fromJson(
-          records.items.first.toJson(),
-        );
-        _notSeenCount.value = record.notSeenCount;
-      }
+      // The view groups unseen rows by user, so a user with none has no row.
+      _notSeenCount.value = records.items.isEmpty
+          ? 0
+          : UserNotificationsNotSeenCountViewRecord.fromJson(
+              records.items.first.toJson(),
+            ).notSeenCount;
       return true;
     } catch (e) {
       debugPrint('DashboardStore: Error fetching not seen count: $e');
